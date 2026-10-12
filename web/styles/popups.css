@@ -1,0 +1,1231 @@
+/* The full run, thumbnails left and titles right, kept narrow enough to read
+   as a list rather than a second gallery. */
+.playlist-popup {
+  position: fixed;
+  inset: auto;
+  width: 360px;
+  margin: 0;
+  padding: 12px;
+  overflow-y: auto;
+  border: 0;
+  /* The control bar's glass and the curve of its 48px pill, so the list
+     reads as part of the player. The rows inside keep the radius less the
+     padding, so their corners run parallel to the panel's. */
+  border-radius: 24px;
+  background: linear-gradient(#222b, #121212c2);
+  color: #fff;
+  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  --shell-muted: #ffffffa0;
+  /* The panel is dark in either theme, so the shared button hover, which
+     brightens text to the strong colour, must not take light mode's ink. */
+  --color-text-strong: #fff;
+}
+.playlist-popup:not(:popover-open) { display: none; }
+/* The arrow sits out to the right of the name and its count, on the row the
+   two of them share. */
+.playlist-popup-head {
+  margin: 2px 4px 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+}
+.playlist-popup-head h2 { grid-column: 1; }
+.playlist-popup-note { grid-column: 1; }
+.playlist-popup-reverse {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  /* Held to the top of the name rather than centred against it and the count
+     below, so it sits the same distance from the panel's top edge as from its
+     right one; the head's margins are 2px and 4px inside the 12px padding. */
+  align-self: start;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  box-shadow: none;
+  color: rgba(255,255,255,.72);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+.playlist-popup-reverse .icon { width: 15px; height: 15px; }
+.playlist-popup-reverse:is(:hover, :focus-visible) {
+  background: rgba(255,255,255,.2);
+  box-shadow: none;
+  color: #fff;
+}
+.playlist-popup-reverse[aria-pressed="true"] {
+  background: var(--highlight-fill);
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+.playlist-popup-head h2 {
+  margin: 0;
+  font-size: var(--font-size-panel-title);
+  /* Playlist names run long, so the heading takes a second line before it
+     gives up, the same as the titles in the list below it. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.3;
+  overflow: hidden;
+}
+.playlist-popup-note { margin: 2px 0 0; color: var(--shell-muted); font-size: var(--font-size-control); }
+.playlist-popup-note[hidden] { display: none; }
+.playlist-popup-list { display: grid; gap: 2px; }
+/* Only the list scrolls, so the head stays in view. The divider is a 1px
+   border that is transparent until the list has scrolled (so nothing shifts
+   when it appears). */
+#watch-playlist-popup:popover-open {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#watch-playlist-popup .playlist-popup-list {
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  border-top: 1px solid transparent;
+  transition: border-color 140ms ease;
+}
+#watch-playlist-popup .playlist-popup-list[data-scrolled] { border-top-color: #ffffff1f; }
+.playlist-entry {
+  padding: 5px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  /* The shared control sheet keeps button text on one line; these rows are
+     titles, so they wrap and clamp instead of running off the side. */
+  white-space: normal;
+  text-align: left;
+  cursor: pointer;
+}
+.playlist-entry:hover { background: #ffffff14; }
+.playlist-entry.is-current { background: color-mix(in srgb, var(--watch-accent) 22%, transparent); }
+/* The formats panel holds names and sizes rather than thumbnails, so it is
+   only as wide as those read. */
+.format-popup { width: 260px; }
+.format-popup-list { display: grid; gap: 2px; }
+.format-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.format-entry:hover { background: #ffffff14; }
+.format-entry[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--watch-accent) 22%, transparent);
+}
+.format-entry-name { overflow: hidden; font-size: var(--font-size-body); text-overflow: ellipsis; white-space: nowrap; }
+.format-entry-detail { color: var(--shell-muted); font-size: var(--font-size-control); }
+.settings-popup { width: 280px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transition: width 180ms ease; }
+@media (prefers-reduced-motion: reduce) { .settings-popup { transition: none; } }
+.settings-popup[data-page="speed"] { width: 236px; }
+.settings-popup[data-page="subtitles"] { width: 320px; }
+.settings-popup[data-page="sponsorblock"] { width: 300px; }
+.settings-popup[data-page="immersive"] { width: 236px; }
+.settings-popup .playlist-popup-head { margin-bottom: 4px; }
+.settings-pages {
+  display: grid;
+  width: 100%;
+  overflow: hidden;
+  transition: height 180ms ease;
+}
+.settings-page {
+  grid-area: 1 / 1;
+  box-sizing: border-box;
+  width: 100%;
+  padding-bottom: 7px;
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+}
+.settings-page[data-settings-page="main"] { padding-bottom: 0; }
+.settings-page[data-settings-page="main"] { transform: translateX(0); }
+.settings-pages[data-page="speed"] .settings-page[data-settings-page="main"],
+.settings-pages[data-page="subtitles"] .settings-page[data-settings-page="main"],
+.settings-pages[data-page="immersive"] .settings-page[data-settings-page="main"],
+.settings-pages[data-page="background"] .settings-page[data-settings-page="main"],
+.settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="main"] { transform: translateX(-100%); }
+.settings-pages[data-page="speed"] .settings-page[data-settings-page="speed"] { transform: translateX(0); }
+.settings-pages[data-page="subtitles"] .settings-page[data-settings-page="speed"] { transform: translateX(-100%); }
+.settings-pages[data-page="subtitles"] .settings-page[data-settings-page="subtitles"] { transform: translateX(0); }
+.settings-pages[data-page="sponsorblock"] :is(.settings-page[data-settings-page="speed"], .settings-page[data-settings-page="subtitles"]) { transform: translateX(-100%); }
+.settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="sponsorblock"] { transform: translateX(0); }
+.settings-pages[data-page="immersive"] .settings-page[data-settings-page="immersive"] { transform: translateX(0); }
+.settings-pages[data-page="background"] .settings-page[data-settings-page="background"] { transform: translateX(0); }
+/* The heading needs air under it, or the first control reads as part of the
+   head rather than as the page's answer to it. */
+.settings-popup .settings-page-head { margin-bottom: 14px; }
+.settings-page-head { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; }
+.settings-page-head h2 { grid-column: 2; }
+.settings-page-head button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.08));
+  box-shadow: none;
+  color: rgba(255,255,255,.72);
+  line-height: 1;
+  place-items: center;
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+.settings-page-head button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.settings-page-head button:is(:hover, :focus-visible) {
+  background: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16));
+  box-shadow: none;
+  color: #fff;
+}
+.settings-link:hover { background: #ffffff14; }
+.settings-row {
+  display: grid;
+  min-height: 40px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: 12px;
+  font-size: var(--font-size-body);
+}
+/* Unlike the main autoplay row, these switches have no leading icon. Give
+   the label the flexible column and reserve the switch's full width. */
+.sponsorblock-toggle-row {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sponsorblock-toggle-row > .settings-toggle { justify-self: end; }
+.sponsorblock-toggle-row:hover { border-color: transparent; background: none; color: inherit; }
+.sponsorblock-toggle-row:focus-visible { outline: 2px solid #ffffff80; outline-offset: 2px; }
+.settings-menu-icon { display: grid; width: 20px; height: 20px; place-items: center; color: var(--shell-muted); }
+.settings-menu-icon svg { width: 18px; height: 18px; fill: currentColor; }
+.settings-menu-icon svg.settings-menu-outline { fill: none; stroke: currentColor; }
+.settings-link:not(.autoplay-row) > span:nth-child(2) { min-width: 0; }
+.settings-row[hidden], .settings-field[hidden], .settings-note[hidden], .settings-list[hidden], [data-subtitle-download][hidden] { display: none; }
+.settings-link { width: 100%; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.autoplay-row { appearance: none; font: inherit; }
+.settings-link:not(.autoplay-row) > span:last-child { color: var(--shell-muted); }
+.settings-link:not(.autoplay-row) > span:last-child::after { content: '  ›'; color: inherit; }
+.settings-field select { width: 100%; }
+/* A native list is drawn on the system's white, so its text has to be dark;
+   one drawn as a menu takes the menu's colours instead. */
+@supports not (appearance: base-select) {
+  .settings-field select option, .settings-field select optgroup { color: #111; }
+}
+.settings-field { display: grid; gap: 5px; padding: 0 8px 6px; }
+.settings-speed-value { display: block; padding: 0 8px 8px; font: 600 var(--font-size-body)/1 var(--font); }
+/* The same bar the player seeks with, so a speed reads as a position on a
+   scale rather than a form control: accent behind the thumb, and the thumb
+   itself the accent inside a white ring. */
+.settings-speed-slider {
+  --speed-fill: 0%;
+  width: calc(100% - 16px);
+  height: 18px;
+  margin: 0 8px;
+  appearance: none;
+  background: transparent;
+}
+/* The filled part is inset by half a thumb at each end, the way the seek bar
+   is, so the colour stops under the thumb rather than beyond it at 0.25x. */
+.settings-speed-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    linear-gradient(to right, var(--watch-accent) 0 var(--speed-fill), transparent var(--speed-fill) 100%)
+      no-repeat 7px 0 / calc(100% - 14px) 100%,
+    linear-gradient(var(--watch-accent), var(--watch-accent)) no-repeat 0 0 / 7px 100%,
+    linear-gradient(#ffffff38, #ffffff38);
+}
+.settings-speed-slider::-moz-range-track { height: 4px; border-radius: 999px; background: #ffffff38; }
+.settings-speed-slider::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--watch-accent); }
+.settings-speed-slider::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--watch-accent);
+  box-shadow: 0 1px 4px #0008;
+}
+.settings-speed-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--watch-accent);
+  box-shadow: 0 1px 4px #0008;
+}
+.settings-speed-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 14px 8px 2px; }
+.settings-speed-presets button {
+  display: grid;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.08));
+  box-shadow: none;
+  color: rgba(255,255,255,.72);
+  font: 600 var(--font-size-control)/1 var(--font);
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+.settings-speed-presets button:is(:hover, :focus-visible) {
+  background: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16));
+  box-shadow: none;
+  color: #fff;
+}
+/* The chosen rate wears the page's accent, the colour the slider fills in
+   and the video's own card carries, rather than the buttons' hue. */
+.settings-speed-presets button[aria-pressed="true"] {
+  background: var(--highlight-fill);
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+.settings-field > span { color: var(--shell-muted); font-size: var(--font-size-helper); }
+.settings-toggle {
+  display: grid;
+  width: 44px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+/* The subtitles page is two lists of the same rows: what the viewer holds,
+   then what the source offers. The fetchable list can run to a hundred
+   automatic translations, so it scrolls rather than stretching the menu. */
+.settings-heading {
+  margin: 10px 8px 4px;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+}
+.settings-list-scroll { max-height: 200px; overflow-y: auto; overscroll-behavior: contain; }
+.settings-option {
+  display: grid;
+  width: 100%;
+  min-height: 36px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font-size: var(--font-size-body);
+  text-align: left;
+  cursor: pointer;
+}
+.settings-option:is(:hover, :focus-visible):not(:disabled) { border-color: transparent; background: #ffffff14; color: inherit; }
+.settings-option:disabled { opacity: .45; cursor: default; }
+.settings-option > span:nth-child(2) { overflow: hidden; position: relative; top: 1px; padding-bottom: .15em; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.settings-option > span:last-child { color: var(--shell-muted); font-size: var(--font-size-control); }
+.settings-option-icon { width: 18px; height: 18px; fill: none; color: var(--shell-muted); stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* The icons are the menu's quiet ones, like the first page's; a tick is the
+   exception, being the answer rather than decoration. */
+.settings-option[aria-checked="true"] .settings-option-icon { color: inherit; }
+/* Only the chooser's rows borrow the icon column to say which is on. */
+.settings-option[role="radio"]:not([aria-checked="true"]) .settings-option-icon { visibility: hidden; }
+.settings-note { margin: 0; padding: 0 8px 6px; color: var(--shell-muted); font-size: var(--font-size-control); }
+.settings-note[data-background-note] { padding-top: 8px; padding-bottom: 0; }
+
+/* The middle column's card. Neutral rather than the accent's tint the facts
+   wear: a block of prose reads best on plain grey. */
+.archive-watch-description {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface-raised);
+  font-size: .9rem;
+  line-height: 1.5;
+}
+.archive-watch-description[hidden] { display: none; }
+.archive-watch-description > p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+.archive-watch-description.is-expanded > p { -webkit-line-clamp: unset; overflow: visible; }
+/* The toggle is one pill of the comments' sort group (.statistics-ranking),
+   at the head's right, so it reads as the same control. The head holds its
+   height whether or not the toggle is showing, so the card does not jump. */
+.archive-watch-description-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 28px; margin-bottom: 10px;
+}
+.archive-watch-description-head h2 { margin: 0; }
+.archive-watch-description-toggle button { display: inline-flex; align-items: center; gap: 6px; }
+.archive-watch-description-toggle button[hidden] { display: none; }
+.archive-watch-description-toggle .icon { width: 16px; height: 16px; transition: transform .2s ease; }
+.archive-watch-description-toggle button[aria-expanded="true"] .icon { transform: rotate(-180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .archive-watch-description-toggle .icon { transition: none; }
+}
+/* Adaptive watch page theme set to Player: the page's own panels and the player's controls take the
+   video's accent while the theme stays as chosen. The accent is on the page
+   as --card-accent once sampled; the flag skips a video that has none. */
+body[data-video-colours="player"][data-watch-accent] .archive-watch {
+  --watch-accent: var(--card-accent);
+}
+/* Under the title the page is a row of three when it is wide: the file's facts
+   in a small card, the description and comments as plain text in the middle,
+   and the neighbours in a column. Only the facts are boxed - a long scrolling
+   thread behind a tint reads as heavy - and when the page is narrow they all
+   stack, facts first. */
+.archive-watch-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 14px;
+}
+.archive-watch-lower > .archive-watch-facts { order: 2; }
+.archive-watch-lower > .archive-watch-story { order: 1; }
+.archive-watch-lower > .archive-watch-discussion { order: 3; }
+.archive-watch-lower > .archive-related { order: 4; }
+/* Three columns need the watch column to be wide, not the window: the column
+   is capped by the stage's height, so zooming in or a short window narrows it
+   while the window's width still reads as wide, and the middle was crushed.
+   940px is 250 + 320 for the sides, their gaps, and about 300 for the text
+   (the same number is WIDE_LOWER in the player controller). */
+@container watch-main (min-width: 940px) {
+  .archive-watch-lower {
+    grid-template-columns: 250px minmax(0, 1fr) 320px;
+    grid-template-areas: "facts story related" "facts comments related";
+    grid-template-rows: auto 1fr;
+    column-gap: 28px;
+    align-items: start;
+  }
+  .archive-watch-lower > .archive-watch-facts { grid-area: facts; }
+  .archive-watch-lower > .archive-watch-story { grid-area: story; }
+  .archive-watch-lower > .archive-watch-discussion { grid-area: comments; }
+  .archive-watch-lower > .archive-related { grid-area: related; }
+}
+/* A flat tint of the page's hue, as the creator and video cards wear. The
+   player's accent is left to the player: this card keeps the theme's. */
+body[data-video-colours="player"][data-watch-accent] .archive-watch-facts {
+  --watch-accent: var(--button-hue);
+}
+.archive-watch-facts {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--watch-accent) 12%, var(--color-surface));
+}
+.archive-watch-facts[hidden] { display: none; }
+.archive-watch-facts h2,
+.archive-watch-description-head h2,
+.archive-watch-comments-head h2 {
+  margin: 0 0 10px; color: var(--color-text); font-size: 16px; font-weight: 600;
+}
+.archive-watch-story:not(:has(> :not([hidden]))) { display: none; }
+.archive-watch-specs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+}
+/* In the narrow column the labels stay above their values, but closer. Beside
+   them they met the values: RESOLUTION is wider than any column that leaves
+   room for what it labels. */
+@container watch-main (min-width: 940px) {
+  .archive-watch-specs { grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  .archive-watch-specs dt { margin-bottom: 1px; font-size: 10px; letter-spacing: .08em; }
+  .archive-watch-specs dd { font-size: 13px; line-height: 1.3; }
+}
+.archive-watch-specs > div { min-width: 0; }
+.archive-watch-specs dt {
+  margin-bottom: 3px;
+  /* The labels wear the brighter accent a card's channel name does: a muted
+     grey is legible on the page but goes flat against a panel the accent has
+     lifted, and the pale grey in the mix keeps it readable over any of them. */
+  color: color-mix(in srgb, var(--watch-accent) 30%, #e8e8e8);
+  font-size: var(--font-size-helper);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.archive-watch-specs dd { margin: 0; font-size: var(--font-size-control); overflow-wrap: anywhere; }
+
+/* Chapter dots ride over the shared player's seek input. The markers never
+   take pointer events, so scrubbing behaves exactly as it does without them;
+   the hover is driven from our own listener on the input instead. */
+/* Timeline positions follow the thumb's inset travel. The heat and sponsor
+   gradients extend their endpoint colours across the remaining edge space. */
+.archive-seek-track { position: relative; display: flex; min-width: 80px; flex: 1; }
+.archive-seek-track [data-media-seek] { width: 100%; min-width: 0; }
+/* Paint heat and SponsorBlock into the track, beneath the native thumb.
+   White heat with alpha brightens the layers beneath it like screen blending. */
+.archive-seek-track [data-media-seek] {
+  --archive-track-background:
+    var(--archive-heat, linear-gradient(transparent, transparent)) no-repeat 0 0 / 100% 100%,
+    var(--range-segments) no-repeat 0 0 / 100% 100%,
+    linear-gradient(to right, var(--range-accent) 0 var(--range-progress), transparent var(--range-progress) 100%) no-repeat calc(var(--range-thumb) / 2) 0 / calc(100% - var(--range-thumb)) 100%,
+    linear-gradient(var(--range-accent), var(--range-accent)) no-repeat 0 0 / calc(var(--range-thumb) / 2) 100%,
+    linear-gradient(var(--archive-track-base, #ffffff38), var(--archive-track-base, #ffffff38));
+}
+.media-player-controls .archive-seek-track input[data-media-seek]::-webkit-slider-runnable-track {
+  background: var(--archive-track-background);
+}
+.media-player-controls .archive-seek-track input[data-media-seek]::-moz-range-track {
+  background: var(--archive-track-background);
+}
+/* The solid thumb follows the current SponsorBlock colour. */
+.media-player-controls .archive-seek-track input[data-media-seek]::-webkit-slider-thumb {
+  background: var(--archive-playhead-colour, var(--range-accent));
+}
+.media-player-controls .archive-seek-track input[data-media-seek]::-moz-range-thumb {
+  background: var(--archive-playhead-colour, var(--range-accent));
+}
+button.archive-watch-action { padding: 0; background: none; cursor: pointer; }
+.archive-watch-action[aria-pressed="true"] { color: #fff; }
+.archive-watch-action[aria-pressed="true"] .icon { fill: currentColor; stroke: none; }
+
+/* SponsorBlock's detailed policy belongs to the app settings drawer; the
+   player menu only carries controls for the video and its channel. */
+.sponsorblock-drawer-body { display: grid; gap: 32px; padding: var(--drawer-content-top) var(--drawer-inset) 28px; --watch-accent: #cc0000; container-type: inline-size; }
+/* The drawer's groups are headed and raised as Appearance's are: the switch is
+   a block of its own, the categories one block, the overrides another. */
+.sponsorblock-drawer .sponsorblock-global-toggle,
+.sponsorblock-drawer .sponsorblock-global-toggle:hover { padding: 18px; border-radius: 14px; background: var(--raised-surface); }
+.sponsorblock-block, .sponsorblock-options > div { padding: 8px 14px; border-radius: 14px; background: var(--raised-surface); }
+.sponsorblock-overrides-block { display: grid; gap: 4px; padding: 14px 18px; }
+.sponsorblock-overrides-block > [data-sponsorblock-overrides]:empty { display: none; }
+.sponsorblock-attribution { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); }
+.sponsorblock-attribution a { color: inherit; }
+.sponsorblock-overrides { display: grid; gap: 4px; }
+.sponsorblock-overrides h3, .sponsorblock-options legend { margin: 0 0 8px 2px; color: var(--shell-muted); font-size: var(--font-size-label); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.sponsorblock-overrides > p { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); }
+.sponsorblock-overrides > input { width: 100%; margin: 3px 0 5px; }
+.sponsorblock-override-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.sponsorblock-override-row > span { display: grid; flex: 1; min-width: 0; }
+.sponsorblock-override-row strong { overflow: hidden; text-overflow: ellipsis; font-size: var(--font-size-body); white-space: nowrap; }
+.sponsorblock-override-row small { color: var(--shell-muted); }
+.sponsorblock-override-row button { border: 0; background: none; color: var(--shell-muted); font: inherit; font-size: var(--font-size-control); cursor: pointer; }
+.sponsorblock-override-row button:hover { color: var(--shell-fg); }
+.sponsorblock-channel-setting { margin-top: 8px; }
+.sponsorblock-icon { fill: currentColor; stroke: none; }
+.sponsorblock-options { display: grid; gap: 2px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.sponsorblock-options > div { display: grid; gap: 2px; }
+.sponsorblock-options legend { padding: 0; }
+.sponsorblock-options:disabled { opacity: .45; }
+.sponsorblock-options:disabled .sponsorblock-option { cursor: default; }
+.sponsorblock-option {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) 124px 104px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 4px;
+  font-size: var(--font-size-body);
+}
+.sponsorblock-option-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The four mode buttons and the speed slider need about 240px between them,
+   which leaves a category's name a sliver once the drawer is phone-width. The
+   name takes a line of its own there and the controls sit beneath it. */
+@container (max-width: 400px) {
+  .sponsorblock-option { grid-template-columns: 10px 124px minmax(0, 1fr); row-gap: 2px; }
+  .sponsorblock-option-name { grid-column: 2 / -1; grid-row: 1; }
+  .sponsorblock-swatch { grid-row: 1; }
+  .sponsorblock-modes { grid-column: 2; grid-row: 2; }
+  .sponsorblock-speed-control { grid-column: 3; grid-row: 2; }
+}
+.sponsorblock-swatch { width: 10px; height: 10px; border-radius: 3px; }
+/* Four buttons rather than one segmented control, in the round the drawers,
+   the topbar and the folder rows all use: a quiet disc at rest, lit under the
+   pointer, and the chosen one lit in the accent the library and profile rows
+   take for the same job. */
+.sponsorblock-modes {
+  display: flex;
+  gap: 4px;
+  justify-self: start;
+}
+.sponsorblock-modes button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.sponsorblock-modes button:focus-visible { outline: none; }
+.sponsorblock-modes svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
+/* Its two chevrons run from x=3 to x=20 in a 24-wide box, so the glyph sits
+   half a unit left of centre and reads further left still against the discs
+   either side of it. Nudged back by eye. */
+.sponsorblock-modes button[data-mode="fast"] svg { transform: translateX(1px); }
+.sponsorblock-modes button[data-mode="skip"] svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sponsorblock-speed-control { display: grid; grid-template-columns: minmax(62px, 1fr) 28px; align-items: center; gap: 6px; margin-left: 8px; transition: opacity .15s ease; }
+.sponsorblock-speed-control.is-disabled { opacity: .35; }
+.sponsorblock-speed-control { --sponsor-slider-colour: var(--color-accent-light); }
+.sponsorblock-speed-control input {
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.sponsorblock-speed-control input::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(to right,
+    var(--sponsor-slider-colour) 0 var(--sponsor-speed-fill),
+    #ffffff38 var(--sponsor-speed-fill) 100%);
+}
+.sponsorblock-speed-control input::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--sponsor-slider-colour);
+}
+.sponsorblock-speed-control input::-moz-range-track { height: 3px; border-radius: 999px; background: #ffffff38; }
+.sponsorblock-speed-control input::-moz-range-progress { height: 3px; border-radius: 999px; background: var(--sponsor-slider-colour); }
+.sponsorblock-speed-control input::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--sponsor-slider-colour);
+}
+.sponsorblock-speed-control input:disabled { cursor: default; }
+.sponsorblock-speed-control output { color: var(--shell-muted); font-size: var(--font-size-helper); font-variant-numeric: tabular-nums; text-align: right; }
+/* The offer a "notify" category makes: a pill over the player's controls,
+   close enough to the bar to belong to the segment it is about. */
+.archive-sponsor-prompt {
+  position: absolute;
+  bottom: 82px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid #ffffff24;
+  border-radius: 999px;
+  background: #000000cc;
+  box-shadow: 0 6px 18px #0009;
+  color: #fff;
+  font-size: var(--font-size-body);
+  transform: translateX(-50%);
+  backdrop-filter: blur(8px);
+}
+.archive-sponsor-prompt[hidden] { display: none; }
+.archive-sponsor-prompt-skip {
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #cc0000;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.archive-sponsor-prompt-skip:hover { background: #e11; }
+.archive-sponsor-prompt-dismiss {
+  display: grid;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #ffffffa8;
+  cursor: pointer;
+}
+.archive-sponsor-prompt-dismiss:hover { color: #fff; }
+.archive-sponsor-prompt-dismiss .icon { width: 14px; height: 14px; }
+/* The dots are furniture for scrubbing, so they only exist while the pointer
+   is on the bar, and stay dim until it comes near one. */
+.archive-chapter-markers {
+  position: absolute;
+  top: 0;
+  right: calc(var(--range-thumb) / 2);
+  bottom: 0;
+  left: calc(var(--range-thumb) / 2);
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+.archive-seek-track:hover .archive-chapter-markers,
+.archive-seek-track:focus-within .archive-chapter-markers { opacity: 1; }
+.archive-chapter-dot {
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: .4;
+  transform: translateY(-50%);
+  transition: width 120ms ease, height 120ms ease, margin-left 120ms ease,
+              opacity 120ms ease;
+}
+.archive-chapter-dot.is-active { opacity: .65; }
+.archive-chapter-dot.is-near { opacity: .8; }
+.archive-chapter-dot.is-hovered {
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  opacity: 1;
+}
+/* The player's own preview pill now also carries a chapter name, so cap it
+   rather than letting a long one stretch the bubble across the video. */
+.archive-watch-stage .media-player-seek-preview-time {
+  max-width: min(280px, 60vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-related[hidden] { display: none; }
+/* Wide: a column beside the facts and words. Dropping the container makes the
+   row-fitting queries below find nothing to match, so every neighbour stays. */
+@container watch-main (min-width: 940px) {
+  .archive-watch-lower > .archive-related { margin: 0; container: none; }
+  .archive-watch-lower .archive-related-list { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  /* How many cards the column shows is decided in drawRelated's fitRelated,
+     by the height of what stands beside it. */
+  .archive-watch-lower .archive-related-list > .video-card[data-fit="hidden"] { display: none; }
+}
+/* One row of neighbours under the details, not a rail beside the video: the
+   page stays a single column, so the player keeps the full width. */
+.archive-related { container: archive-related / inline-size; margin: 24px 2px 0; }
+/* The heading (more from the channel, or the playlist's name) is kept for
+   screen readers and not drawn: the cards say whose they are. */
+.archive-related-head {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.archive-related h2 { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); letter-spacing: .04em; text-transform: uppercase; }
+.archive-related-list {
+  display: grid;
+  /* A gallery-sized track, so a lone neighbour is a gallery card and not a
+     second player: auto-fill keeps the empty tracks rather than stretching one
+     card across the page. Fixed per card size rather than --video-card-min,
+     which grows with the window: the watch column stops widening, so on a
+     large window that minimum wrapped the row, then left two wide cards where
+     three fit. Each is the floor of that size's gallery clamp, and the
+     thresholds below are written for these widths. */
+  --related-card: 380px;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--related-card), 100%), 1fr));
+  gap: 14px;
+}
+body[data-card-size="small"] .archive-related-list { --related-card: 280px; }
+body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
+/* The row is one row: whatever does not fit at this width is dropped rather
+   than wrapped, so the details below stay where the eye left them. Each
+   threshold is where another track of that size fits alongside the 14px gaps,
+   n * width + (n - 1) * 14, so they are written out per size - a container
+   query cannot read the custom property above. */
+@container archive-related (max-width: 573.99px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+}
+@container archive-related (min-width: 574px) and (max-width: 867.99px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 3) { display: none; }
+}
+@container archive-related (min-width: 868px) and (max-width: 1161.99px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 4) { display: none; }
+}
+@container archive-related (min-width: 1162px) and (max-width: 1455.99px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 5) { display: none; }
+}
+@container archive-related (min-width: 1456px) and (max-width: 1749.99px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 6) { display: none; }
+}
+@container archive-related (min-width: 1750px) and (max-width: 2043.99px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 7) { display: none; }
+}
+@container archive-related (min-width: 2044px) {
+  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 8) { display: none; }
+}
+@container archive-related (max-width: 773.99px) {
+  body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+}
+@container archive-related (min-width: 774px) and (max-width: 1167.99px) {
+  body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 3) { display: none; }
+}
+@container archive-related (min-width: 1168px) and (max-width: 1561.99px) {
+  body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 4) { display: none; }
+}
+@container archive-related (min-width: 1562px) and (max-width: 1955.99px) {
+  body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 5) { display: none; }
+}
+@container archive-related (min-width: 1956px) {
+  body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 6) { display: none; }
+}
+@container archive-related (max-width: 973.99px) {
+  body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+}
+@container archive-related (min-width: 974px) and (max-width: 1467.99px) {
+  body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 3) { display: none; }
+}
+@container archive-related (min-width: 1468px) and (max-width: 1961.99px) {
+  body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 4) { display: none; }
+}
+@container archive-related (min-width: 1962px) {
+  body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 5) { display: none; }
+}
+/* The heart stays off a related card - it is a pointer to a video, not the
+   place to curate it - but the menu is the same one the gallery card has, and
+   without it the footer had nothing to set its height by, so a card with no
+   playlist chip sat shorter than the rest of the row. */
+.archive-related-list .video-favourite-button { display: none; }
+.watch-thumbnail-transition {
+  position: fixed;
+  /* Under the topbar (z-index 100), which the gallery also scrolls behind. */
+  z-index: 95;
+  display: block;
+  margin: 0;
+  object-fit: cover;
+  border-radius: 34px;
+  pointer-events: none;
+}
+.watch-thumbnail-transition-enter { position: absolute; }
+
+@media (max-width: 900px) {
+  .archive-watch { padding: 12px var(--page-gutter) 40px; }
+  .archive-watch-specs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .archive-shell { padding: 0 0 48px; }
+  .archive-gallery { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .archive-watch { --watch-avatar: 40px; }
+  .archive-watch-heading h1 { font-size: 1.15rem; }
+  .archive-watch-specs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+  /* The player runs to the screen's edges on a phone. A rounded frame held
+     inside the gutter spends width the video has little of to begin with, and
+     the control bar is inset from the player's own edges anyway, so the
+     corners it was rounded to clear are no longer near them. The stage pulls
+     back out through the gutter the column around it keeps. */
+  .archive-watch-main { max-width: none; }
+  .archive-watch-stage {
+    max-width: none;
+    margin-inline: calc(var(--page-gutter) * -1);
+    border-radius: 0;
+  }
+  /* Edge to edge, there is nothing beside the stage for the glow to light,
+     and scaled both ways it reached a few pixels past the window and the
+     whole page scrolled sideways by that much, control bar and all. */
+  .archive-watch-stage > .archive-ambient-glow { transform: scaleY(1.035); }
+}
+/* On its side the edge-to-edge frame would be as tall as it is wide, taller
+   than the window. It keeps the height-limited width of the wide layout. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+  .archive-watch:not(.is-mini) .archive-watch-main { max-width: calc(var(--watch-stage-height) * (16 / 9)); }
+  .archive-watch:not(.is-mini) .archive-watch-stage {
+    max-width: calc(var(--watch-stage-height) * (var(--watch-aspect)));
+    margin-inline: auto;
+  }
+}
+
+/* ---- downloads ---- */
+/* The delete question. A centred panel rather than a drawer: it is asked in
+   front of what it is about, and answering it is the only way on. It wears the
+   menu's own surface, and the copies inside it are menu rows — nothing here is
+   a card, so nothing is drawn as one. */
+.confirm-dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 32px));
+  max-width: none;
+  margin: auto;
+  padding: 18px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--color-dialog-bg);
+  color: var(--shell-fg);
+  box-shadow: var(--shadow-menu);
+}
+.confirm-dialog::backdrop { background: #0009; }
+.topbar-new-playlist {
+  flex-shrink: 0; white-space: nowrap; min-width: 0; max-width: 180px;
+  box-sizing: border-box; overflow: hidden; transform-origin: right center;
+  transition: background 140ms ease, box-shadow 140ms ease, max-width 220ms ease,
+    padding 220ms ease, margin 220ms ease, opacity 160ms ease, scale 220ms ease,
+    visibility 0s;
+}
+.topbar-new-playlist .icon { width: 16px; height: 16px; }
+:root .topbar .topbar-new-playlist:not(:hover):not(:focus-visible) {
+  color: var(--shell-fg);
+  background: linear-gradient(var(--color-control-bg), var(--color-control-bg));
+  box-shadow: none;
+}
+body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
+  max-width: 0; padding-inline: 0; margin-inline-end: -20px;
+  opacity: 0; scale: .6; visibility: hidden; pointer-events: none;
+  transition-delay: 0s, 0s, 0s, 0s, 0s, 0s, 0s, 220ms;
+}
+@media (max-width: 600px) {
+  .topbar .topbar-search { transition: flex-basis 220ms ease; }
+  body[data-view="playlists"]:not(.watch-open) .topbar .topbar-search { flex-basis: calc(100% - 160px); }
+  .topbar-new-playlist { order: 3; padding-inline: 8px 12px; }
+  /* Hidden, the button still wrapped onto a row of its own under the search,
+     and the topbar's row gap and padding left an empty strip below the field.
+     Out of the flow it takes no row. */
+  body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist { position: absolute; margin-inline-end: -6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .topbar-new-playlist, .topbar .topbar-search { transition: none; }
+}
+/* The title field's border reaches 9px past its text, so the gap is wider than
+   the other drawers' to leave the buttons clear of it. */
+.playlist-editor .download-drawer-head { flex-wrap: wrap; gap: 10px 22px; }
+.playlist-editor-identity { flex: 1 1 180px; min-width: 0; }
+/* The title is the field. At rest it must be indistinguishable from the
+   heading it replaces; only while editing does it become a field. The selector
+   is as long as it is to outrank the chrome's `input[type="text"]`. */
+.playlist-editor input[type="text"].playlist-editor-title-input {
+  font: inherit; color: inherit; min-width: 0; outline: none;
+  /* A snug padding and border, made invisible and then
+     cancelled by the margin, so the text sits where the heading's did. */
+  padding: 5px 8px; border: 1px solid transparent; border-radius: var(--radius-md);
+  margin: -6px -9px; width: calc(100% + 18px); box-sizing: border-box; background: none; box-shadow: none;
+}
+/* While editing it is the same field as every other in a drawer. */
+.playlist-editor input[type="text"].playlist-editor-title-input:focus {
+  background: var(--field-bg); border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+.playlist-editor input.playlist-editor-title-input::placeholder { color: var(--shell-muted); }
+.playlist-editor .download-drawer-actions { margin-left: auto; }
+.playlist-editor-content { display: grid; gap: 20px; }
+.playlist-editor-content > section + section { padding-top: 20px; border-top: 1px solid var(--shell-line); }
+.playlist-editor-content h3 { margin: 0 0 8px; font-size: var(--font-size-panel-title); font-weight: 600; }
+.playlist-editor-search { position: relative; display: flex; align-items: center; }
+.playlist-editor-search > .icon { position: absolute; left: 12px; width: 16px; height: 16px; color: var(--shell-muted); pointer-events: none; }
+.playlist-editor-search input { width: 100%; height: 38px; box-sizing: border-box; padding-left: 36px; }
+.playlist-editor-members { list-style: none; margin: 0; padding: 0; }
+.playlist-editor-hint, .playlist-editor-empty { margin: 10px 0 0; color: var(--shell-muted); font-size: var(--font-size-helper); line-height: 1.5; }
+.playlist-add-name { width: calc(100% - 16px); box-sizing: border-box; margin: 4px 8px; }
+.playlist-add-menu .playlist-editor-error { padding: 4px 12px 8px; }
+/* Armed, the bin widens to a pill saying Confirm, in the red the delete
+   dialogs use (the radius is half the button's height, or a wide button
+   would turn into an ellipse). The width is a fixed
+   length rather than auto, since only lengths animate; the label is clipped
+   until it is there. The selector is long to beat the shared round-button rule
+   below, whose `transition` would otherwise replace this one and leave the
+   width jumping while only the label animates. */
+.download-drawer-head .icon-button.close-icon-button.playlist-confirm {
+  display: inline-flex; align-items: center; justify-content: flex-start; overflow: hidden; border-radius: 18px;
+  /* The icon is pinned at the 36px square's centre ((36 - 20) / 2), not
+     centred in whatever width the button has, or it drifts as it widens. */
+  padding: 0 0 0 8px;
+  transition: width var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
+}
+.playlist-confirm .icon { flex: none; }
+/* Save already keeps 12px clear on its right; this leaves the same before Close. */
+.download-drawer-head .icon-button.close-icon-button.playlist-delete { margin-inline-end: 12px; }
+.playlist-confirm-label { max-width: 0; opacity: 0; white-space: nowrap; font-size: var(--font-size-control); transition: max-width var(--motion-fast), opacity var(--motion-fast), margin var(--motion-fast); }
+.download-drawer-head .icon-button.close-icon-button.playlist-confirm.danger,
+.download-drawer-head .icon-button.close-icon-button.playlist-confirm.danger:is(:hover, :focus-visible) {
+  width: 94px; box-shadow: none;
+  background: linear-gradient(color-mix(in srgb, var(--color-danger) 20%, transparent),
+    color-mix(in srgb, var(--color-danger) 20%, transparent));
+  color: var(--color-danger-text);
+}
+.playlist-confirm.danger .playlist-confirm-label { max-width: 6em; margin-left: 6px; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .download-drawer-head .icon-button.close-icon-button.playlist-confirm, .playlist-confirm-label { transition: none; } }
+.playlist-editor-footer { padding: 0 var(--drawer-inset) 24px; }
+.playlist-editor-footer:empty { display: none; }
+.playlist-editor-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.playlist-editor-note { margin: 0; color: var(--shell-muted); font-size: var(--font-size-helper); }
+.drawer-heading-block > .playlist-editor-note { padding: 0 var(--drawer-inset) 12px; }
+.playlist-editor-error { margin: 0; padding: 0 var(--drawer-inset) 12px; color: var(--color-danger); font-size: var(--font-size-control); }
+@media (max-width: 400px) {
+}
+.confirm-dialog h2 { margin: 0 2px; font-size: var(--font-size-dialog-title); line-height: 1.3; }
+.confirm-dialog-note {
+  margin: 8px 2px 0;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  line-height: 1.45;
+}
+.confirm-dialog-list {
+  display: grid;
+  gap: 2px;
+  margin-top: 14px;
+  /* A playlist can be hundreds of rows; the buttons stay on screen. */
+  max-height: 45vh;
+  overflow-y: auto;
+}
+.confirm-dialog-total { margin: 12px 2px 0; font-size: var(--font-size-control); font-weight: 600; }
+/* A playlist's rows are longer than a format's: the panel opens out, titles
+   truncate rather than scroll the list sideways, and the sizes line up in a
+   column at the right. */
+.confirm-dialog.is-playlist { width: min(640px, calc(100vw - 32px)); }
+.confirm-dialog-list { overflow-x: hidden; }
+.is-playlist .delete-version-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.is-playlist .delete-version-detail { justify-self: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* A copy's own line, laid out and lit like a menu item: the tick, what it is
+   and how big, and under those the name of the file that actually goes. The
+   name starts where the quality does, so the two read as one row rather than
+   wrapping round the box. */
+.delete-version {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+/* Lit like the playlist's rows rather than like a menu item: these are a list
+   of things, and the accent the menu uses for a command carries text that is
+   white all through, which the quality's size and filename are not. */
+.delete-version:not(.is-sole):hover { background: #ffffff14; }
+.delete-version:not(.is-sole):hover .delete-version-name { color: var(--color-text-strong); }
+.delete-version:not(.is-sole):hover :is(.delete-version-detail, .delete-version-file) {
+  color: var(--color-text);
+}
+.delete-version.is-sole { padding-inline: 2px; cursor: default; background: none; }
+.delete-version input { margin: 0; accent-color: var(--color-danger); }
+.delete-version input[hidden] { display: none; }
+.delete-version-name { font-size: var(--font-size-control); }
+.delete-version-detail { color: var(--shell-muted); font-size: var(--font-size-helper); }
+.delete-version-file {
+  grid-column: 2 / -1;
+  overflow: hidden;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.delete-version.is-sole .delete-version-file { grid-column: 1 / -1; }
+/* Cancel is held apart from the two that delete, so the pointer cannot slip
+   from backing out into removing everything. */
+.confirm-dialog-actions { display: flex; gap: 8px; margin-top: 16px; }
+.confirm-dialog-actions [data-delete-cancel] { margin-right: auto; }
+/* Three buttons with long labels do not fit side by side on a phone: stack
+   them full width, the deleting ones first and Cancel last, under the thumb
+   but away from the destructive ones. */
+@media (max-width: 560px) {
+  #delete-dialog .confirm-dialog-actions { flex-direction: column-reverse; }
+  #delete-dialog .confirm-dialog-actions [data-delete-cancel] { margin-right: 0; }
+  #delete-dialog .confirm-dialog-button { width: 100%; justify-content: center; text-align: center; }
+}
+.download-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  box-sizing: border-box;
+  width: min(600px, 94vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--color-menu-bg);
+  color: var(--shell-fg);
+  box-shadow: var(--shadow-menu);
+  /* One inset for the heading and the rows alike, so every line of text in
+     the drawer starts at the same place. */
+  --drawer-inset: 20px;
+  --drawer-content-top: 16px;
+  transform: translateX(100%);
+  transition: transform 260ms ease;
+  /* Keep a wheel or touch scroll that reaches the end of the drawer from
+     chaining on to the gallery behind it. */
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.download-drawer[open] { transform: translateX(0); }
+.download-drawer.is-closing { transform: translateX(100%); }
+@starting-style {
+  .download-drawer[open] { transform: translateX(100%); }
+}
+.download-drawer::backdrop { background: #0008; opacity: 0; transition: opacity 260ms ease; }
+.download-drawer[open]::backdrop { opacity: 1; }
+.download-drawer.is-closing::backdrop { opacity: 0; }
+@starting-style {
+  .download-drawer[open]::backdrop { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .download-drawer, .download-drawer::backdrop, #subscriptions-drawer > * { transition: none; }
+  :is(.topbar-go-main, .topbar-go-options, .topbar-subscribe, .topbar-go-main .icon) { transition: none; }
+}
+.download-drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px var(--drawer-inset);
+}
+.download-drawer-head, .drawer-heading-block {
+  /* See-through enough that rows scrolling beneath it blur rather than cut
+     off, as under the topbar. */
+  background: color-mix(in srgb, var(--raised-surface) 82%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.drawer-heading-block {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.drawer-heading-block > .download-drawer-head {
+  position: static;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.download-drawer-head > div:first-child { min-width: 0; }
+.download-drawer-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.drawer-add { display: flex; align-items: center; gap: 6px; }
+.download-drawer-actions .drawer-add { margin-inline-end: 12px; }
+.drawer-add .icon { width: 16px; height: 16px; }
+/* A label with no icon: .profile-add leaves less room on its start side for one. */
+.drawer-add.drawer-add-text { justify-content: center; padding-inline: 18px; }
+.drawer-add:disabled { opacity: .5; cursor: default; }
+.libraries-form[hidden] { display: none; }
+.download-drawer-head .icon-button:disabled { opacity: .35; cursor: default; }
+/* The two lines are set to the buttons' 36px height (19 + 4 + 13), so the
+   heading's top and the subheading's bottom line up with the button outlines
+   instead of floating inside them at the font's default leading. */
+.download-drawer-head h2 { margin: 0; font-size: var(--font-size-dialog-title); line-height: 19px; }
+.download-drawer-head p { margin: 4px 0 0; color: var(--shell-muted); font-size: var(--font-size-control); line-height: 13px; }
+/* While the playlist's title is being typed the subheading fades out and the
+   title drops to the buttons' centre ((36 - 19) / 2). Both are transforms, so
+   the header keeps its 36px box and nothing around it reflows. */
+.playlist-editor-identity :is(h2, p) {
+  transition: transform var(--motion-fast), opacity var(--motion-fast);
+}
+.playlist-editor-identity:has(.playlist-editor-title-input:focus) h2 { transform: translateY(8.5px); }
+.playlist-editor-identity:has(.playlist-editor-title-input:focus) p { opacity: 0; transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) { .playlist-editor-identity :is(h2, p) { transition: none; } }
+.download-jobs { padding: var(--drawer-content-top) var(--drawer-inset) 28px; }
+/* Downloads are a list, not a stack of cards: the rows are split by the same
+   faint rule the library and subscription panels use, so the drawer reads as
+   one column rather than a shelf of outlines. */
+.download-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.download-pending-source, .download-pending-settings {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: var(--font-size-control);
+  overflow-wrap: anywhere;
+}
+.download-pending-source { line-height: 1.35; }
+.download-pending-settings { margin-top: 3px; }
+.download-row[data-state="done"] .media-row-title,
+.download-row[data-state="cancelled"] .media-row-title { color: var(--shell-muted); }
+.download-row-cancel {
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--shell-muted);
+  font: inherit;
+  font-size: var(--font-size-control);
+  cursor: pointer;
+}
+.download-row-cancel:hover, .download-row-cancel:focus-visible { color: var(--shell-fg); }
+.download-row-detail, .download-empty {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: var(--font-size-control);
+  overflow-wrap: anywhere;
+}
+/* The title and the channel are one label and read as a pair; what the
+   download is doing is a separate thought, so it gets the air. */
+.download-row-detail { margin-top: 7px; }
+.download-row-detail[data-error="true"] { color: #f5a39c; }
+.download-track {
+  height: 3px;
+  margin-top: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--shell-line);
+  overflow: hidden;
+}
+.download-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(to right, var(--logo-1), var(--logo-2), var(--logo-3), var(--logo-4));
+  transition: width .3s ease;
+}
+.download-track.is-indeterminate .download-bar {
+  width: 45%;
+  animation: live-download-progress 1.8s ease-in-out infinite,
+    live-download-colours 3.6s linear infinite;
+}
+@keyframes live-download-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(325%); }
+}
+@keyframes live-download-colours {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(130deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .download-track.is-indeterminate .download-bar {
+    width: 100%;
+    animation: none;
+  }
+}
+.download-row[data-state="failed"] .download-bar { background: #f28b82; }
+.download-row[data-state="cancelled"] .download-bar,
+.download-row[data-state="paused"] .download-bar { background: var(--shell-muted); }
+/* What the download is doing and how far it has got are one block, and the
+   buttons sit beside all of it rather than under the row or next to the
+   title: the bar is the thing that can spare the width. */
+.download-row-foot { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.download-row-status { flex: 1; min-width: 0; }
+.download-row-actions { display: flex; flex: none; gap: 4px; position: relative; }
+/* A row with a bar reads as text over a rule, and the eye takes the pair's
+   centre to be lower than the box's, so the buttons drop to meet it. An
+   offset rather than a margin, which would push the row open. */
+.download-row-status:has(.download-track) + .download-row-actions { top: 4px; }
+.download-row-action {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.download-row-action .icon { width: 15px; height: 15px; }
+.download-row-action .icon.is-solid { fill: currentColor; stroke: none; }
+.download-empty { padding: 14px 0; }
+/* The drawer's own top padding already sets the first thing's distance from
+   the heading, so the first empty message or row must not add its own. */
+.download-jobs > .download-empty:first-child,
+.download-jobs > .download-list:first-child > .download-row:first-child { padding-top: 0; }

@@ -1,0 +1,127 @@
+.media-player, .media-player *, .media-player *::before, .media-player *::after { box-sizing: border-box; }
+/* The video and the canvas paint in their own compositing layers, which
+   Firefox puts above the player's own painting and outside its rounded
+   overflow clip: the corners come back square, a zoom change shows the
+   rounding for the frame it takes to re-raster, and a shape painted over the
+   corners is covered by the video rather than covering it. The mask is what
+   fixes it - it forces the player to composite as one group, with the video
+   inside - and the clip-path rounds that group. Hosts state the frame as
+   --player-radius-top/-bottom so all three stay in step. */
+.media-player { --card-accent: var(--media-card-accent, oklch(62% .02 300)); --player-radius-top: 0px; --player-radius-bottom: 0px; position: relative; overflow: hidden; border-radius: var(--player-radius-top) var(--player-radius-top) var(--player-radius-bottom) var(--player-radius-bottom); clip-path: inset(0 round var(--player-radius-top) var(--player-radius-top) var(--player-radius-bottom) var(--player-radius-bottom)); mask-image: linear-gradient(#000 0 0); width: 100%; aspect-ratio: 16 / 9; background: #050505; color: white; font-family: var(--media-card-font, system-ui); }
+/* Fullscreen is edge to edge: there is no frame to round. */
+.media-player:fullscreen { --player-radius-top: 0px; --player-radius-bottom: 0px; }
+.media-player-poster, .media-player-video, .media-player-canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; }
+.media-player-poster { display: block; object-fit: cover; }
+.media-player-poster[hidden] { display: none; }
+.media-player[data-player-state="playing"] .media-player-poster,
+.media-player[data-player-state="paused"] .media-player-poster { display: none; }
+/* Audio has no frame to replace the thumbnail when playback begins. */
+.media-player.is-audio-only .media-player-poster:not([hidden]) { display: block; z-index: 1; }
+.media-player-audio-visual { position: absolute; bottom: var(--audio-controls-bottom, 70px); left: 12px; z-index: 3; display: none; padding: 10px 14px; border-radius: 22px; background: linear-gradient(#222b, #121212c2); box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--card-accent); pointer-events: none; transition: bottom 180ms ease; }
+.media-player.is-audio-only .media-player-audio-visual { display: grid; justify-items: center; }
+.media-player[data-player-state="playing"].is-controls-hidden .media-player-audio-visual { bottom: var(--audio-video-bottom, 12px); }
+.media-player-audio-icon { display: grid; width: 72px; height: 72px; place-items: center; }
+.media-player-audio-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 3px 4px #0009); }
+.media-player-audio-waveform { display: flex; width: 56px; height: 28px; align-items: center; justify-content: center; gap: 2px; filter: drop-shadow(0 2px 3px #0009); }
+.media-player-audio-waveform span { display: block; flex: none; width: 3px; height: 3px; border-radius: 999px; background: currentColor; }
+@media (prefers-reduced-motion: reduce) { .media-player-audio-visual { transition: none; } }
+/* Until there is something to play, the poster is the picture. The video sits
+   above it in the markup and paints its own black background before it has any
+   frames, so a player that is only staged must not show it at all - a loaded
+   poster underneath a black video reads as a black player. */
+.media-player-video { display: none; object-fit: contain; background: black; cursor: pointer; }
+.media-player[data-player-state="playing"] .media-player-video,
+.media-player[data-player-state="paused"] .media-player-video { display: block; }
+/* A video the browser cannot decode would show only black, or at best a frame
+   per seek, so its poster stays the picture. The video keeps its box, hidden,
+   for anything sampling it. */
+.media-player.is-unplayable .media-player-poster:not([hidden]) { display: block; }
+.media-player.is-unplayable .media-player-video { visibility: hidden; }
+.media-player-canvas { display: none; cursor: grab; }
+/* A projected video is drawn through the canvas, so the video element stays in
+   the layout - the canvas samples it - but only the canvas is seen. */
+.media-player.is-projected:not(.is-raw) .media-player-video { visibility: hidden; }
+.media-player[data-player-state="playing"].is-projected:not(.is-raw) .media-player-canvas,
+.media-player[data-player-state="paused"].is-projected:not(.is-raw) .media-player-canvas { display: block; }
+.media-player-controls { --range-thumb: 14px; --range-segments: linear-gradient(transparent, transparent); position: absolute; right: auto; bottom: 10px; left: 50%; translate: -50% 0; z-index: 4; width: calc(100% - 20px); min-width: min(520px, 100vw - 32px); display: flex; height: 48px; align-items: center; gap: 8px; padding: 8px; border-radius: 999px; background: linear-gradient(#222b, #121212c2); box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005; backdrop-filter: blur(12px); opacity: 1; transition: opacity 180ms ease; }
+/* A portrait video makes a player narrower than the row of controls needs,
+   and the buttons past the seek bar were simply unreachable. The bar holds its
+   own width instead and is centred on the player, so on a narrow one it stands
+   a little proud of the frame rather than losing its right-hand end. The
+   minimum is a comfortable width for the seek bar rather than the bare
+   min-content the controls would squeeze into, capped so that however narrow
+   the window gets the bar never reaches past it. */
+.media-player[data-player-state="poster"] .media-player-controls { left: 10px; width: 48px; min-width: 0; translate: none; }
+.media-player[data-player-state="poster"] .media-player-controls > :not([data-media-play]) { display: none; }
+.media-player[data-player-state="playing"].is-controls-hidden .media-player-controls { opacity: 0; pointer-events: none; }
+.media-player[data-player-state="playing"].is-controls-hidden,
+.media-player[data-player-state="playing"].is-controls-hidden .media-player-video,
+.media-player[data-player-state="playing"].is-controls-hidden .media-player-canvas { cursor: none; }
+.media-player-controls button { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; display: grid; width: 32px; min-width: 32px; height: 32px; place-items: center; padding: 5px; border: 0; border-radius: 50%; background: transparent; color: white; cursor: pointer; }
+.media-player-controls [hidden] { display: none; }
+.media-player-controls button:focus-visible { background: #ffffff2e; outline: none; }
+@media (hover: hover) { .media-player-controls button:hover { background: #ffffff2e; } }
+.media-player-controls .icon { width: 19px; height: 19px; }
+.media-icon-pause, .media-icon-minimize, .media-icon-raw { display: none; }
+.media-player[data-player-state="playing"] .media-icon-play, .media-player:fullscreen .media-icon-maximize { display: none; }
+.media-player[data-player-state="playing"] .media-icon-pause, .media-player:fullscreen .media-icon-minimize { display: block; }
+.media-player.is-raw .media-icon-projected { display: none; }
+.media-player.is-raw .media-icon-raw { display: block; }
+[data-media-volume-toggle] .icon { display: none; }
+[data-media-volume-toggle][data-volume-state="high"] .media-icon-volume-high,
+[data-media-volume-toggle][data-volume-state="medium"] .media-icon-volume-medium,
+[data-media-volume-toggle][data-volume-state="zero"] .media-icon-volume-zero,
+[data-media-volume-toggle][data-volume-state="muted"] .media-icon-volume-muted { display: block; }
+/* Every control icon is drawn as an outline by the icon() helper in
+   MediaPlayer.js; play and pause read as solid transport glyphs instead. */
+.media-player-controls .media-icon-play, .media-player-controls .media-icon-pause { fill: currentColor; stroke: none; }
+.media-player-controls [data-media-time] { min-width: 88px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.media-player-controls [data-media-seek] { min-width: 80px; flex: 1; }
+.media-player-controls [data-media-volume] { width: 72px; }
+/* The fill is laid over the thumb's travel rather than the whole track:
+   a thumb only ever reaches half its own width from either end, so a fill
+   spanning the full width leaves the head of the bar half a thumb ahead of
+   the handle that is meant to be marking it. The half-thumb before that
+   travel begins is painted solid, and never shows from under the thumb.
+   Anything a consumer draws over this bar should use the same inset, and
+   anything belonging to the run itself — chapters marked out, segments a
+   consumer wants coloured in — can go in `--range-segments`, which is laid
+   over the fill and under the thumb. That slot is painted with the same
+   inset, so its 0% and 100% are where the thumb stops, not where the track
+   ends: a gradient whose stops already account for the thumb's travel is
+   inset twice and leaves half a thumb bare at each end, which shows as a gap
+   under a stretch that runs to the very start or end of a video. Such a
+   consumer wants the layer laid across the full width instead. */
+/* Both sliders share a subdued accent below the seek segment colours. */
+:is(.media-player-controls, .media-player-volume-popup) input[type="range"] { --range-accent: oklch(from var(--card-accent) min(l, .70) c h); --range-progress: 0%; height: 18px; margin: 0; appearance: none; background: transparent; accent-color: var(--range-accent); }
+.media-player-controls [data-media-volume] { --range-progress: 100%; }
+:is(.media-player-controls, .media-player-volume-popup) input[type="range"]::-webkit-slider-runnable-track { height: 4px; border: 0; border-radius: 999px; background: var(--range-segments) no-repeat calc(var(--range-thumb) / 2) 0 / calc(100% - var(--range-thumb)) 100%, linear-gradient(to right, var(--range-accent) 0 var(--range-progress), transparent var(--range-progress) 100%) no-repeat calc(var(--range-thumb) / 2) 0 / calc(100% - var(--range-thumb)) 100%, linear-gradient(var(--range-accent), var(--range-accent)) no-repeat 0 0 / calc(var(--range-thumb) / 2) 100%, linear-gradient(var(--range-rest, #ffffff38), var(--range-rest, #ffffff38)); }
+:is(.media-player-controls, .media-player-volume-popup) input[type="range"]::-moz-range-track { height: 4px; border: 0; border-radius: 999px; background: var(--range-segments) no-repeat calc(var(--range-thumb) / 2) 0 / calc(100% - var(--range-thumb)) 100%, linear-gradient(to right, var(--range-accent) 0 var(--range-progress), transparent var(--range-progress) 100%) no-repeat calc(var(--range-thumb) / 2) 0 / calc(100% - var(--range-thumb)) 100%, linear-gradient(var(--range-accent), var(--range-accent)) no-repeat 0 0 / calc(var(--range-thumb) / 2) 100%, linear-gradient(var(--range-rest, #ffffff38), var(--range-rest, #ffffff38)); }
+:is(.media-player-controls, .media-player-volume-popup) input[type="range"]::-webkit-slider-thumb { width: 14px; height: 14px; margin-top: -5px; appearance: none; border: 0; border-radius: 50%; background: var(--range-accent); }
+:is(.media-player-controls, .media-player-volume-popup) input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--range-accent); }
+.media-player-message { position: absolute; top: 12px; left: 12px; z-index: 5; padding: 7px 10px; border-radius: 7px; background: #090909d9; }
+.media-player-message[hidden] { display: none; }
+.media-player-seek-preview { position: absolute; z-index: 8; display: flex; flex-direction: column; align-items: center; gap: 5px; color: white; pointer-events: none; transform: translateX(-50%); }
+.media-player-seek-preview[hidden], .media-player-seek-preview-image[hidden] { display: none; }
+.media-player-seek-preview-image { display: block; width: 256px; height: 144px; border-radius: 9px; background-repeat: no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+.media-player-seek-preview-time { padding: 7px 11px; border: 0; border-radius: 999px; background: linear-gradient(to bottom, rgba(34,34,34,.72), rgba(18,18,18,.72)); box-shadow: inset 0 1px rgba(255,255,255,.14); font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.media-player:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; }
+@media (max-width: 620px) { .media-player-controls [data-media-volume], .media-player-controls [data-media-time] { display: none; } }
+/* Inline, the slider's wrapper is no box at all, so the slider sits in the bar
+   as its own flex item. Once the bar has dropped it, the volume button stands
+   it up in a pill above itself instead (see openVolume), with the mute
+   button the volume button no longer is at its foot. The pill wears the
+   bar's glass, and its corners are its radius less its padding, so the mute
+   button's run parallel to them. The slider is turned rather than laid out
+   vertically so that the track and thumb styling above carries over
+   unchanged, and the pill takes the touch itself so a drag sets the level
+   rather than scrolling the page. It is drawn by its own is-open class, not
+   the player's, so a bar elsewhere can put up the same pill (see
+   lib/volume-popup.js). */
+.media-player-volume-popup { display: contents; }
+.media-player-volume-popup.is-open { --range-thumb: 14px; --range-segments: linear-gradient(transparent, transparent); position: fixed; inset: auto; display: block; width: 44px; height: 152px; margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 22px; background: linear-gradient(#222b, #121212c2); color: #fff; box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); touch-action: none; }
+.media-player-volume-popup.is-open input[type="range"] { position: absolute; top: 60px; left: 50%; display: block; width: 88px; height: 36px; margin: 0; translate: -50% -50%; rotate: -90deg; }
+.media-player.is-volume-open [data-media-volume-toggle] { background: #ffffff2e; }
+.media-player-volume-popup [data-media-mute] { display: none; }
+.media-player-volume-popup.is-open [data-media-mute] { position: absolute; bottom: 6px; left: 6px; display: grid; }
+.media-player-volume-popup [data-media-mute][aria-pressed="true"] { background: #ffffff2e; }

@@ -1,0 +1,540 @@
+/* Page chrome shared by media applications: the topbar and its
+   search field, round icon buttons, menu popovers, the status toast, and the
+   control base (buttons and fields) they all sit on. Consumers link this sheet
+   and follow its class contract; the markup lives in each app.
+
+   The consumer-specific selectors kept in the :where() lists below (#toggle-actors,
+   body.actors-open, .thumbnail-*, .actor-editor-popover) are inert elsewhere. */
+@import url("./tokens.css");
+
+/* ── Controls ────────────────────────────── */
+
+button, a.btn {
+  --button-bg: var(--surface);
+  --button-border: var(--border);
+  --button-text: var(--text);
+  --button-bg-hover: #1a1a1a;
+  --button-border-hover: #2c2c2c;
+  --button-text-hover: var(--color-text-strong);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 2px;
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  transition: background-color var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast);
+}
+
+/* The display above would otherwise win over the hidden attribute. */
+button[hidden], a.btn[hidden] { display: none; }
+
+button:hover, a.btn:hover {
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
+  color: var(--button-text-hover);
+}
+
+button:focus-visible, a.btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 75%, white);
+  outline-offset: 2px;
+}
+
+button:disabled, a.btn[aria-disabled="true"] {
+  cursor: default;
+  opacity: .45;
+  pointer-events: none;
+}
+
+button.danger {
+  --button-text: var(--danger);
+  --button-bg-hover: #1a1010;
+  --button-border-hover: #2c1a1a;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="password"],
+select,
+textarea {
+  --field-bg: var(--color-field-bg);
+  --field-border: var(--color-field-border);
+  --field-text: var(--color-field-text);
+  color-scheme: dark;
+  font-family: var(--font);
+  font-size: var(--font-size-control);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  color: var(--field-text);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  transition: background-color var(--motion-fast), border-color var(--motion-fast);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-field-placeholder);
+  opacity: 1;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="password"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+input[type="search"]::-webkit-search-cancel-button { display: none; }
+
+select { cursor: pointer; }
+
+/* An open select draws its list the way the menus do, rather than in the
+   system's highlight blue. Only browsers with customisable selects can be
+   asked; the rest keep their native list, so everything sits behind the
+   @supports. The picker takes the menu tokens, which the light theme already
+   redefines, so it follows the theme with nothing of its own. */
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  select::picker-icon {
+    opacity: .6;
+    transition: rotate var(--motion-fast);
+  }
+
+  select:open::picker-icon { rotate: 180deg; }
+
+  select::picker(select) {
+    margin-block: 4px;
+    padding: 4px;
+    border: 1px solid var(--menu-border, var(--color-menu-border));
+    border-radius: var(--menu-radius, 9px);
+    background: var(--menu-bg, var(--color-menu-bg));
+    color: var(--menu-text, var(--text));
+    box-shadow: var(--menu-shadow, var(--shadow-menu));
+  }
+
+  select option {
+    gap: 8px;
+    padding: var(--menu-item-padding, 7px 10px);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+  }
+
+  select option:is(:hover, :focus-visible) {
+    outline: none;
+    background: var(--menu-item-hover, var(--color-menu-item-hover));
+    color: var(--color-text-strong);
+  }
+
+  select option:checked { font-weight: 600; }
+
+  select option::checkmark { color: var(--color-accent-bright, currentColor); }
+
+  select optgroup { padding-top: 4px; }
+
+  select optgroup legend {
+    padding: 4px 10px;
+    opacity: .6;
+    font-size: .85em;
+  }
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.close-icon-button {
+  color: rgba(255,255,255,0.86);
+}
+
+
+/* ── Menus ───────────────────────────────── */
+
+:where(.settings-menu, .menu-popover, .thumbnail-settings-popup, .actor-editor-popover) {
+  border: 1px solid var(--menu-border, var(--color-menu-border));
+  border-radius: var(--menu-radius, 9px);
+  background: var(--menu-bg, var(--color-menu-bg));
+  color: var(--menu-text, var(--text));
+  box-shadow: var(--menu-shadow, var(--shadow-menu));
+}
+
+/* A menu hangs off the actions group by default, which is right for a single
+   trigger. Wrap a trigger and its menu in .topbar-menu when the bar has
+   several, so each one opens under the button that owns it. */
+.topbar-menu { position: relative; display: flex; }
+
+.settings-menu {
+  --menu-width: 176px;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 210;
+  width: var(--menu-width);
+  padding: 5px;
+}
+
+.settings-menu[hidden] {
+  display: none;
+}
+
+.settings-menu .menu-divider {
+  height: 1px;
+  margin: 5px 9px;
+  background: var(--menu-border, var(--color-menu-border));
+}
+
+:where(.settings-menu, .menu-popover, .thumbnail-type-menu) button[role^="menuitem"] {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: var(--menu-item-padding, 9px 10px);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+:where(.settings-menu, .menu-popover, .thumbnail-type-menu) button[role^="menuitem"]:hover,
+:where(.settings-menu, .menu-popover, .thumbnail-type-menu) button[role^="menuitem"]:focus-visible {
+  outline: none;
+  background: var(--menu-item-hover, var(--color-menu-item-hover));
+  color: var(--color-text-strong);
+}
+
+.settings-menu [role="menuitemcheckbox"][aria-checked="true"] {
+  background: var(--color-menu-item-hover);
+  color: var(--color-text-strong);
+}
+
+.settings-menu [role="menuitemcheckbox"]::after {
+  content: '✓';
+  margin-left: auto;
+  opacity: 0;
+}
+
+.settings-menu [role="menuitemcheckbox"][aria-checked="true"]::after {
+  opacity: 1;
+}
+
+/* ── Topbar ──────────────────────────────── */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px var(--page-gutter);
+  min-height: 47px;
+  background: var(--bg);
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background-color 350ms ease-in-out;
+}
+
+.topbar.is-scrolled {
+  background: rgba(24, 24, 24, .75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar { transition: none; }
+}
+
+.topbar[hidden] { display: none; }
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #e8dcef;
+  text-decoration: none;
+  user-select: none;
+}
+
+.topbar-brand:hover { color: #fff; }
+.topbar-brand:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+.topbar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+.topbar .topbar-search input {
+  flex: 1;
+  min-width: 0;
+  margin: 3px 0;
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  padding-left: 36px;
+  padding-right: 36px;
+}
+
+.topbar-search > .topbar-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--color-text);
+  opacity: .65;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.topbar-search > .icon-tabler-user-search,
+body.actors-open .topbar-search > .icon-tabler-search { display: none; }
+
+body.actors-open .topbar-search > .icon-tabler-user-search { display: block; }
+
+.topbar-actions {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.topbar-navigation { display: flex; flex-shrink: 0; gap: 4px; }
+.topbar-navigation > .icon-button { background: transparent; border-color: transparent; color: rgba(255,255,255,.7); }
+.topbar-navigation > .icon-button:hover { background: rgba(255,255,255,.1); color: #fff; }
+.topbar-navigation > .icon-button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-accent) 38%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent-light) 55%, transparent);
+  color: #fff;
+}
+
+.topbar-actions .icon-button,
+#toggle-settings,
+#toggle-actors {
+  border-color: transparent;
+  background: transparent;
+  color: rgba(255,255,255,.7);
+}
+
+.topbar-actions a.icon-button {
+  border: 1px solid transparent;
+}
+
+.topbar-actions .icon-button:hover,
+.topbar-actions .icon-button:focus-visible,
+.topbar-actions .icon-button[aria-expanded="true"],
+#toggle-settings:hover,
+#toggle-settings[aria-expanded="true"],
+#toggle-actors:hover {
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.topbar-actions .icon-button[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--color-accent-bright) 72%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 72%, transparent);
+  color: #fff;
+}
+
+#toggle-actors[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--color-accent-light) 55%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 38%, transparent);
+  color: #fff;
+}
+
+.topbar-search input {
+  background: rgba(48, 48, 48, .45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: none;
+}
+
+.topbar-search input:hover {
+  background: rgba(48, 48, 48, .6);
+}
+
+.topbar-search input:focus {
+  background: rgba(48, 48, 48, .6);
+  border-color: var(--color-accent);
+  outline: none;
+  box-shadow: none;
+}
+
+.search-clear-button {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: inline-flex;
+  width: 21px;
+  min-height: 21px;
+  height: 21px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transform: translateY(-50%);
+  border-color: transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: #aaa;
+  font-size: 14px;
+  line-height: 1;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 120ms ease, visibility 120ms;
+}
+
+.entity-search-label:has(input:not(:placeholder-shown)) .search-clear-button,
+.topbar-search:has(input:not(:placeholder-shown)) .search-clear-button,
+.search-field:has(input:not(:placeholder-shown)) .search-clear-button {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.search-clear-button:hover,
+.search-clear-button:focus-visible {
+  border-color: #555;
+  background: #3a3a3a;
+  color: #fff;
+}
+
+.search-clear-button .icon {
+  width: 13px;
+  height: 13px;
+}
+
+
+
+/* ── Status toast ────────────────────────── */
+
+.status-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 300;
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 8px 13px;
+  transform: translate(-50%, calc(100% + 36px));
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-deep);
+  box-shadow: 0 8px 28px rgba(30,12,42,0.38);
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 240ms ease, opacity 200ms ease, visibility 240ms;
+}
+
+.status-toast.is-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.status-toast::first-letter {
+  text-transform: uppercase;
+}
+
+.status-toast.is-error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.status-toast.is-clickable {
+  cursor: pointer;
+}
+
+.status-toast[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-toast {
+    transition: opacity 120ms ease, visibility 120ms;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .topbar-search {
+    order: 3;
+    flex: 1 1 100%;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .topbar-actions {
+    margin-left: auto;
+  }
+}

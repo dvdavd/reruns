@@ -1,0 +1,650 @@
+/* The shared in-field search count, left of the clear button. */
+.topbar-search .entity-summary {
+  position: absolute;
+  top: 50%;
+  right: 35px;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+.topbar .topbar-search:has(.entity-summary:not([hidden])) input { padding-right: 105px; }
+/* A static leading glass: typing already searches, so this is a label for
+   the field rather than a button. It becomes a globe once the field holds a
+   link, cross-fading in place rather than popping with display:none. */
+.topbar-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--shell-muted);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 160ms ease;
+}
+.topbar-search:not([data-mode="link"]) .topbar-search-icon-search,
+.topbar-search[data-mode="link"] .topbar-search-icon-link { opacity: 1; }
+.archive-summary { margin: 10px 0 0; color: var(--shell-muted); font-size: var(--font-size-helper); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The topbar's sticky shell carries its glass: solid at the top of the page,
+   and see-through and blurred once scrolled. */
+.topbar-shell {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background-color 350ms ease-in-out,
+              backdrop-filter 350ms ease-in-out,
+              -webkit-backdrop-filter 350ms ease-in-out;
+}
+.topbar-shell:has(> .topbar.is-scrolled) { background: rgba(24, 24, 24, .75); }
+/* The player's top edge drives the glass directly, without a timed fade
+   trailing behind the scroll position. */
+body.watch-open:not([data-player-lighting="off"]) .topbar-shell:has(> .topbar) {
+  background: rgba(24, 24, 24, var(--watch-header-alpha, 0));
+  backdrop-filter: blur(var(--watch-header-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--watch-header-blur, 0px));
+  transition: none;
+}
+body.is-leaving-watch .topbar-shell { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .topbar-shell { transition: none; }
+}
+.topbar-shell > .topbar {
+  position: relative;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* The field is followed by its go button, the topbar buttons' height: a
+   magnifying glass that becomes a download arrow for a link, grey while the
+   field is empty and lit once it isn't. A divider splits off the arrow that
+   opens the download options, and Subscribe joins it only for a link. */
+.topbar-search { flex-flow: row nowrap; align-items: center; gap: 6px; }
+/* With the go button and Subscribe both collapsed to zero width, the flex
+   gaps around them would otherwise leave a dead strip after the field. */
+.topbar-search:not([data-mode="link"]) { gap: 0; }
+@media (max-width: 600px) { .topbar-subscribe { padding: 0 12px; font-size: var(--font-size-body); } }
+/* A link puts Download, its arrow and Subscribe in the row, and the field is
+   the only part that can give: at 700px it was down to 134px, less of an
+   address than a domain. Under this width they take a line of their own,
+   ending where the field ends. Only for a link, since the search field alone
+   never needs the room and the collapsed buttons would leave an empty 36px
+   line behind them. */
+@media (max-width: 860px) {
+  .topbar-search[data-mode="link"] { flex-wrap: wrap; row-gap: 8px; }
+  .topbar-search[data-mode="link"] .topbar-search-field { flex: 1 1 100%; }
+  .topbar-search[data-mode="link"] .topbar-go { margin-left: auto; }
+}
+.topbar-search-field { position: relative; display: flex; flex: 1; min-width: 0; }
+.topbar-go { display: flex; flex-shrink: 0; height: 36px; }
+.topbar-go button, .topbar-subscribe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.08));
+  box-shadow: none;
+  color: rgba(255,255,255,.72);
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease,
+    width 220ms ease, border-radius 220ms ease, padding 220ms ease;
+}
+/* Each half rounds its own outer end, so its hover fill curves with it. */
+.topbar-go-main { width: 52px; padding-left: 4px; border-radius: 18px 0 0 18px; overflow: hidden; }
+.topbar-go-options {
+  position: relative;
+  width: 30px;
+  padding-right: 4px;
+  border-radius: 0 18px 18px 0;
+  overflow: hidden;
+}
+/* Typing already searches, so the go button has nothing to do until a link
+   turns it into Download; collapsed to zero width (not display:none) so the
+   switch animates. */
+.topbar-search:not([data-mode="link"]) .topbar-go-options { width: 0; padding: 0; }
+.topbar-search:not([data-mode="link"]) .topbar-go-main { width: 0; padding: 0; border-radius: 0; }
+.topbar-go-options::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: currentColor;
+  opacity: .35;
+  transition: opacity 140ms ease;
+}
+/* Either half lit on hover reads as its own button, so the divider goes. */
+.topbar-go:has(button:is(:hover, :focus-visible)) .topbar-go-options::before,
+.topbar-go-options[aria-expanded="true"]::before { opacity: 0; }
+.topbar-go .icon { width: 20px; height: 20px; flex-shrink: 0; }
+.topbar-go-options .icon { width: 16px; height: 16px; transition: transform 160ms ease; }
+.topbar-go-options[aria-expanded="true"] .icon { transform: rotate(-180deg); }
+.topbar-go button:is(:hover, :focus-visible), .topbar-go-options[aria-expanded="true"], .topbar-subscribe:is(:hover, :focus-visible) {
+  background: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16));
+  box-shadow: none;
+  color: #fff;
+}
+.topbar-search[data-filled="true"] .topbar-go button {
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 10%), var(--highlight-fill));
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+.topbar-search[data-filled="true"] .topbar-go button:is(:hover, :focus-visible),
+.topbar-search[data-filled="true"] .topbar-go-options[aria-expanded="true"] {
+  color: var(--highlight-foreground);
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 16%), color-mix(in srgb, var(--highlight-fill), #fff 6%));
+}
+.topbar-subscribe {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  font: 600 var(--font-size-body)/1 var(--font);
+  white-space: nowrap;
+  opacity: 0;
+  transition: width 220ms ease, padding 220ms ease, opacity 160ms ease,
+    background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+.topbar-search[data-mode="link"] .topbar-subscribe { width: 90px; padding: 0 18px; opacity: 1; }
+/* Browse and the YouTube search action share one button whose width follows its contents,
+   set here rather than measured so it animates like Subscribe does. Collapsed
+   it gives back the flex gap a link's row would otherwise leave beside it. */
+.topbar-browse { display: flex; align-items: center; justify-content: center; gap: 7px; margin-left: -6px; }
+.topbar-browse-source-icon { width: 18px; height: 18px; flex: none; }
+.topbar-search[data-browse="search"] .topbar-browse-link-label,
+.topbar-search:not([data-browse="search"]) .topbar-browse-search-label { display: none; }
+.topbar-search[data-mode="link"]:not([data-browse]) .topbar-browse,
+.topbar-search[data-mode="link"][data-browse=""] .topbar-browse { width: 0; padding: 0; opacity: 0; }
+.topbar-search[data-browse="link"] .topbar-browse { width: 104px; padding: 0 12px; opacity: 1; margin-left: 0; }
+.topbar-search[data-browse="search"] .topbar-browse { width: 104px; padding: 0 12px; opacity: 1; margin-left: 6px; }
+.topbar-search:not([data-mode="link"]) .topbar-browse { margin-left: 0; }
+.topbar-search[data-browse="link"]:not([data-mode="link"]) .topbar-browse { margin-left: 6px; }
+.topbar-search[data-browse="search"]:not([data-mode="link"]) .topbar-browse { margin-left: 6px; }
+.topbar-search[data-browse="search"][data-browse-missing="true"] .topbar-browse {
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 10%), var(--highlight-fill));
+  color: var(--highlight-foreground);
+}
+.topbar-search[data-browse="search"][data-browse-missing="true"] .topbar-browse:is(:hover, :focus-visible) {
+  color: var(--highlight-foreground);
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 16%), color-mix(in srgb, var(--highlight-fill), #fff 6%));
+}
+
+/* One field material for the panels: the drawers and the profile editor
+   inside one. The package already ships a complete
+   field — placeholder, disabled, a focus ring in the accent — driven by three
+   custom properties, so a panel retunes those rather than declaring a field
+   of its own. The surface is the translucent grey the panels are built from,
+   which sits on a drawer's sheet better than the package's flat #151515.
+
+   The chrome keeps its own look, declared with the buttons it belongs to:
+   the search field, the options popover and the player's settings all sit
+   among buttons rather than in a form, and take the buttons' grey. */
+.download-drawer :is(input[type="text"], input[type="search"],
+  input[type="number"], input[type="password"], select, textarea) {
+  --field-bg: #ffffff12;
+  --field-border: #ffffff24;
+}
+
+/* The folder form in library settings: a field and its Add button, the
+   button matching the field's height and lit in the buttons' colour. The
+   field is the panel's, like every other field in a drawer; only its height
+   is set here, to keep the button beside it on the same line. */
+.libraries-form { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+.libraries-path-label { display: flex; flex: 1; min-width: 0; }
+.libraries-form input { width: 100%; min-height: 36px; }
+/* Adding a folder is the field's own action rather than a word beside it, so
+   it is the round button the rest of the chrome uses, sized to the field's
+   height and lit in the buttons' colour as the pill before it was. */
+.libraries-add {
+  display: grid;
+  flex: none;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+.libraries-add .icon { width: 18px; height: 18px; }
+.profile-add, .profile-save, .profile-cancel {
+  justify-content: center;
+  min-height: 36px;
+  padding-inline: 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  color: #fff;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+#download-queue-toggle {
+  position: relative;
+  overflow: visible;
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease,
+    width 220ms ease, margin 220ms ease, opacity 160ms ease, scale 220ms ease;
+}
+/* With nothing queued or kept there is nothing to open, so the button folds
+   away, taking the bar's gap with it so settings keeps its place at the end.
+   Visibility waits for the fold, so it shrinks rather than blinks out. */
+#download-queue-toggle[data-empty="true"] {
+  width: 0;
+  margin-right: -6px;
+  opacity: 0;
+  scale: .6;
+  visibility: hidden;
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease,
+    width 220ms ease, margin 220ms ease, opacity 160ms ease, scale 220ms ease,
+    visibility 0s 220ms;
+}
+#download-queue-toggle[data-active="true"] {
+  border-color: color-mix(in srgb, var(--color-accent-bright) 72%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 72%, transparent);
+  color: #fff;
+}
+/* While downloads remain, the count replaces the icon in the middle of the
+   button, and a ring just inside its edge tracks the download in flight. Nothing sits on
+   the ring, so it reads cleanly all the way round. */
+#download-queue-toggle[data-progress="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(#fff
+    calc(var(--download-progress, 0) * 1%), #0000 0);
+  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, #0000 calc(100% - 3px), #000 calc(100% - 3px));
+  pointer-events: none;
+}
+/* Before the first percentage arrives — queued, or reading a playlist — a short
+   arc runs round in place of the measured one, so the button looks busy rather
+   than stuck at nothing done. */
+#download-queue-toggle[data-waiting="true"]::after {
+  background: conic-gradient(#fff 25%, #0000 0);
+  animation: download-ring-spin 1s linear infinite;
+}
+@keyframes download-ring-spin { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) {
+  #download-queue-toggle[data-waiting="true"]::after { animation-duration: 3s; }
+}
+/* While one shows, the button fills with the logo's gradient, so it reads as
+   under way rather than as the red of an error, and the ring runs round it
+   in white. */
+#download-queue-toggle[data-progress="true"] {
+  background: linear-gradient(135deg, var(--logo-1), var(--logo-2), var(--logo-3), var(--logo-4));
+  box-shadow: none;
+  color: #fff;
+}
+#download-queue-toggle[data-progress="true"]:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--logo-1) 80%, #fff), color-mix(in srgb, var(--logo-2) 80%, #fff), color-mix(in srgb, var(--logo-3) 80%, #fff), color-mix(in srgb, var(--logo-4) 80%, #fff));
+}
+#download-queue-toggle:has(.download-queue-count:not([hidden])) .icon { display: none; }
+.download-queue-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font: 700 var(--font-size-control)/1 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+.download-queue-count[hidden] { display: none; }
+
+/* A popup hung under the go button's chevron or beside a card's format row,
+   in place of a sheet that used to stretch the full width under the topbar.
+   It is one of the shared menus,
+   so it keeps that menu's padding and rows: the profiles are menu items, and
+   each manual override is a row of the same shape with its control on the
+   right. */
+.download-advanced {
+  position: fixed;
+  inset: auto;
+  width: 350px;
+  margin: 0;
+  padding: 5px;
+  display: grid;
+  /* A grid column is as wide as its widest child unless it is told otherwise,
+     and a profile's summary line runs to a sentence, so without this the rows
+     push past the popup's own 350px and it scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+  /* Rows at their own height, packed at the top. A grid stretches its rows
+     to fill a box taller than they are, which this one is while it eases
+     down to a smaller size: the hovered row swelled to fill it, a large
+     block of colour shrinking back with the popup. */
+  align-content: start;
+  /* .menu-popover is also the card menus' class, and their sheet rounds them
+     a little tighter; this one hangs off the topbar, so it takes the corner
+     the settings menu beside it has. */
+  border-radius: var(--menu-radius, 9px);
+  color: var(--shell-fg);
+}
+.download-advanced:not(:popover-open) { display: none; }
+/* Capped to the room under the arrow by placePopover, so a panel with the
+   manual overrides open scrolls here rather than running off the bottom of a
+   phone; the contain keeps that scroll off the gallery behind it. */
+.download-advanced { overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 400px) {
+  .download-advanced { width: calc(100vw - 12px); }
+  /* Too narrow for a fixed control column and an indented name both, so the
+     name gives up its indent and the control takes a share of the row. */
+  .download-manual > label { grid-template-columns: minmax(0, 1fr) 55%; padding-left: 10px; }
+}
+
+/* The arrow's menu of saved profiles. The rows are the shared menu's own, so
+   only what is particular to a profile is set here. */
+.download-profile-menu { display: grid; grid-template-columns: minmax(0, 1fr); }
+.download-profile-menu button[role="menuitemradio"],
+.download-language-list button:is([role="menuitemcheckbox"], [role="menuitemradio"]),
+.browse-options-menu button[role="menuitemcheckbox"] {
+  justify-content: space-between;
+  min-width: 0;
+  color: var(--shell-fg);
+  font-size: var(--font-size-control);
+  text-align: left;
+  cursor: pointer;
+}
+/* The summary is the part that can run long, so it is the part that gives:
+   the shared menu row holds its items on one line, which a sentence-long
+   summary then pushes the popup sideways to honour. */
+.download-profile-menu button[role="menuitemradio"] { white-space: normal; }
+.download-profile-menu button small {
+  min-width: 0;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  text-align: right;
+  white-space: normal;
+}
+/* The detail is grey at rest, but the lit row is pink under white text, and
+   grey on that is barely there; it follows the row instead. */
+.download-profile-menu button:is(:hover, :focus-visible) small { color: inherit; opacity: .8; }
+/* The default's star sits against the far edge, muted until the row is lit. */
+.default-mark { display: inline-flex; flex: none; margin-left: auto; padding-left: 10px; color: var(--shell-muted); }
+.default-mark .icon { width: 14px; height: 14px; fill: currentColor; stroke: none; }
+.download-profile-menu button:is(:hover, :focus-visible) .default-mark { color: inherit; opacity: .8; }
+/* The tick is drawn rather than reserved, so an unchosen row's name starts
+   where the chosen one's does. */
+:is(.download-profile-menu, .download-language-list, .shelf-settings-menu, .directory-menu, .playlist-add-menu) button[aria-checked="true"] > span:not(.default-mark)::before {
+  content: "";
+  display: inline-block;
+  width: 10px; height: 6px;
+  margin-right: 8px;
+  border: 2px solid currentColor;
+  border-top: 0; border-right: 0;
+  transform: translateY(-2px) rotate(-45deg);
+}
+:is(.download-profile-menu, .download-language-list, .shelf-settings-menu, .directory-menu, .playlist-add-menu) button[aria-checked="false"] > span:not(.default-mark) { margin-left: 18px; }
+
+/* The line above each part of the popup, inset like the shared menus' dividers
+   rather than running to the edges. */
+:is(.download-manual, .download-watch-footer, .download-location) {
+  --menu-rule: linear-gradient(var(--color-menu-border), var(--color-menu-border))
+    no-repeat 9px 0 / calc(100% - 18px) 1px;
+}
+/* The overrides only appear for Manual overrides, and the rule above them
+   with them: a line under the profiles with nothing beneath it divides
+   nothing. Each override is a row the width of a menu item, its name where a
+   menu item's name is and its control against the far edge. */
+.download-manual {
+  display: grid;
+  margin-top: 6px;
+  padding-top: 6px;
+  background: var(--menu-rule);
+}
+.download-manual[hidden] { display: none; }
+/* The watch page's own submit, under the settings it sends, with a line on
+   why they were chosen when the video on screen will not play here. */
+.download-watch-footer {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 10px 4px;
+  background: var(--menu-rule);
+}
+.download-watch-footer[hidden], .download-watch-note[hidden] { display: none; }
+.download-watch-note {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+}
+.download-watch-footer .profile-save { justify-self: end; }
+.download-manual > label {
+  display: grid;
+  /* A fixed column for the controls, so they line up with each other rather
+     than each sitting where its own longest choice leaves it. The name picks
+     up the indent a menu item's name has, past where its tick is drawn. */
+  grid-template-columns: minmax(0, 1fr) 190px;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 10px 3px 28px;
+  color: var(--shell-fg);
+  font-size: var(--font-size-control);
+}
+.download-manual > label[hidden] { display: none; }
+/* One row above the overrides, in the same two columns, so it reads as part of
+   the same list; it applies to profiles too, hence outside the manual block. */
+.download-location {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  /* 9px from each divider to the box, as the manual overrides have under
+     theirs (6px of padding and 3px of the label's): the 6px margin of the
+     next section plus 3px here make the space below, and 9px the space above. */
+  padding: 9px 10px 3px 28px;
+  background: var(--menu-rule);
+  color: var(--shell-fg);
+  font-size: var(--font-size-control);
+}
+.download-location[hidden] { display: none; }
+.download-location select { width: 100%; }
+@media (max-width: 400px) {
+  .download-location { grid-template-columns: minmax(0, 1fr) 55%; padding-left: 10px; }
+}
+.download-manual > label select { width: 100%; }
+.download-page-head button {
+  display: grid;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: none;
+  color: var(--shell-muted);
+  place-items: center;
+  cursor: pointer;
+}
+.download-page-head button svg, .download-drill svg {
+  width: 16px; height: 16px;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.download-page-head button:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  color: var(--shell-fg);
+}
+/* A row that opens a page: the label on the left as the selects' rows have it,
+   what is chosen against the far edge with the arrow that says there is more. */
+.download-drill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 3px 10px 3px 28px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--shell-fg);
+  font: inherit;
+  font-size: var(--font-size-control);
+  text-align: left;
+  cursor: pointer;
+}
+.download-drill-value {
+  display: flex;
+  align-items: center;
+  /* The text starts where the selects' text does, 11px in from their edge,
+     and the arrow keeps the far edge. */
+  padding-left: 11px;
+  gap: 2px;
+  min-width: 0;
+  color: var(--shell-fg);
+}
+.download-drill-value > span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.download-drill:is(:hover, :focus-visible) .download-drill-value { color: var(--shell-fg); }
+@media (max-width: 400px) {
+  .download-drill { grid-template-columns: minmax(0, 1fr) 55%; padding-left: 10px; }
+}
+/* The menu and the language pages share one box and slide past each other.
+   Only the page showing is in the flow, so the popup is as tall as it needs to
+   be; the rest are held beside it, clipped, until they are asked for. */
+.download-pages { position: relative; overflow: hidden; }
+.download-page {
+  position: absolute;
+  top: 0; left: 0;
+  box-sizing: border-box;
+  width: 100%;
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+}
+.download-page[data-active] { position: relative; transform: none; }
+.download-pages[data-page]:not([data-page="main"]) > [data-download-page="main"] { transform: translateX(-100%); }
+@media (prefers-reduced-motion: reduce) { .download-page { transition: none; } }
+.download-page-head {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  padding: 4px 6px 8px;
+  margin-bottom: 4px;
+  background: linear-gradient(var(--color-menu-border), var(--color-menu-border)) no-repeat 9px 100% / calc(100% - 18px) 1px;
+}
+.download-page-head h2 { margin: 0; font-size: var(--font-size-control); font-weight: 600; }
+.download-page-note { margin: 0; padding: 4px 10px 2px 28px; color: var(--shell-muted); font-size: var(--font-size-helper); }
+.download-page-note[hidden] { display: none; }
+/* The languages row is a block of boxes rather than one control, so it steps
+   out of the two-column grid above it and stacks under its own name. */
+.download-subtitle-languages {
+  display: grid;
+  gap: 6px;
+  padding: 4px 10px 6px 28px;
+  color: var(--shell-fg);
+  font-size: var(--font-size-control);
+}
+.download-subtitle-languages[hidden] { display: none; }
+
+/* The picker itself, shared by the arrow's overrides and the profile editor.
+   A profile is written before the videos exist, so these are the languages to
+   take if a site has them, not a list of what any one video carries. The tags
+   they write stay visible underneath: the list names a dozen languages and
+   yt-dlp accepts hundreds, so the box is the way to ask for the rest. */
+.subtitle-languages { display: grid; gap: 6px; min-width: 0; }
+/* A fixed number of columns rather than as many as fit: the names are short
+   and auto-fill spent a 300px popover on two 145px cells, which read ragged
+   over six rows. The list is twelve languages, so three and four both come
+   out square, and each width takes whichever leaves the block shortest
+   without crowding the longest name. */
+.subtitle-language-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 10px;
+}
+.download-advanced .subtitle-language-options,
+.sponsorblock-drawer .subtitle-language-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 520px) {
+  .subtitle-language-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.subtitle-language {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.subtitle-language span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subtitle-language input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--color-accent-bright);
+}
+.subtitle-language-tags { width: 100%; font-size: var(--font-size-helper); }
+.subtitle-languages small { color: var(--shell-muted); font-size: var(--font-size-helper); line-height: 1.4; }
+
+/* Download profiles reuse the library folders' rows, with the editor
+   revealed above them by the heading's New profile button. */
+.profile-panel { display: grid; overflow-anchor: none; }
+.profile-hint { margin: 0 0 14px; color: var(--shell-muted); font-size: var(--font-size-helper); }
+
+/* What a new subscription starts with, a settings group above the list of
+   what is already followed. The drawer body already insets its content. */
+.download-jobs > .subscription-defaults { margin: 0 0 32px; }
+.download-jobs > .subscription-followed { margin: 0; }
+.subscription-defaults-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.subscription-defaults label {
+  display: grid;
+  gap: 4px;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+}
+.subscription-defaults select { width: 100%; }
+@media (max-width: 520px) { .subscription-defaults-fields { grid-template-columns: 1fr; } }
+.profile-row .library-row-text { display: grid; gap: 2px; }
+.profile-name { font-size: var(--font-size-control); }
+.profile-detail { color: var(--shell-muted); }
+.profile-add { display: flex; align-items: center; gap: 8px; justify-self: start; padding-inline-start: 12px; }
+.profile-editor {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--shell-line);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-field-bg);
+}
+.profile-field { display: grid; gap: 4px; align-content: start; font-size: var(--font-size-helper); }
+.profile-field > span { color: var(--shell-muted); }
+.profile-field small { color: var(--shell-muted); line-height: 1.4; }
+.profile-field-wide { grid-column: 1 / -1; }
+.profile-field :is(input, select, textarea) { width: 100%; }
+.profile-field textarea { resize: vertical; font-family: inherit; }
+.profile-editor-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 520px) { .profile-editor { grid-template-columns: 1fr; } }
+
+.archive-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--video-card-min), 100%), 1fr));
+  gap: 14px;
+  /* The shared grid pads its top by the gutter, which is the gap under the heading. */
+  padding-top: var(--page-gutter);
+}
+.gallery-chunk {
+  display: contents;
+}

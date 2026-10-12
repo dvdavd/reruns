@@ -1,0 +1,285 @@
+import {request} from './api.js';
+import {commentsOf, sortComments} from './item-adapter.js';
+import {formatDate} from './watch-details.js';
+import {plural, t} from './i18n.js';
+
+const THUMB_UP = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11v8a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-7a1 1 0 0 1 1 -1h3a4 4 0 0 0 4 -4v-1a2 2 0 0 1 4 0v5h3a2 2 0 0 1 2 2l-1 5a2 3 0 0 1 -2 2h-7a3 3 0 0 1 -3 -3"/></svg>';
+const REPLIES_CHEVRON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>';
+
+// "3:42" or "1:02:03" in a comment's text. Digits either side rule out the
+// middle of a longer number or a ratio like 16:9:1.
+const TIMESTAMP = /(?<![\d:])(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)(?![\d:])/g;
+
+/** The text as nodes, with each timestamp a button that seeks. Built from
+ *  text nodes alone: a comment is a stranger's words, never markup. */
+function textNodes(text, duration, seek) {
+  const nodes = [];
+  let last = 0;
+  for (const match of text.matchAll(TIMESTAMP)) {
+    const seconds = Number(match[1] || 0) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+    // A time past the end of the video is a score or a recipe, not a place in it.
+    if (!(duration > 0 && seconds <= duration)) continue;
+    nodes.push(text.slice(last, match.index));
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'archive-comment-time';
+    button.textContent = match[0];
+    button.addEventListener('click', () => seek(seconds));
+    nodes.push(button);
+    last = match.index + match[0].length;
+  }
+  nodes.push(text.slice(last));
+  return nodes;
+}
+
+function formatLikes(count) {
+  return count >= 1000
+    ? new Intl.NumberFormat(undefined, {notation: 'compact'}).format(count)
+    : String(count);
+}
+
+function drawComment(comment, context, {reply = false} = {}) {
+  const node = document.createElement('article');
+  node.className = reply ? 'archive-comment is-reply' : 'archive-comment';
+
+  // The circle is the wrapper's, so a picture the server could not fetch
+  // leaves a plain disc rather than the browser's broken-image mark.
+  const avatar = document.createElement('span');
+  avatar.className = 'archive-comment-avatar';
+  if (comment.avatarUrl) {
+    const picture = document.createElement('img');
+    picture.alt = '';
+    picture.loading = 'lazy';
+    picture.addEventListener('error', () => picture.remove());
+    picture.src = comment.avatarUrl;
+    avatar.append(picture);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'archive-comment-body';
+
+  const head = document.createElement('div');
+  head.className = 'archive-comment-head';
+  const author = document.createElement('strong');
+  author.textContent = comment.author;
+  author.classList.toggle('is-uploader', comment.byUploader);
+  head.append(author);
+  const date = comment.postedAt ? formatDate(comment.postedAt) : '';
+  for (const [shown, label] of [
+    [comment.pinned, t('watch.comments.pinned')],
+    [date, date],
+    [comment.edited, t('watch.comments.edited')],
+  ]) {
+    if (!shown) continue;
+    const part = document.createElement('span');
+    part.textContent = label;
+    head.append(part);
+  }
+
+  const text = document.createElement('p');
+  text.className = 'archive-comment-text';
+  text.append(...textNodes(comment.text, context.duration, context.seek));
+
+  body.append(head, text);
+  if (comment.likes || comment.hearted) {
+    const line = document.createElement('div');
+    line.className = 'archive-comment-foot';
+    if (comment.likes) {
+      // The thumb stands for the word, so the full "N likes" stays as the
+      // name a screen reader and the tooltip give it.
+      const likes = document.createElement('span');
+      likes.className = 'archive-comment-likes';
+      likes.title = plural('count.likes', comment.likes, {text: formatLikes(comment.likes)});
+      likes.setAttribute('aria-label', likes.title);
+      likes.insertAdjacentHTML('beforeend', THUMB_UP);
+      const count = document.createElement('span');
+      count.setAttribute('aria-hidden', 'true');
+      count.textContent = formatLikes(comment.likes);
+      likes.append(count);
+      line.append(likes);
+    }
+    if (comment.hearted) {
+      if (comment.likes) line.append(' · ');
+      line.append(t('watch.comments.hearted'));
+    }
+    body.append(line);
+  }
+
+  if (comment.replies.length) {
+    const replies = document.createElement('details');
+    replies.className = 'archive-comment-replies';
+    const summary = document.createElement('summary');
+    const label = document.createElement('span');
+    label.textContent = plural('watch.comments.replies', comment.replies.length);
+    // Static markup, nothing from the comment: the same chevron as the
+    // shelves' More, turned by [open] rather than swapped.
+    summary.append(label);
+    summary.insertAdjacentHTML('beforeend', REPLIES_CHEVRON);
+    replies.append(summary, ...comment.replies.map(item => drawComment(item, context, {reply: true})));
+    body.append(replies);
+  }
+  node.append(avatar, body);
+  return node;
+}
+
+const JOB_POLL_MS = 1000;
+const JOB_GIVE_UP_MS = 5 * 60 * 1000;
+const FINAL_STATES = new Set(['done', 'failed', 'cancelled']);
+
+/** Resolves with the job once it has finished, or rejects if it failed. A job
+ *  that has vanished from the list was cleared after finishing. */
+async function finished(job) {
+  const started = Date.now();
+  while (Date.now() - started < JOB_GIVE_UP_MS) {
+    await new Promise(resolve => setTimeout(resolve, JOB_POLL_MS));
+    const jobs = await request('/api/jobs');
+    const current = jobs.find(entry => entry.id === job.id);
+    if (!current) return job;
+    if (!FINAL_STATES.has(current.state)) continue;
+    if (current.state !== 'done') throw new Error(current.error || t('watch.comments.fetchFailed'));
+    return current;
+  }
+  throw new Error(t('watch.comments.fetchFailed'));
+}
+
+/**
+ * The comments card. One group chooses what to show: None (Hide, once there are
+ * some), Top or Newest. Choosing Top or Newest for a video that holds none
+ * fetches them first, once; the detached icon fetches them again. The card
+ * exists only for a YouTube video, and for an account that may fetch or one
+ * that has comments to read.
+ *
+ * `canFetch()` says whether this account may fetch, and `fetchComments(item)`
+ * queues the comments-only refresh and returns its job; `seek(seconds)` and `duration()` come
+ * from the player, so a time in a comment moves the video as a chapter does.
+ */
+export function createCommentsSection(page, {seek, duration, canFetch, fetchComments}) {
+  const node = page.querySelector('[data-watch-comments]');
+  const modes = node.querySelector('[data-watch-comments-modes]');
+  const refresh = node.querySelector('[data-watch-comments-refresh]');
+  const list = node.querySelector('[data-watch-comments-list]');
+  let item = null;
+  let threads = null;
+  let mode = 'none';
+  let fetching = false;
+  let problem = '';
+  // Videos whose fetch has been tried this visit, so a result of none is
+  // reported rather than asked for again each time Top is pressed.
+  const attempted = new Set();
+  // A quick step through a playlist can land one video's comments after the
+  // next has opened.
+  let token = 0;
+
+  const holds = () => (threads ? threads.length > 0 : item?.archive.commentCount > 0);
+
+  function status(text, {busy = false} = {}) {
+    const line = document.createElement('p');
+    line.className = 'archive-comments-status';
+    if (busy) {
+      const spinner = document.createElement('span');
+      spinner.className = 'archive-comments-spinner';
+      spinner.setAttribute('aria-hidden', 'true');
+      line.append(spinner);
+    }
+    line.append(text);
+    return line;
+  }
+
+  function draw() {
+    if (!item) return;
+    for (const button of modes.querySelectorAll('[data-comments-mode]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.commentsMode === mode));
+    }
+    modes.querySelector('[data-comments-mode="none"]').textContent =
+      t(holds() ? 'watch.comments.modeHide' : 'watch.comments.modeNone');
+    refresh.hidden = !canFetch();
+    refresh.disabled = fetching;
+    refresh.classList.toggle('is-spinning', fetching);
+    list.hidden = mode === 'none';
+    if (mode === 'none') return;
+    if (fetching) list.replaceChildren(status(t('watch.comments.fetching'), {busy: true}));
+    else if (problem) list.replaceChildren(status(problem));
+    else if (!threads) list.replaceChildren(status(t('watch.comments.loading'), {busy: true}));
+    else if (!threads.length) list.replaceChildren(status(t('watch.comments.none')));
+    else {
+      const context = {seek, duration: duration()};
+      list.replaceChildren(...sortComments(threads, mode).map(comment => drawComment(comment, context)));
+    }
+  }
+
+  async function read(mine) {
+    const payload = await request(item.archive.commentsUrl);
+    if (mine !== token) return false;
+    threads = commentsOf(payload.comments);
+    item.archive.commentCount = threads.length;
+    return true;
+  }
+
+  async function fetchFresh() {
+    const mine = token;
+    const current = item;
+    attempted.add(current.id);
+    fetching = true;
+    problem = '';
+    draw();
+    try {
+      const job = await fetchComments(current);
+      if (job) await finished(job);
+      if (mine !== token) return;
+      fetching = false;
+      await read(mine);
+    } catch (error) {
+      if (mine !== token) return;
+      fetching = false;
+      problem = error?.message || t('watch.comments.fetchFailed');
+    }
+    if (mine === token) draw();
+  }
+
+  async function ensure() {
+    const mine = token;
+    if (!threads) {
+      try {
+        if (!await read(mine)) return;
+      } catch {
+        if (mine === token) { problem = t('watch.comments.failed'); draw(); }
+        return;
+      }
+      draw();
+    }
+    if (!threads.length && canFetch() && !attempted.has(item.id) && !fetching) await fetchFresh();
+  }
+
+  for (const button of modes.querySelectorAll('[data-comments-mode]')) {
+    button.addEventListener('click', () => {
+      // Hide is None while there is something to hide; either way it closes.
+      mode = button.dataset.commentsMode;
+      problem = '';
+      draw();
+      if (mode !== 'none') ensure();
+    });
+  }
+  refresh.addEventListener('click', () => {
+    if (fetching || !canFetch()) return;
+    if (mode === 'none') mode = 'top';
+    fetchFresh();
+  });
+
+  return {
+    /** Called each time the watch page draws a video. Starts closed. */
+    show(next) {
+      const same = item?.id === next?.id;
+      item = next;
+      const offered = Boolean(next?.archive?.commentsUrl);
+      node.hidden = !offered || !(next.archive.commentCount > 0 || canFetch());
+      if (same) { draw(); return; }
+      token++;
+      threads = null;
+      mode = 'none';
+      fetching = false;
+      problem = '';
+      list.replaceChildren();
+      if (!node.hidden) draw();
+    },
+  };
+}

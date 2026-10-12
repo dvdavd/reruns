@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="reruns-rainbow" x1="0" y1="0" x2="1" y2="0">
+      <!-- The default Original palette (web/palette.js) as the app renders it:
+           orange through pink to purple, taken around the hue wheel (OKLCH)
+           so the blend never greys out. -->
+      <stop offset="0.0" stop-color="#ff5f3d"/>
+      <stop offset="0.125" stop-color="#fe534e"/>
+      <stop offset="0.25" stop-color="#fb475e"/>
+      <stop offset="0.375" stop-color="#f63b6d"/>
+      <stop offset="0.5" stop-color="#f0307c"/>
+      <stop offset="0.625" stop-color="#e32c94"/>
+      <stop offset="0.75" stop-color="#d32baa"/>
+      <stop offset="0.875" stop-color="#c12dbd"/>
+      <stop offset="1" stop-color="#ad30cf"/>
+    </linearGradient>
+  </defs>
+  <!-- The logo squared up for the browser tab, the symbol filling more of it. -->
+  <rect width="24" height="24" rx="5" fill="url(#reruns-rainbow)"/>
+  <!-- The symbol, scaled about the centre. The left arrow has a notch cut
+       out of its flat side for the right one to nest in, with a small gap. Each triangle's weight sits at its
+       flat side, so it is nudged left to look centred rather than measure so.
+       A faint shadow lifts it off the colours. -->
+  <g transform="translate(12 12) scale(.8) translate(-20.4 -12)">
+  <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18zM19.2 12l10-6v12z" fill="#0003" stroke="#0003" stroke-width="1.5"
+        stroke-linejoin="round" transform="translate(0 .4)"/>
+  <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18zM19.2 12l10-6v12z" fill="#fff" stroke="#fff" stroke-width="1.5"
+        stroke-linejoin="round"/>
+  </g>
+</svg>

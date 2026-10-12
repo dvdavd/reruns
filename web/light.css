@@ -1,0 +1,559 @@
+/* Light appearance for the archive. The player and thumbnail overlays remain
+   dark so their controls stay legible over moving pictures. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  background: #f5f6f9;
+  --color-bg: #f5f6f9;
+  --color-surface: #fff;
+  --color-surface-raised: #fff;
+  --color-surface-control: #e9eaf0;
+  --row-divider: rgba(0,0,0,.07);
+  --color-border: #dfe1e8;
+  --color-text: #303340;
+  --color-text-strong: #191c28;
+  --color-text-muted: #626777;
+  --color-control-border: #c9cbd6;
+  --color-control-bg: #f0f1f5;
+  --color-control-border-hover: #aeb2c1;
+  --color-control-bg-hover: #e9eaf1;
+  --color-control-bg-active: #dfe1e9;
+  --color-field-bg: #fff;
+  --color-field-border: #c8cbd5;
+  --color-field-text: #20232f;
+  --color-field-placeholder: #737889;
+  --color-button-bg: #e9eaf0;
+  --color-button-border: #d0d2dc;
+  --color-button-bg-hover: color-mix(in srgb, var(--color-accent) 12%, #e9eaf0);
+  --color-button-border-hover: color-mix(in srgb, var(--color-accent) 42%, #c8cad4);
+  --color-menu-bg: #fff;
+  --raised-surface: #eef0f4;
+  --color-menu-border: #d9dbe3;
+  --color-dialog-bg: #eff0f4;
+  --color-menu-item-hover: color-mix(in srgb, var(--color-accent) 12%, #fff);
+  --color-danger: #b72c3e;
+  --color-danger-text: #9a2032;
+  --color-danger-border: #e6b7bf;
+  --color-danger-bg: #fff0f1;
+  --color-success-text: #176c40;
+  --color-success-border: #add9bd;
+  --color-success-bg: #e9f7ed;
+  --color-warning-text: #82540d;
+  --color-warning-border: #e9d2a5;
+  --color-warning-bg: #fff6e6;
+  --color-accent-deep: color-mix(in srgb, var(--color-accent) 20%, #fff);
+  --shadow-panel: 0 20px 52px #20233b24;
+  --shadow-dialog: 0 24px 80px #20233b36;
+  --shadow-menu: 0 6px 16px #20233b40, 0 2px 5px #20233b26;
+  --color-overlay: #1719278c;
+  --media-card-bg: #fff;
+  --media-card-border: #dfe1e8;
+  --media-card-text: #272a36;
+  --media-card-menu-bg: #fff;
+  --shell-bg: var(--color-bg);
+  --shell-fg: var(--color-text);
+  --shell-muted: var(--color-text-muted);
+  --shell-line: var(--color-border);
+  --selection-bg: color-mix(in srgb, var(--color-accent) 52%, #fff);
+  --light-card-shadow: 0 2px 6px #20233b1a;
+  --light-card-shadow-hover: 0 3px 9px #20233b24;
+}
+
+:root[data-theme="light"] ::selection { color: #171927; }
+:root[data-theme="light"] :is(input[type="text"], input[type="number"], input[type="search"], select, textarea) { color-scheme: light; }
+:root[data-theme="light"] :is(button, a.btn) {
+  --button-bg-hover: #e8eaf1;
+  --button-border-hover: #bec2d0;
+}
+/* Thumbnail controls rest white over the picture in both themes. On hover
+   the details button turns to a pale disc here, since a dark one reads as a
+   hole in a light page; the thumbnail heart and part arrows keep their dark
+   disc from web/styles. */
+:root[data-theme="light"] .external-play-details {
+  --button-border-hover: transparent;
+  --button-text-hover: #191c28;
+}
+:root[data-theme="light"] .external-play-details:is(:hover, :focus-visible) {
+  background: #fffe;
+  filter: drop-shadow(0 1px 3px #0006);
+}
+/* The channel heart sits on the pale card rather than a picture, so it takes
+   a dark shade of the card's own colour,
+   outlined or filled, and its hover disc is the card colour a little deeper.
+   Sharing an :is() with `.part-navigation button` once lifted the thumbnail
+   rules' specificity over these and turned the heart white. */
+:root[data-theme="light"] .creator-card-favourite {
+  color: oklch(from var(--card-accent) .45 c h);
+}
+:root[data-theme="light"] .creator-card-favourite:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--card-accent) 28%, transparent);
+  color: oklch(from var(--card-accent) .32 c h);
+}
+:root[data-theme="light"] .creator-card-favourite[aria-pressed="true"]:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--card-accent) 28%, #0002);
+}
+:root[data-theme="light"] button.danger {
+  --button-bg-hover: #fff0f1;
+  --button-border-hover: #e6b7bf;
+}
+:root[data-theme="light"] .creator-card-open {
+  --button-bg-hover: transparent;
+  --button-border-hover: transparent;
+  --button-text-hover: inherit;
+}
+:root[data-theme="light"] .creator-shelf-card .creator-card-open:is(:hover, :focus-visible) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* The fixed dark glass in the shared chrome needs light counterparts. */
+:root[data-theme="light"] .topbar-shell:has(> .topbar.is-scrolled) { background: #f5f6f9dc; }
+:root[data-theme="light"] .topbar-shell > .topbar.is-scrolled { background: transparent; }
+:root[data-theme="light"] body.watch-open:not([data-player-lighting="off"]) .topbar-shell:has(> .topbar) {
+  background: rgb(245 246 249 / var(--watch-header-alpha, 0));
+}
+:root[data-theme="light"] .archive-watch-stage > .archive-ambient-glow { opacity: 1; }
+/* lightGlowPixels already sets the colour, and saturating it again on top
+   turned skin orange and orange red. */
+:root[data-theme="light"] .archive-ambient-glow > canvas { filter: blur(9.5px); }
+/* The stage, the player and the video each paint a dark rounded fill, and the
+   half-covered pixels along the curve stacked into a dark hairline against the
+   light page. The player covers the stage exactly, so the stage needs none;
+   the video's own black showed wherever a frame landed on a part pixel, along
+   the straight edges too; and the player's fill, which is what letterboxes a
+   frame of another shape, is drawn a pixel inside, under the video's solid. */
+:root[data-theme="light"] .archive-watch-stage:not(.is-thumbnail-transitioning *) { background: transparent; }
+:root[data-theme="light"] .archive-watch-stage :is(.media-player, .media-player-video) { background: transparent; }
+:root[data-theme="light"] .archive-watch-stage .media-player::before {
+  content: ""; position: absolute; inset: 1px; border-radius: inherit; background: #050505;
+}
+:root[data-theme="light"] .archive-watch-stage .media-player:fullscreen::before { inset: 0; }
+:root[data-theme="light"] .topbar-brand,
+:root[data-theme="light"] .topbar-brand:hover { color: var(--color-text-strong); }
+/* The logo's hover glow is kept faint: on a pale page the full blur reads as
+   a coloured smudge rather than light behind it. */
+:root[data-theme="light"] .topbar-brand:has(> .topbar-logo):is(:hover, :focus-visible)::before { opacity: .4; }
+/* The topbar's buttons rest on a grey disc like the neutral pills below, as
+   the dark look's faint white one would vanish on the pale bar. The grey is a
+   tint of the ink rather than a solid, so, as in the dark look, what scrolls
+   under the bar's glass still shows through it. Over the bare page it matches
+   the pills' #e9eaf0, and #dfe1e9 under the pointer. */
+:root[data-theme="light"] :is(.topbar-navigation > .icon-button, .topbar-actions .icon-button) {
+  background: rgb(32 35 59 / .055);
+  color: #545969;
+}
+:root[data-theme="light"] :is(.topbar-navigation > .icon-button, .topbar-actions .icon-button):is(:hover, :focus-visible, [aria-expanded="true"]) {
+  border-color: #cdd0da;
+  background: rgb(32 35 59 / .1);
+  color: #1e2230;
+}
+:root[data-theme="light"] .topbar-search input,
+:root[data-theme="light"] .topbar-search input:hover,
+:root[data-theme="light"] .topbar-search input:focus { background: #e9eaf0; border-color: #d7d9e2; }
+:root[data-theme="light"] .search-clear-button { color: #555b6a; }
+:root[data-theme="light"] .search-clear-button:is(:hover, :focus-visible) { border-color: #c9cbd5; background: #e5e7ee; color: #1e2230; }
+:root[data-theme="light"] #download-queue-toggle[data-progress="true"]::after { inset: 2px; }
+:root[data-theme="light"] .status-toast { color: #292037; box-shadow: var(--shadow-menu); }
+:root[data-theme="light"] .topbar .topbar-navigation .icon-button[aria-pressed="true"],
+:root[data-theme="light"] .topbar .topbar-navigation .icon-button[aria-pressed="true"]:is(:hover, :focus-visible) {
+  background: var(--highlight-fill);
+  color: var(--highlight-foreground);
+}
+
+/* Cards, labels and menus take their text from the light surfaces. */
+:root[data-theme="light"] .card-name { color: var(--color-text-strong); }
+:root[data-theme="light"] .gallery-sort-control button[aria-pressed="true"] { color: var(--color-text-strong); }
+:root[data-theme="light"] .creator-card-count { color: oklch(from var(--card-accent) .43 c h); }
+:root[data-theme="light"] .creator-shelf-card,
+:root[data-theme="light"] .creator-shelf-card[data-favourite="true"],
+:root[data-theme="light"] .creator-shelf-card:has(> .creator-card-open[aria-pressed="true"]),
+:root[data-theme="light"] :is(.archive-gallery, .video-shelf-track, .archive-related-list) .video-card {
+  box-shadow: var(--light-card-shadow);
+}
+:root[data-theme="light"] .creator-shelf-card:is(:hover, :focus-within),
+:root[data-theme="light"] .creator-shelf-card:is([data-favourite="true"], :has(> .creator-card-open[aria-pressed="true"])):is(:hover, :focus-within),
+:root[data-theme="light"] :is(.archive-gallery, .video-shelf-track, .archive-related-list) .video-card:is(:hover, :focus-within) {
+  box-shadow: var(--light-card-shadow-hover);
+}
+:root[data-theme="light"] :is(.metadata-chip, .actor-chip) { color: #3d4050; }
+:root[data-theme="light"] .video-card {
+  --media-chip-edge: 0;
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 9%, #f3f4f8);
+}
+:root[data-theme="light"] .identity-chip { --identity-border: #d6d9e3; --media-chip-surface: #f0f1f5; }
+:root[data-theme="light"] .group-chip { background: #f0f1f5; color: #454959; }
+:root[data-theme="light"] .menu-trigger { color: #555b69; }
+:root[data-theme="light"] :is(.menu-trigger:hover, .menu-trigger[aria-expanded="true"]) { border-color: #d2d5df; background: #e9eaf0; color: #202431; }
+:root[data-theme="light"] .menu-popover { border-color: #d9dbe3; box-shadow: var(--shadow-menu); }
+:root[data-theme="light"] .release-chip { color: #54596a; }
+:root[data-theme="light"] .archive-watch-specs dt {
+  color: oklch(from var(--watch-accent) .32 c h);
+}
+:root[data-theme="light"] :is(.archive-comment-replies summary, .archive-comment-time) { color: var(--color-accent); }
+:root[data-theme="light"] :is(.archive-watch-facts, .archive-watch-description, .archive-watch-comments) { box-shadow: var(--light-card-shadow); }
+
+/* Person chips wear the same light chip as the channel's. They are rare -
+   most sidecars name one person, who is the channel - so they went without,
+   and the package's dark hover left dark text on a near-black chip. */
+:root[data-theme="light"] :is(.archive-gallery, .video-shelf-track, .archive-related-list) :is(.metadata-chip, .actor-chip) {
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 20%,
+    oklch(from var(--card-chip-base) calc(l - .05) c h));
+  --media-chip-shadow: none;
+  color: oklch(from var(--card-accent) .32 c h);
+}
+:root[data-theme="light"] :is(.archive-gallery, .video-shelf-track, .archive-related-list) :is(.metadata-chip, .actor-chip):is(:hover, :focus-within) {
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 26%,
+    oklch(from var(--card-chip-base) calc(l - .08) c h));
+  color: oklch(from var(--card-accent) .27 c h);
+}
+:root[data-theme="light"] .source-chip:is(:hover, :focus-visible) {
+  color: oklch(from var(--card-accent) .22 c h);
+}
+:root[data-theme="light"] .source-chip:only-child:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--card-accent) 30%, transparent);
+}
+:root[data-theme="light"] :is(.archive-gallery, .video-shelf-track, .archive-related-list) :is(.menu-trigger, .group-chip) {
+  background: transparent;
+  box-shadow: none;
+  color: #555b6a;
+}
+
+/* Neutral action pills appear throughout the views and drawers. */
+:root[data-theme="light"] :is(
+  .topbar-go button, .topbar-subscribe, .settings-page-head button,
+  .channel-profile-download-trigger, .profile-actions .channel-profile-favourite,
+  .channel-profile-subscribe, .playlist-profile-subscribe, .videos-heading-subscribe,
+  .watch-subscribe, .confirm-dialog-button, .profile-cancel, .browse-more, .browse-subscribe,
+  .archive-watch-action, .library-row-action, .download-row-action,
+  .download-clear, .download-drawer-head .close-icon-button,
+  .sponsorblock-modes button
+) { background: #e9eaf0; box-shadow: none; color: #454a59; }
+:root[data-theme="light"] :is(
+  .topbar-go button, .topbar-subscribe, .settings-page-head button,
+  .channel-profile-download-trigger, .profile-actions .channel-profile-favourite,
+  .channel-profile-subscribe, .playlist-profile-subscribe, .videos-heading-subscribe,
+  .watch-subscribe, .confirm-dialog-button, .profile-cancel, .browse-more, .browse-subscribe,
+  .archive-watch-action, .library-row-action, .download-row-action,
+  .download-clear, .download-drawer-head .close-icon-button,
+  .sponsorblock-modes button
+):is(:hover, :focus-visible, [aria-expanded="true"]) { background: #dfe1e9; box-shadow: none; color: #202431; }
+:root[data-theme="light"] .topbar-search[data-browse="search"][data-browse-missing="true"] .topbar-browse {
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 10%), var(--highlight-fill));
+  color: var(--highlight-foreground);
+}
+:root[data-theme="light"] .topbar-search[data-browse="search"][data-browse-missing="true"] .topbar-browse:is(:hover, :focus-visible) {
+  color: var(--highlight-foreground);
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 16%), color-mix(in srgb, var(--highlight-fill), #fff 6%));
+}
+/* The video's actions sit in the player's glow, so, like the topbar's, their
+   grey is a tint of the ink rather than a solid: over the bare page it is the
+   pills' #e9eaf0 and #dfe1e9, and over the glow it lets the colour through. */
+:root[data-theme="light"] .archive-watch-actions :is(.archive-watch-action, .watch-subscribe, .library-row-action) {
+  background: rgb(32 35 59 / .055);
+}
+:root[data-theme="light"] .archive-watch-actions :is(.archive-watch-action, .watch-subscribe, .library-row-action):is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: rgb(32 35 59 / .1);
+}
+:root[data-theme="light"] :is(.archive-gallery, .video-shelf-track, .archive-related-list) :is(.menu-trigger, .group-chip):is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--card-accent) 28%,
+    oklch(from var(--card-chip-base) calc(l - .085) c h));
+  box-shadow: none;
+  color: oklch(from var(--card-accent) .32 c h);
+}
+:root[data-theme="light"] .topbar .topbar-search[data-filled="true"] .topbar-go button {
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 10%), var(--highlight-fill));
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+:root[data-theme="light"] .topbar .topbar-search[data-filled="true"] .topbar-go button:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 16%), color-mix(in srgb, var(--highlight-fill), #fff 6%));
+  color: var(--highlight-foreground);
+}
+:root[data-theme="light"] .confirm-dialog-button:disabled:hover { background: #e9eaf0; color: #454a59; }
+:root[data-theme="light"] .archive-watch-actions .archive-watch-action[aria-pressed="true"],
+:root[data-theme="light"] .archive-watch-actions .archive-watch-action[aria-pressed="true"]:is(:hover, :focus-visible) {
+  background: var(--highlight-fill);
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+/* A coloured glow reads as a smudge on a light page; the portrait sits on it
+   with the same soft shadow as a playlist's stacked covers, and keeps the
+   accent in its ring. */
+:root[data-theme="light"] .channel-profile-portrait { box-shadow: 0 8px 18px rgba(0,0,0,.25); }
+:root[data-theme="light"] .profile-actions .channel-profile-favourite[aria-pressed="true"],
+:root[data-theme="light"] .profile-actions .channel-profile-favourite[aria-pressed="true"]:is(:hover, :focus-visible) {
+  background: var(--highlight-fill);
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+:root[data-theme="light"] :is(.confirm-dialog-button, .archive-watch-action, .download-row-action, .library-row-action, .download-drawer-head .close-icon-button).danger:is(:hover, :focus-visible) {
+  background: var(--color-danger-bg);
+  box-shadow: none;
+  color: var(--color-danger);
+}
+/* An armed delete keeps the pale red the other delete buttons show on hover. */
+:root[data-theme="light"] .download-drawer-head .icon-button.close-icon-button.playlist-confirm.danger {
+  background: var(--color-danger-bg); color: var(--color-danger);
+}
+/* Over the page, the same pale red; over the glow, a tint that lets it through. */
+:root[data-theme="light"] .archive-watch-actions .archive-watch-action.danger:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--color-danger) 7%, transparent);
+}
+
+:root[data-theme="light"] .download-drawer :is(input[type="text"], input[type="search"], input[type="number"], select, textarea) {
+  --field-bg: #fff;
+  --field-border: #cbd0db;
+}
+:root[data-theme="light"] :is(.topbar .topbar-search input, .settings-popup :is(select, input[type="text"]), .download-advanced :is(select, .subtitle-language-tags)) {
+  background: #eceef3;
+  color: #252936;
+}
+:root[data-theme="light"] :is(.topbar .topbar-search input, .settings-popup :is(select, input[type="text"]), .download-advanced :is(select, .subtitle-language-tags)):hover { background: #e5e8ef; }
+/* The search field is tinted like the topbar's buttons, so the bar's glass
+   shows through all of it; typing into it, it turns solid white. It has no
+   rim until then, as in dark. */
+:root[data-theme="light"] .topbar .topbar-search input { border-color: transparent; background: rgb(32 35 59 / .04); }
+:root[data-theme="light"] .topbar .topbar-search input:hover { background: rgb(32 35 59 / .07); }
+:root[data-theme="light"] .topbar .topbar-search input:focus {
+  border-color: transparent;
+  background: linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(to right, var(--logo-1), var(--logo-2), var(--logo-3), var(--logo-4)) border-box;
+}
+:root[data-theme="light"] .settings-popup :is(select, input[type="text"]):focus,
+:root[data-theme="light"] .download-advanced :is(select, .subtitle-language-tags):focus { background: #fff; border-color: #a9acbc; }
+:root[data-theme="light"] .settings-field select option,
+:root[data-theme="light"] .settings-field select optgroup { color: #202431; }
+
+:root[data-theme="light"] .sponsorblock-toggle-row .archive-autoplay-track {
+  background: #cbd0dc;
+}
+:root[data-theme="light"] .sponsorblock-toggle-row .archive-autoplay-knob {
+  background: #565d70;
+}
+:root[data-theme="light"] .sponsorblock-toggle-row[aria-checked="true"] .archive-autoplay-track { background: #f0b7b7; }
+:root[data-theme="light"] .sponsorblock-toggle-row[aria-checked="true"] .archive-autoplay-knob { background: #cc0000; }
+:root[data-theme="light"] .customisation-switch[aria-checked="true"] .archive-autoplay-track { background: color-mix(in srgb, var(--color-accent) 40%, #fff); }
+:root[data-theme="light"] .customisation-switch[aria-checked="true"] .archive-autoplay-knob { background: var(--color-accent); }
+:root[data-theme="light"] .sponsorblock-options legend { color: var(--color-text-muted); }
+:root[data-theme="light"] .customisation-choices label:has(:checked),
+:root[data-theme="light"] .customisation-choices label:has(:checked):is(:hover, :has(:focus-visible)),
+:root[data-theme="light"] .library-row .library-row-action.active,
+:root[data-theme="light"] .library-row .library-row-action.active:is(:hover, :focus-visible),
+:root[data-theme="light"] .account-row .library-row-action.active:not(.danger),
+:root[data-theme="light"] .account-row .library-row-action.active:not(.danger):not(:disabled):is(:hover, :focus-visible),
+:root[data-theme="light"] .profile-row .library-row-action[aria-checked="true"],
+:root[data-theme="light"] .profile-row .library-row-action[aria-checked="true"]:is(:hover, :focus-visible),
+:root[data-theme="light"] .sponsorblock-drawer .sponsorblock-options .sponsorblock-modes button[aria-checked="true"],
+:root[data-theme="light"] .sponsorblock-drawer .sponsorblock-options .sponsorblock-modes button[aria-checked="true"]:is(:hover, :focus-visible) {
+  background: var(--highlight-fill);
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+/* The bright accent washes out on the pale row it tints, so the playing
+   track's number and byline take a dark shade of it. */
+:root[data-theme="light"] .track.is-playing :is(.track-number, .track-byline) {
+  color: oklch(from var(--color-accent-bright) .5 c h);
+}
+/* The dark play button lightens only a step under the pointer: as far as
+   the dark theme's goes, it would wash out the pale glyph on it. */
+:root[data-theme="light"] .archive-audio-bar .archive-audio-play:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--shell-fg), #fff 18%);
+}
+/* The playlist's cards-or-tracks pair, in the same light discs. */
+:root[data-theme="light"] .gallery-layout-control button { background: #e9eaf0; color: #454a59; }
+:root[data-theme="light"] .gallery-layout-control button:is(:hover, :focus-visible) { background: #dfe1e9; color: #202431; }
+:root[data-theme="light"] .gallery-layout-control button[aria-pressed="true"] {
+  background: var(--highlight-fill);
+  color: var(--highlight-foreground);
+}
+:root[data-theme="light"] .download-drawer-head .statistics-ranking button:not([aria-pressed="true"]) {
+  background: rgb(32 35 59 / .08);
+  color: #454a59;
+}
+:root[data-theme="light"] .download-drawer-head .statistics-ranking button:not([aria-pressed="true"]):is(:hover, :focus-visible) {
+  background: rgb(32 35 59 / .16);
+  color: #202431;
+}
+:root[data-theme="light"] .statistics-ranking button { background: #e9eaf0; color: #454a59; }
+:root[data-theme="light"] .statistics-ranking button:is(:hover, :focus-visible) { background: #dfe1e9; color: #202431; }
+:root[data-theme="light"] .archive-comments-refresh { background: #e9eaf0; color: #454a59; }
+:root[data-theme="light"] .archive-comments-refresh:is(:hover, :focus-visible):not(:disabled) { background: #dfe1e9; color: #202431; }
+:root[data-theme="light"] .statistics-ranking button[aria-pressed="true"] {
+  background: var(--highlight-fill);
+  color: var(--highlight-foreground);
+}
+:root[data-theme="light"] .sponsorblock-speed-control {
+  --sponsor-slider-colour: var(--color-accent);
+}
+:root[data-theme="light"] .sponsorblock-speed-control.is-disabled { opacity: .58; }
+:root[data-theme="light"] .sponsorblock-speed-control input::-webkit-slider-runnable-track {
+  background: linear-gradient(to right,
+    var(--sponsor-slider-colour) 0 var(--sponsor-speed-fill),
+    #b7bccb var(--sponsor-speed-fill) 100%);
+}
+:root[data-theme="light"] .sponsorblock-speed-control input::-webkit-slider-thumb {
+  background: var(--sponsor-slider-colour);
+}
+:root[data-theme="light"] .sponsorblock-speed-control input::-moz-range-track { background: #b7bccb; }
+:root[data-theme="light"] .sponsorblock-speed-control input::-moz-range-progress { background: var(--sponsor-slider-colour); }
+:root[data-theme="light"] .sponsorblock-speed-control input::-moz-range-thumb {
+  background: var(--sponsor-slider-colour);
+}
+
+
+/* The glow, the buttons and the cards sit on the page itself, which is nearly
+   white, so their previews do too; a grey behind them read as a darker page. */
+:root[data-theme="light"] .customisation-preview:is(.preview-player, .preview-cards, .preview-rounding, .preview-popup-size, .preview-adaptive) { background: #fbfbfd; box-shadow: none; }
+/* The glow as lightGlowPixels draws it on a pale page: the dark dips between
+   bands drop out rather than blurring into grey, and each band is lifted to a
+   bright tint of itself. The real one is not saturated again, so neither is this. */
+:root[data-theme="light"] .preview-player::before {
+  background-image: linear-gradient(90deg,
+    transparent 0.0%, oklch(from oklch(65% .21 25) .78 c h) 8.3%,
+    transparent 16.7%, oklch(from oklch(75% .17 70) .84 c h) 25.0%,
+    transparent 33.3%, oklch(from oklch(85% .17 105) .9 c h) 41.7%,
+    transparent 50.0%, oklch(from oklch(70% .18 150) .82 c h) 58.3%,
+    transparent 66.7%, oklch(from oklch(62% .15 240) .76 c h) 75.0%,
+    transparent 83.3%, oklch(from oklch(55% .2 300) .72 c h) 91.7%,
+    transparent 100%);
+  filter: blur(10px);
+}
+:root[data-theme="light"] .pa-panel { background: color-mix(in srgb, var(--pa-media) 18%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa-media) 22%, transparent); }
+:root[data-theme="light"] .preview-cards i { background: linear-gradient(#bec3d1 0 68%, #d5d9e3 68%); }
+:root[data-theme="light"] .customisation-row .preview-cards i {
+  background: linear-gradient(color-mix(in srgb, var(--button-hue) 52%, #fff) 0 68%,
+    color-mix(in srgb, var(--button-hue) 18%, #e9ebf2) 68%);
+}
+:root[data-theme="light"] :is(.library-row, .activity-row) { border-bottom-color: #e3e5eb; }
+:root[data-theme="light"] :is(.library-path, .activity-detail pre) { color: #626777; }
+:root[data-theme="light"] :is(.library-warning, .activity-row:is([data-level="error"], [data-level="critical"]) .activity-message) { color: #a32e34; }
+:root[data-theme="light"] .activity-detail pre { background: #e9eaf0; }
+:root[data-theme="light"] .activity-row[data-level="warning"] { border-left-color: #c98a12; }
+:root[data-theme="light"] .delete-version:not(.is-sole):hover { background: #eceef3; }
+:root[data-theme="light"] :is(.about-tile, .about-bar-track) { background: #e9eaf0; }
+
+/* The four page buttons, and the other pressed ones, keep their selected
+   fill without the dark look's blurred halo, which on a pale page reads as a
+   smudge. The coloured add and save buttons keep a softer glow. */
+:root[data-theme="light"] :is(
+  .topbar :is(.topbar-navigation, .topbar-actions) .icon-button,
+  .archive-watch-actions .archive-watch-action, .download-drawer-head .close-icon-button,
+  .download-row-action, .download-clear, .library-row-action, .sponsorblock-modes button,
+  .profile-actions .channel-profile-favourite,
+  :is(.settings-menu, .menu-popover, .thumbnail-type-menu) button[role^="menuitem"],
+  .settings-menu [role="menuitemcheckbox"]
+) { box-shadow: none; }
+:root[data-theme="light"] :is(.libraries-form .libraries-add, .profile-add, .profile-save) {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--highlight-fill) 60%, transparent);
+}
+:root[data-theme="light"] .drawer-add[aria-expanded="true"] {
+  background: #e9eaf0;
+  box-shadow: none;
+  color: #454a59;
+}
+:root[data-theme="light"] .drawer-add[aria-expanded="true"]:is(:hover, :focus-visible) {
+  background: #dfe1e9;
+  box-shadow: none;
+  color: #202431;
+}
+
+/* The highlight fill is darkened for the dark look, where a lit control has
+   to sit among near-black surfaces without glaring: the base fill is mixed
+   with black, and the menu and tile fill is scaled to at most .69 of the
+   hue's luminance. On a pale page that reads as dull, so here both take the
+   hue at full chroma and lightness. Only a hue too light for white text is
+   still pulled down, to the luminance cap the foreground was chosen for, and
+   yellow keeps its source lightness as before. */
+:root[data-theme="light"] :is(.topbar-navigation .icon-button, .archive-watch-action,
+    .channel-profile-favourite, .playlist-popup-reverse,
+    .settings-speed-presets button, .customisation-choices label,
+    .library-row-action, .libraries-add, .profile-add, .profile-save,
+    .topbar-go button, .topbar-browse, .sponsorblock-modes button, .gallery-layout-control button,
+    .statistics-ranking button,
+    .settings-menu button[role^="menuitem"], .menu-popover button[role^="menuitem"],
+    .thumbnail-type-menu button[role^="menuitem"], .preview-button) {
+  --highlight-accent: oklch(from var(--highlight-hue) l c h);
+  --highlight-base-fill: var(--highlight-accent);
+}
+:root[data-theme="light"] :is(.topbar .topbar-navigation .icon-button,
+    .customisation-choices .customisation-preview .preview-button) {
+  --highlight-accent: oklch(from var(--highlight-hue) l calc(c * 1.15) h);
+}
+:root[data-theme="light"] :is(.topbar-navigation .icon-button, .customisation-choices label,
+    .archive-watch-action, .channel-profile-favourite,
+    .sponsorblock-modes button, .settings-speed-presets button, .playlist-popup-reverse,
+    .statistics-ranking button,
+    .library-row-action, .libraries-add, .profile-add, .profile-save,
+    .topbar-go button, .topbar-browse,
+    .settings-menu button[role^="menuitem"], .menu-popover button[role^="menuitem"],
+    .thumbnail-type-menu button[role^="menuitem"], .preview-button) {
+  --highlight-fill: color(from var(--highlight-source) xyz-d65
+    calc(x * max(alpha, min(1, calc(var(--highlight-max-luminance) / max(y, .0001)))))
+    calc(y * max(alpha, min(1, calc(var(--highlight-max-luminance) / max(y, .0001)))))
+    calc(z * max(alpha, min(1, calc(var(--highlight-max-luminance) / max(y, .0001))))) / 1);
+}
+
+
+/* The folder picker is tinted like the search field beside it. */
+:root[data-theme="light"] .topbar-directory { background: rgb(32 35 59 / .04); color: #555b6a; }
+:root[data-theme="light"] .topbar-directory:is(:hover, :focus-visible),
+:root[data-theme="light"] .topbar-directory[aria-expanded="true"],
+:root[data-theme="light"] .topbar-directory[data-filtered="true"] { border-color: transparent; background: rgb(32 35 59 / .07); color: #252936; }
+
+/* On a phone the bar leaves the picture and sits on the page's own light
+   ambient glow (see the 700px block in web/styles, the width this must match),
+   so its white-on-dark buttons would vanish: it takes the page's ink, and
+   washes in a dark tint. */
+@media (max-width: 700px) {
+  /* The player's black letterbox fill must stop at the picture, or it paints
+     the strip the bar sits on as well. */
+  :root[data-theme="light"] .archive-watch:not(.is-mini) .archive-watch-stage .media-player:not(:fullscreen)::before { inset: 1px 1px var(--bar-strip); }
+  :root[data-theme="light"] .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .media-player-controls {
+    --archive-track-base: rgb(32 35 59 / .2);
+    color: var(--color-text-strong);
+  }
+  :root[data-theme="light"] .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .media-player-controls button { color: var(--color-text-strong); }
+  :root[data-theme="light"] .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .media-player-controls :is(button:hover, button:focus-visible, .archive-format-open[aria-expanded="true"]) {
+    background: rgb(32 35 59 / .1);
+  }
+  :root[data-theme="light"] .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .archive-autoplay-track { background: rgb(32 35 59 / .22); }
+  :root[data-theme="light"] .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .archive-subtitle-toggle[aria-pressed="true"] .subtitle-line { stroke: #fff; }
+}
+
+/* Header controls contrast with their surface in both themes: dark ink here
+   mirrors the dark theme's translucent white button fill. */
+:root[data-theme="light"] .download-drawer-head .close-icon-button {
+  background: linear-gradient(rgb(32 35 59 / .08), rgb(32 35 59 / .08));
+}
+:root[data-theme="light"] .download-drawer-head .close-icon-button:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: linear-gradient(rgb(32 35 59 / .16), rgb(32 35 59 / .16));
+}
+
+/* Unselected pills in Appearance take the header buttons' fill, not the
+   opaque grey the other pill groups use, so they match the drawer's chrome. */
+:root[data-theme="light"] .customisation-setting .statistics-ranking button:not([aria-pressed="true"]) {
+  background: rgb(32 35 59 / .08);
+  color: #454a59;
+}
+:root[data-theme="light"] .customisation-setting .statistics-ranking button:not([aria-pressed="true"]):is(:hover, :focus-visible) {
+  background: rgb(32 35 59 / .16);
+  color: #202431;
+}
+/* The palette pills take the same fill as the other unselected pills. */
+:root[data-theme="light"] .palette-swatches label { background: rgb(32 35 59 / .08); }
+:root[data-theme="light"] .palette-swatches label:is(:hover, :has(:focus-visible)) { background: rgb(32 35 59 / .16); }
+:root[data-theme="light"] .palette-swatches label:has(:checked) { background: color-mix(in srgb, var(--color-accent) 22%, transparent); }
+
+/* Inside a raised block the neutral pills' #e9eaf0 is all but the block's own
+   #eef0f4, so there they take the header's tint of the ink instead, which
+   reads the same over either surface. */
+:root[data-theme="light"] :is(.account-row, .library-row, .subscription-item, .sponsorblock-block, .sponsorblock-options > div, .customisation-setting)
+  :is(.library-row-action, .download-row-action, .sponsorblock-modes button, .statistics-ranking button):not(.active, [aria-pressed="true"], [aria-checked="true"], :disabled) {
+  background: rgb(32 35 59 / .08);
+  color: #454a59;
+}
+:root[data-theme="light"] :is(.account-row, .library-row, .subscription-item, .sponsorblock-block, .sponsorblock-options > div, .customisation-setting)
+  :is(.library-row-action, .download-row-action, .sponsorblock-modes button, .statistics-ranking button):not(.active, [aria-pressed="true"], [aria-checked="true"], :disabled, .danger):is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: rgb(32 35 59 / .16);
+  color: #202431;
+}

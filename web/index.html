@@ -1,0 +1,1603 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    try {
+      const theme = localStorage.getItem('archive-theme');
+      if (theme === 'light' || theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    } catch { /* The dark default still works without browser storage. */ }
+  </script>
+  <title>Reruns</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/media-ui/shared/chrome.css">
+  <link rel="stylesheet" href="/media-ui/shared/styles.css">
+  <link rel="stylesheet" href="/media-ui/shared/player.css">
+  <link rel="stylesheet" href="./styles/base.css">
+  <link rel="stylesheet" href="./styles/topbar.css">
+  <link rel="stylesheet" href="./styles/cards.css">
+  <link rel="stylesheet" href="./styles/popups.css">
+  <link rel="stylesheet" href="./styles/library.css">
+  <link rel="stylesheet" href="./styles/panels.css">
+  <link rel="stylesheet" href="./light.css">
+  <script>
+    // customisation.js keeps the chosen palette here, since it runs too late to
+    // stop the default colours showing first. It goes after the stylesheets so
+    // it wins over their defaults, as the inline styles replacing it will.
+    try {
+      const palette = localStorage.getItem('archive-palette-style');
+      if (palette) document.write(`<style id="palette-early">${palette}</style>`);
+    } catch { /* The palette still arrives with customisation.js. */ }
+  </script>
+  <script type="importmap">
+    {"imports":{
+      "media-ui":"/media-ui/shared/index.js",
+      "media-ui/":"/media-ui/shared/"
+    }}
+  </script>
+</head>
+<body data-loading="true">
+  <svg class="sr-only" aria-hidden="true">
+    <symbol id="sponsorblock-icon" viewBox="0 0 512 512"><path d="M256 512c-10.9 0-21.5-3-30.8-8.7C87.3 418.2 3.6 270.8 1.3 109.1c-.3-21.8 11.5-42 30.6-52.4 139.8-75.6 308.3-75.6 448.1 0 19.2 10.4 31 30.6 30.6 52.4-2.3 161.7-86 309.1-223.9 394.2-9.2 5.7-19.8 8.7-30.7 8.7m0-494.3c-75.3 0-149.4 18.7-215.6 54.6C27 79.6 18.8 93.6 19 108.8c2.2 155.6 82.8 297.5 215.5 379.3 13.2 7.9 29.7 7.9 42.9 0C410.2 406.3 490.7 264.5 493 108.8c.2-15.2-8-29.3-21.4-36.5C405.4 36.5 331.3 17.7 256 17.7m1.9 20.8c-72.5-.3-143.9 17.6-207.6 52-6.6 3.6-10.6 10.5-10.5 18 2.2 153.1 83.8 286.8 205.7 362 6.5 4 14.7 4 21.2 0 121.8-75.2 203.5-208.9 205.7-362 .1-7.5-4-14.4-10.5-18-62.8-33.8-132.8-51.7-204-52M200 131.4l172 99.3L200 330z"/></symbol>
+  </svg>
+  <!-- The topbar is page chrome, shared by the gallery and the watch page,
+       so it sits outside both, in its own sticky shell that carries the glass. -->
+  <div class="topbar-shell">
+  <header class="topbar">
+    <a id="archive-brand" class="topbar-brand" href="/" aria-label="Reruns: return home" data-i18n-attrs="aria-label:nav.brand">
+      <svg class="topbar-logo" viewBox="0 0 40 24" width="60" height="36" aria-hidden="true">
+        <defs>
+          <linearGradient id="reruns-rainbow" x1="0" y1="0" x2="1" y2="0">
+            <!-- Pink, purple, indigo, with the steps between them taken around the
+                 hue wheel (OKLCH) so the blend never greys out. -->
+            <stop offset="0.0" stop-color="#ce4178"/>
+            <stop offset="0.125" stop-color="#c53e93"/>
+            <stop offset="0.25" stop-color="#b73fac"/>
+            <stop offset="0.375" stop-color="#a442c4"/>
+            <stop offset="0.5" stop-color="#8d47d8"/>
+            <stop offset="0.625" stop-color="#7b46d2"/>
+            <stop offset="0.75" stop-color="#6845cb"/>
+            <stop offset="0.875" stop-color="#5644c2"/>
+            <stop offset="1" stop-color="#4442b8"/>
+          </linearGradient>
+        </defs>
+        <!-- The player's rounded screen, with a rewind symbol on it. -->
+        <rect width="40" height="24" rx="6" fill="url(#reruns-rainbow)"/>
+        <!-- The symbol, scaled about the centre. The lead arrow is notched for the
+             follower to nest in, with a small gap. Each triangle's weight sits at its
+             flat side, so it is nudged left to look centred rather than measure so.
+             A faint shadow lifts it off the colours. -->
+        <g transform="translate(20 12) scale(.72) translate(-20.8 -12)">
+          <g class="arrow arrow-lead">
+            <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z" fill="#0003" stroke="#0003" stroke-width="1.5"
+                  stroke-linejoin="round" transform="translate(0 .4)"/>
+            <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z" fill="#fff" stroke="#fff" stroke-width="1.5"
+                  stroke-linejoin="round"/>
+          </g>
+          <g class="arrow arrow-follow">
+            <path d="M19.2 12l10-6v12z" fill="#0003" stroke="#0003" stroke-width="1.5"
+                  stroke-linejoin="round" transform="translate(0 .4)"/>
+            <path d="M19.2 12l10-6v12z" fill="#fff" stroke="#fff" stroke-width="1.5"
+                  stroke-linejoin="round"/>
+          </g>
+        </g>
+      </svg>
+    </a>
+    <nav class="topbar-navigation" aria-label="Archive views" data-i18n-attrs="aria-label:nav.label">
+      <button class="icon-button" type="button" data-main-view="home" aria-label="Home" title="Home" aria-pressed="false"
+              data-i18n-attrs="aria-label:nav.home,title:nav.home">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#home"/></svg>
+      </button>
+      <button class="icon-button" type="button" data-main-view="videos" aria-label="Videos" title="Videos" aria-pressed="false"
+              data-i18n-attrs="aria-label:nav.videos,title:nav.videos">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#video"/></svg>
+      </button>
+      <button class="icon-button" type="button" data-main-view="playlists" aria-label="Playlists" title="Playlists" aria-pressed="false"
+              data-i18n-attrs="aria-label:nav.playlists,title:nav.playlists">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6.5h12M5 10.5h12M5 14.5h7"/><path d="M15 13.5l6 3.5l-6 3.5z" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="icon-button" type="button" data-main-view="channels" aria-label="Channels" title="Channels" aria-pressed="false"
+              data-i18n-attrs="aria-label:nav.channels,title:nav.channels">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#users"/></svg>
+      </button>
+    </nav>
+    <!-- One field for both jobs: typing searches the archive, and a pasted link
+         turns its go button from a search into a download. -->
+    <form id="download-form" class="topbar-search" data-mode="search" data-filled="false">
+      <!-- Narrows everything to one of the archive's folders. directory-ui.js
+           shows it only when there is more than one place to look. -->
+      <button id="directory-toggle" class="topbar-directory" type="button" hidden
+              aria-haspopup="menu" aria-expanded="false" aria-controls="directory-menu"
+              popovertarget="directory-menu" title="Show only one folder" data-filtered="false"
+              data-i18n-attrs="title:topbar.oneFolder">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#folders"/></svg>
+        <span id="directory-label">All videos</span>
+        <svg class="icon topbar-directory-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
+      </button>
+      <div id="directory-menu" class="menu-popover directory-menu" popover="auto"
+           role="menu" aria-label="Folders" data-i18n-attrs="aria-label:topbar.folders"></div>
+      <div class="topbar-search-field">
+        <svg class="icon topbar-search-icon topbar-search-icon-search" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#search"/></svg>
+        <svg class="icon topbar-search-icon topbar-search-icon-link" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#world"/></svg>
+        <input id="archive-search" type="search" placeholder="Search the archive or paste a link…"
+               aria-label="Search titles, channels, creators and playlists, or paste a link to download"
+               data-i18n-attrs="placeholder:topbar.searchPlaceholder,aria-label:topbar.searchLabel"
+               autocomplete="off" spellcheck="false">
+        <span id="archive-search-count" class="entity-summary" aria-live="polite" hidden></span>
+        <button id="archive-search-clear" class="search-clear-button" type="button"
+                aria-label="Clear search" title="Clear search"
+                data-i18n-attrs="aria-label:topbar.clearSearch,title:topbar.clearSearch">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+        </button>
+      </div>
+      <div class="topbar-go">
+        <button id="download-submit" class="topbar-go-main" type="submit"
+                aria-label="Download" title="Download"
+                data-i18n-attrs="aria-label:downloads.download,title:downloads.download">
+          <svg class="icon topbar-go-download" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#download"/></svg>
+        </button>
+        <button id="download-advanced-toggle" class="topbar-go-options" type="button"
+                aria-label="Download options" title="Download options"
+                data-i18n-attrs="aria-label:downloads.options,title:downloads.options"
+                aria-expanded="false" aria-haspopup="true" aria-controls="download-advanced">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
+        </button>
+      </div>
+      <button id="download-subscribe" class="topbar-subscribe" type="button" hidden
+              title="Check this channel or playlist for new videos on a schedule"
+              data-i18n="subscriptions.subscribe" data-i18n-attrs="title:subscriptions.subscribeTitle">Subscribe</button>
+      <!-- Lists what a pasted channel or playlist offers, or searches YouTube for
+           what has been typed. Which of the two is app.js's to say. -->
+      <button id="download-browse" class="topbar-subscribe topbar-browse" type="button" tabindex="-1"
+              aria-hidden="true" aria-label="Browse" data-i18n-attrs="aria-label:topbar.browse">
+        <svg class="icon topbar-browse-source-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/sources.svg#source-youtube"/></svg>
+        <span class="topbar-browse-search-label" data-i18n="topbar.search">Search</span>
+        <span class="topbar-browse-link-label" data-i18n="topbar.browse">Browse</span>
+      </button>
+    </form>
+    <button id="create-playlist" class="profile-add topbar-new-playlist" type="button"
+            aria-haspopup="dialog" aria-controls="playlist-editor" data-i18n="topbar.newPlaylist"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>New Playlist</button>
+    <div class="topbar-actions">
+      <button id="download-queue-toggle" class="icon-button" type="button" data-empty="true"
+              aria-label="Open download queue" title="Downloads" aria-haspopup="dialog"
+              data-i18n-attrs="aria-label:downloads.openQueue,title:downloads.title">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20.777a8.942 8.942 0 0 1 -2.48 -.969M14 3.223a9.003 9.003 0 0 1 0 17.554M4.579 17.093a8.961 8.961 0 0 1 -1.227 -2.592M3.124 10.5c.16 -.95 .468 -1.85 .9 -2.675l.169 -.305M6.907 4.579a8.954 8.954 0 0 1 3.093 -1.356M12 9v6M15 12l-3 3l-3 -3"/></svg>
+        <span id="download-queue-count" class="download-queue-count" hidden></span>
+      </button>
+      <div class="topbar-menu">
+        <button id="archive-settings-toggle" class="icon-button" type="button"
+                aria-label="Settings" title="Settings" data-i18n-attrs="aria-label:topbar.settings,title:topbar.settings"
+                aria-expanded="false" aria-controls="archive-settings-menu">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#settings"/></svg>
+        </button>
+        <div id="archive-settings-menu" class="settings-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-settings-action="customisation">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
+              <path d="M4 6l8 0M16 6l4 0"/>
+              <path d="M6 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
+              <path d="M4 12l2 0M10 12l10 0"/>
+              <path d="M15 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
+              <path d="M4 18l11 0M19 18l1 0"/>
+            </svg>
+            <span data-i18n="appearance.title">Appearance</span>
+          </button>
+          <button type="button" role="menuitem" data-settings-action="sponsorblock">
+            <svg class="icon sponsorblock-icon" viewBox="0 0 512 512" aria-hidden="true"><use href="#sponsorblock-icon"/></svg>
+            <span>SponsorBlock</span>
+          </button>
+          <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" data-settings-action="libraries">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#folders"/></svg>
+            <span data-i18n="folders.title">Library folders</span>
+          </button>
+          <button type="button" role="menuitem" data-settings-action="profiles">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-edit"/></svg>
+            <span data-i18n="profiles.title">Download profiles</span>
+          </button>
+          <button type="button" role="menuitem" data-settings-action="subscriptions">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#download"/></svg>
+            <span data-i18n="subscriptions.title">Subscriptions</span>
+          </button>
+          <button type="button" role="menuitem" data-settings-action="activity">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8l4 -16l3 8h4"/></svg>
+            <span data-i18n="activity.title">Activity</span>
+          </button>
+          <!-- Shown by app.js only while the scan has found a video with no sidecar. -->
+          <button type="button" role="menuitem" data-settings-action="orphans" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#excluded"/></svg>
+            <span data-i18n="orphans.menu">Missing metadata</span>
+          </button>
+          <button type="button" role="menuitem" data-settings-action="accounts">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#users"/></svg>
+            <span data-i18n="accounts.title">Accounts</span>
+          </button>
+          <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" data-settings-action="password">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#key"/></svg>
+            <span data-i18n="topbar.password">Change password</span>
+          </button>
+          <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" data-settings-action="statistics">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V4M17 16V8"/></svg>
+            <span data-i18n="stats.title">Statistics</span>
+          </button>
+          <button type="button" role="menuitem" data-settings-action="about">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+            <span data-i18n="about.title">About</span>
+          </button>
+          <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" data-settings-action="logout">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#logout"/></svg>
+            <span data-i18n="topbar.signOut">Sign out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Options for a pasted link, a popup opened from the go button's chevron. -->
+  <div id="download-advanced" class="menu-popover download-advanced" popover="manual" role="group"
+       aria-label="Download options" data-i18n-attrs="aria-label:downloads.options">
+  <div class="download-pages" data-download-pages>
+    <div class="download-page" data-download-page="main">
+      <!-- Which settings the download button uses. The manual selects below are
+           the ones that were always here; they only show for Manual overrides. -->
+      <div id="download-profile-menu" class="download-profile-menu" role="menu"
+           aria-label="Download settings" data-i18n-attrs="aria-label:downloads.settings"></div>
+      <!-- Where this one download goes, whichever settings it uses. Filled by
+           downloads-ui from permitted destinations or the gallery folders. -->
+      <label class="download-location" data-download-location hidden data-i18n="profiles.saveTo">Save to
+        <select name="location" form="download-form"></select>
+      </label>
+      <div id="download-manual" class="download-manual" hidden>
+      <label data-i18n="profiles.media">Media
+        <select name="media" form="download-form">
+          <option value="video" data-i18n="profiles.media.video">Video</option>
+          <option value="audio" data-i18n="profiles.media.audioOnly">Audio only</option>
+        </select>
+      </label>
+      <label data-video-option data-i18n="profiles.maxQuality">Max quality
+        <select name="quality" form="download-form">
+          <option value="best" data-i18n="profiles.quality.best">Best available</option>
+          <option value="2160">2160p</option><option value="1440">1440p</option>
+          <option value="1080">1080p</option><option value="720">720p</option>
+          <option value="480">480p</option>
+        </select>
+      </label>
+      <label data-i18n="profiles.format">Format
+        <select name="container" form="download-form"></select>
+      </label>
+      <label data-video-option data-i18n="profiles.codec">Codec
+        <select name="codec" form="download-form"></select>
+      </label>
+      <label data-i18n="profiles.comments">Comments
+        <select name="comments" form="download-form">
+          <option value="off" data-i18n="profiles.comments.off">Don't save</option>
+          <option value="on" data-i18n="profiles.comments.on">Save the top comments</option>
+        </select>
+      </label>
+      <label data-video-option data-i18n="profiles.chat">Livestream chat
+        <select name="chat" form="download-form">
+          <option value="off" data-i18n="profiles.chat.off">Don't save</option>
+          <option value="on" data-i18n="profiles.chat.on">Save the chat replay</option>
+        </select>
+      </label>
+      <!-- Subtitles and audio are both rows that open a page, so what is
+           chosen reads the same way for each. -->
+      <button type="button" class="download-drill" data-video-option data-download-go="subtitles">
+        <span data-i18n="profiles.subtitles">Subtitles</span>
+        <span class="download-drill-value"><span data-subtitle-summary></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7l-7 7"/></svg></span>
+      </button>
+      <!-- The languages themselves are a page of their own that slides over
+           this one, so the row only says what is chosen. -->
+      <button type="button" class="download-drill" data-download-go="audio">
+        <span data-i18n="profiles.audioLanguages">Audio languages</span>
+        <span class="download-drill-value"><span data-audio-summary></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7l-7 7"/></svg></span>
+      </button>
+      <label data-i18n="profiles.playlist">Playlist
+        <select name="playlist" form="download-form">
+          <option value="all" data-i18n="profiles.playlist.all">Download all items</option>
+          <option value="single" data-i18n="profiles.playlist.single">Current video only</option>
+        </select>
+      </label>
+      <label data-i18n="profiles.organise">Organise
+        <select name="organization" form="download-form">
+          <option value="server" data-i18n="profiles.organise.server">Default filename layout</option>
+          <option value="creator" data-i18n="profiles.organise.creator">Creator folders</option>
+          <option value="playlist" data-i18n="profiles.organise.playlist">Creator + playlist</option>
+        </select>
+      </label>
+      </div>
+      <!-- Only when the watch page opens this popup for the video it shows:
+           the topbar's own go button is the submit everywhere else. -->
+      <div class="download-watch-footer" data-download-watch hidden>
+        <p class="download-watch-note" data-download-watch-note hidden></p>
+        <button type="button" class="profile-save" data-download-watch-submit data-i18n="downloads.download">Download</button>
+      </div>
+    </div>
+    <div class="download-page" data-download-page="subtitles" aria-label="Subtitles" data-i18n-attrs="aria-label:profiles.subtitles">
+      <div class="download-page-head">
+        <button type="button" aria-label="Back" data-i18n-attrs="aria-label:downloads.back" data-download-back>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+        </button>
+        <h2 data-i18n="profiles.subtitles">Subtitles</h2>
+      </div>
+      <div class="download-language-list" role="menu" data-subtitle-modes
+           aria-label="Subtitles" data-i18n-attrs="aria-label:profiles.subtitles"></div>
+      <!-- The languages only mean something once subtitles are wanted. -->
+      <div data-subtitle-languages-block>
+        <div class="download-language-divider" role="separator"></div>
+        <div class="download-subtitle-languages">
+          <div data-subtitle-languages-picker></div>
+        </div>
+      </div>
+    </div>
+    <div class="download-page" data-download-page="audio" aria-label="Audio languages" data-i18n-attrs="aria-label:profiles.audioLanguages">
+      <div class="download-page-head">
+        <button type="button" aria-label="Back" data-i18n-attrs="aria-label:downloads.back" data-download-back>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+        </button>
+        <h2 data-i18n="profiles.audioLanguages">Audio languages</h2>
+      </div>
+      <p class="download-page-note" data-audio-note hidden data-i18n="downloads.audioFirstOnly">Audio-only downloads keep just the first language.</p>
+      <div class="download-subtitle-languages">
+        <div data-audio-languages-picker></div>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <main id="archive-home" class="archive-shell">
+    <!-- Moved by shelf-settings.js into whichever heading is first on their page. -->
+    <button id="home-sections-toggle" class="library-row-action shelf-settings-toggle" type="button"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="home-sections-menu"
+            popovertarget="home-sections-menu" aria-label="Choose what home shows"
+            title="Home options"
+            data-i18n-attrs="aria-label:shelf.choose.home,title:shelf.menu.home">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M6 4v4M6 12v8M12 4v8.5M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M18 4v1M18 9v2.5"/><path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296"/></svg>
+    </button>
+    <div id="home-sections-menu" class="menu-popover shelf-settings-menu" popover="auto"
+         role="menu" aria-label="Home options" data-i18n-attrs="aria-label:shelf.menu.home"></div>
+    <button id="channel-sections-toggle" class="library-row-action shelf-settings-toggle" type="button"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="channel-sections-menu"
+            popovertarget="channel-sections-menu" aria-label="Choose the favourite rows on a channel's page"
+            title="Favourite rows"
+            data-i18n-attrs="aria-label:shelf.choose.channel,title:shelf.rows">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M6 4v4M6 12v8M12 4v8.5M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M18 4v1M18 9v2.5"/><path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296"/></svg>
+    </button>
+    <div id="channel-sections-menu" class="menu-popover shelf-settings-menu" popover="auto"
+         role="menu" aria-label="Favourite rows on a channel's page" data-i18n-attrs="aria-label:shelf.menu.channel"></div>
+    <button id="playlist-sections-toggle" class="library-row-action shelf-settings-toggle" type="button"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="playlist-sections-menu"
+            popovertarget="playlist-sections-menu" aria-label="Choose the favourite rows on a playlist's page"
+            title="Favourite rows"
+            data-i18n-attrs="aria-label:shelf.choose.playlist,title:shelf.rows">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M6 4v4M6 12v8M12 4v8.5M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M18 4v1M18 9v2.5"/><path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296"/></svg>
+    </button>
+    <div id="playlist-sections-menu" class="menu-popover shelf-settings-menu" popover="auto"
+         role="menu" aria-label="Favourite rows on a playlist's page" data-i18n-attrs="aria-label:shelf.menu.playlist"></div>
+    <button id="videos-sections-toggle" class="library-row-action shelf-settings-toggle" type="button"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="videos-sections-menu"
+            popovertarget="videos-sections-menu" aria-label="Choose the favourite rows on the videos page"
+            title="Favourite rows"
+            data-i18n-attrs="aria-label:shelf.choose.videos,title:shelf.rows">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M6 4v4M6 12v8M12 4v8.5M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M18 4v1M18 9v2.5"/><path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296"/></svg>
+    </button>
+    <div id="videos-sections-menu" class="menu-popover shelf-settings-menu" popover="auto"
+         role="menu" aria-label="Favourite rows on the videos page" data-i18n-attrs="aria-label:shelf.menu.videos"></div>
+    <button id="playlists-sections-toggle" class="library-row-action shelf-settings-toggle" type="button"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="playlists-sections-menu"
+            popovertarget="playlists-sections-menu" aria-label="Choose the favourite rows on the playlists page"
+            title="Favourite rows"
+            data-i18n-attrs="aria-label:shelf.choose.playlists,title:shelf.rows">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M6 4v4M6 12v8M12 4v8.5M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M18 4v1M18 9v2.5"/><path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296"/></svg>
+    </button>
+    <div id="playlists-sections-menu" class="menu-popover shelf-settings-menu" popover="auto"
+         role="menu" aria-label="Favourite rows on the playlists page" data-i18n-attrs="aria-label:shelf.menu.playlists"></div>
+    <section id="library-loading" class="library-loading-panel" aria-live="polite">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <h2 data-i18n="shelf.loading">Loading library…</h2>
+      <p data-i18n="shelf.scanning">Scanning your video directories.</p>
+    </section>
+    <section id="creator-shelf" class="home-shelf creator-shelf"
+             aria-labelledby="creator-shelf-heading" hidden>
+      <div class="section-heading">
+        <h2 id="creator-shelf-heading" data-i18n="shelf.favChannels">Favourite channels</h2>
+        <button id="creator-shelf-more" class="library-row-action shelf-more" type="button"
+                aria-controls="creator-shelf-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <p id="creator-shelf-hint" class="shelf-empty" hidden data-i18n="shelf.hint.channel">Favourite a channel to pin it here.</p>
+      <div id="creator-shelf-track" class="creator-shelf-track"></div>
+    </section>
+
+    <section id="video-shelf" class="home-shelf video-shelf" aria-labelledby="video-shelf-heading">
+      <div class="section-heading">
+        <h2 id="video-shelf-heading" data-i18n="shelf.favVideos">Favourite videos</h2>
+        <button id="video-shelf-more" class="library-row-action shelf-more" type="button"
+                aria-controls="video-shelf-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <div id="video-shelf-track" class="video-shelf-track"></div>
+    </section>
+
+    <section id="playlist-shelf" class="home-shelf playlist-shelf"
+             aria-labelledby="playlist-shelf-heading" hidden>
+      <div class="section-heading">
+        <h2 id="playlist-shelf-heading" data-i18n="shelf.favPlaylists">Favourite playlists</h2>
+        <button id="playlist-shelf-more" class="library-row-action shelf-more" type="button"
+                aria-controls="playlist-shelf-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <p id="playlist-shelf-hint" class="shelf-empty" hidden data-i18n="shelf.hint.playlist">Favourite a playlist to see it here.</p>
+      <div id="playlist-shelf-track" class="archive-gallery playlist-grid"></div>
+    </section>
+
+    <section id="view-playlist-shelf" class="home-shelf playlist-shelf page-shelf"
+             aria-labelledby="view-playlist-shelf-heading" hidden>
+      <div class="section-heading">
+        <h2 id="view-playlist-shelf-heading" data-i18n="shelf.favPlaylists">Favourite playlists</h2>
+        <button id="view-playlist-shelf-more" class="library-row-action shelf-more" type="button"
+                aria-controls="view-playlist-shelf-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <div id="view-playlist-shelf-track" class="archive-gallery playlist-grid"></div>
+    </section>
+
+    <section id="playlists-view" class="archive-view playlists-view" aria-labelledby="playlists-heading">
+      <div class="section-heading library-heading"><h2 id="playlists-heading" data-i18n="nav.playlists">Playlists</h2></div>
+      <p id="playlists-summary" class="archive-summary" aria-live="polite" hidden></p>
+      <div id="playlist-grid" class="archive-gallery playlist-grid"></div>
+    </section>
+
+    <section id="channels-view" class="archive-view channels-view" aria-labelledby="channels-heading">
+      <div class="section-heading library-heading"><h2 id="channels-heading" data-i18n="nav.channels">Channels</h2></div>
+      <p id="channels-summary" class="archive-summary" aria-live="polite" hidden></p>
+      <div id="channel-grid" class="creator-shelf-track channel-grid"></div>
+    </section>
+
+    <section id="channel-profile" class="channel-profile" aria-live="polite" hidden>
+      <span class="channel-profile-portrait">
+        <span class="channel-profile-initial" data-channel-profile-initial aria-hidden="true"></span>
+        <img data-channel-profile-image alt="" hidden>
+      </span>
+      <div class="channel-profile-copy">
+        <h2 data-channel-profile-name></h2>
+        <p data-channel-profile-stats></p>
+        <div class="channel-profile-actions profile-actions">
+          <button class="creator-card-favourite channel-profile-favourite" type="button"
+                  data-channel-profile-favourite aria-pressed="false"></button>
+          <button class="channel-profile-subscribe" type="button" data-channel-profile-browse hidden
+                  title="See what this channel has posted recently, and download from it"
+                  data-i18n="channel.browse" data-i18n-attrs="title:channel.browseTitle">Browse</button>
+          <button class="channel-profile-subscribe" type="button" data-channel-profile-subscribe hidden
+                  title="Check this channel for new videos on a schedule"
+                  data-i18n="subscriptions.subscribe" data-i18n-attrs="title:subscriptions.subscribeChannelTitle">Subscribe</button>
+          <button class="library-row-action subscription-interval" type="button" hidden
+                  data-channel-subscription-interval aria-haspopup="menu" aria-expanded="false"
+                  aria-controls="channel-subscription-interval-menu"
+                  popovertarget="channel-subscription-interval-menu"></button>
+          <div id="channel-subscription-interval-menu" class="menu-popover subscription-interval-menu"
+               popover="auto" role="menu" aria-label="Check frequency"
+               data-i18n-attrs="aria-label:subscriptions.frequency"></div>
+          <button class="library-row-action" type="button" hidden data-channel-subscription-check
+                  aria-label="Check now" title="Check now"
+                  data-i18n-attrs="aria-label:subscriptions.checkNow,title:subscriptions.checkNow">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#refresh"/></svg>
+          </button>
+          <button class="channel-profile-download-trigger" type="button" data-channel-download-trigger hidden
+                  title="Channel download profile" data-i18n-attrs="title:channel.profileTitle"
+                  aria-expanded="false" aria-haspopup="menu" aria-controls="channel-download-profile-menu"
+                  popovertarget="channel-download-profile-menu">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-edit"/></svg>
+            <span data-channel-download-label data-i18n="profiles.downloadProfile">Download Profile</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
+          </button>
+          <div id="channel-download-profile-menu" class="menu-popover download-profile-menu channel-download-profile-menu"
+               popover="auto" role="menu" aria-label="Channel download profile" data-i18n-attrs="aria-label:channel.profileTitle"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="playlist-profile" class="playlist-profile" aria-live="polite" hidden>
+      <div class="playlist-profile-art" aria-hidden="true">
+        <img data-playlist-profile-image="0" alt="" hidden>
+        <img data-playlist-profile-image="1" alt="" hidden>
+        <img data-playlist-profile-image="2" alt="" hidden>
+        <img data-playlist-profile-image="3" alt="" hidden>
+      </div>
+      <div class="playlist-profile-copy">
+        <h2 data-playlist-profile-name></h2>
+        <p><span data-playlist-profile-byline hidden data-i18n="playlist.by">By <a data-playlist-profile-owner href="#"></a><span data-playlist-profile-uploader></span></span><span data-playlist-profile-year hidden></span><span data-playlist-profile-stats></span></p>
+        <div class="profile-actions">
+          <button class="creator-card-favourite channel-profile-favourite" type="button"
+                  data-playlist-profile-favourite aria-pressed="false"></button>
+          <button id="playlist-browse" class="playlist-profile-subscribe" type="button" hidden
+                  title="See what this playlist lists, and download from it"
+                  data-i18n="channel.browse" data-i18n-attrs="title:playlist.browseTitle">Browse</button>
+          <button id="playlist-subscribe" class="playlist-profile-subscribe" type="button" hidden
+                  title="Check this playlist for new videos on a schedule"
+                  data-i18n="subscriptions.subscribe" data-i18n-attrs="title:subscriptions.subscribePlaylistTitle">Subscribe</button>
+          <button class="library-row-action subscription-interval" type="button" hidden
+                  data-playlist-subscription-interval aria-haspopup="menu" aria-expanded="false"
+                  aria-controls="playlist-subscription-interval-menu"
+                  popovertarget="playlist-subscription-interval-menu"></button>
+          <div id="playlist-subscription-interval-menu" class="menu-popover subscription-interval-menu"
+               popover="auto" role="menu" aria-label="Check frequency"
+               data-i18n-attrs="aria-label:subscriptions.frequency"></div>
+          <button class="library-row-action" type="button" hidden data-playlist-subscription-check
+                  aria-label="Check now" title="Check now"
+                  data-i18n-attrs="aria-label:subscriptions.checkNow,title:subscriptions.checkNow">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#refresh"/></svg>
+          </button>
+          <button class="channel-profile-download-trigger" type="button" data-playlist-download-trigger hidden
+                  aria-expanded="false" aria-haspopup="menu" aria-controls="playlist-download-profile-menu"
+                  popovertarget="playlist-download-profile-menu">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-edit"/></svg>
+            <span data-playlist-download-label data-i18n="profiles.downloadProfile">Download Profile</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
+          </button>
+          <div id="playlist-download-profile-menu" class="menu-popover download-profile-menu channel-download-profile-menu"
+               popover="auto" role="menu" aria-label="Subscription download profile" data-i18n-attrs="aria-label:playlist.subscriptionProfileLabel"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The playlist rows are a channel's page's only; a playlist's page and
+         the videos view share the favourite videos row, each showing its own. -->
+    <section id="page-playlist-shelf" class="home-shelf playlist-shelf page-shelf"
+             aria-labelledby="page-playlist-shelf-heading" hidden>
+      <div class="section-heading">
+        <h2 id="page-playlist-shelf-heading" data-i18n="shelf.favPlaylists">Favourite playlists</h2>
+        <button id="page-playlist-shelf-more" class="library-row-action shelf-more" type="button"
+                aria-controls="page-playlist-shelf-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <div id="page-playlist-shelf-track" class="archive-gallery playlist-grid"></div>
+    </section>
+
+    <section id="channel-playlists" class="home-shelf channel-playlists"
+             aria-labelledby="channel-playlists-heading" hidden>
+      <div class="section-heading">
+        <h2 id="channel-playlists-heading" data-i18n="nav.playlists">Playlists</h2>
+        <button id="channel-playlists-more" class="library-row-action shelf-more" type="button"
+                aria-controls="channel-playlists-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <div id="channel-playlists-track" class="archive-gallery playlist-grid"></div>
+    </section>
+
+    <section id="page-video-shelf" class="home-shelf video-shelf page-shelf"
+             aria-labelledby="page-video-shelf-heading" hidden>
+      <div class="section-heading">
+        <h2 id="page-video-shelf-heading" data-i18n="shelf.favVideos">Favourite videos</h2>
+        <button id="page-video-shelf-more" class="library-row-action shelf-more" type="button"
+                aria-controls="page-video-shelf-track" aria-expanded="false" hidden>
+          <span data-shelf-more-label data-i18n="shelf.more">More</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+        </button>
+      </div>
+      <div id="page-video-shelf-track" class="video-shelf-track"></div>
+    </section>
+
+    <div class="section-heading library-heading videos-heading">
+      <div class="videos-heading-title">
+        <h2 id="archive-heading" data-i18n="nav.videos">Videos</h2>
+      </div>
+      <div class="videos-heading-tools">
+        <div id="gallery-layout" class="gallery-layout-control statistics-ranking" role="group" aria-label="Show this playlist as"
+             data-i18n-attrs="aria-label:tracklist.layout" hidden>
+          <button type="button" data-layout="cards" aria-pressed="true">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#layout-grid"/></svg><span data-i18n="tracklist.cards">Cards</span>
+          </button>
+          <button type="button" data-layout="tracks" aria-pressed="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-numbers"/></svg><span data-i18n="tracklist.tracks">Tracklist</span>
+          </button>
+        </div>
+        <div id="gallery-sort" class="gallery-sort-control statistics-ranking" role="group" aria-label="Sort videos" data-i18n-attrs="aria-label:sort.group">
+        </div>
+      </div>
+    </div>
+    <p id="archive-summary" class="archive-summary" aria-live="polite" data-i18n="common.loading">Loading…</p>
+
+    <section id="archive-gallery" class="archive-gallery"
+             aria-labelledby="archive-heading"></section>
+    <ol id="playlist-tracklist" class="tracklist" aria-labelledby="archive-heading" hidden></ol>
+  </main>
+
+  <div id="status-toast" class="status-toast" role="status" aria-live="polite" hidden></div>
+
+  <dialog id="download-drawer" class="download-drawer" aria-labelledby="download-drawer-title">
+    <div class="download-drawer-head">
+      <div><h2 id="download-drawer-title" data-i18n="downloads.title">Downloads</h2>
+        <p id="download-drawer-summary" data-i18n="downloads.nothing">Nothing queued</p></div>
+      <div class="download-drawer-actions">
+        <button id="download-clear" class="icon-button close-icon-button" type="button"
+                aria-label="Clear finished downloads" title="Clear finished downloads"
+                data-i18n-attrs="aria-label:downloads.clear,title:downloads.clear">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#eraser"/></svg>
+        </button>
+        <button id="download-drawer-close" class="icon-button close-icon-button" type="button"
+              aria-label="Close downloads" data-i18n-attrs="aria-label:downloads.close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+      </div>
+    </div>
+    <div id="download-jobs" class="download-jobs"></div>
+  </dialog>
+
+  <dialog id="subscriptions-drawer" class="download-drawer" aria-labelledby="subscriptions-title">
+    <div class="download-drawer-head">
+      <div><h2 id="subscriptions-title" data-i18n="subscriptions.title">Subscriptions</h2>
+        <p id="subscriptions-summary" data-i18n="subscriptions.none">Nothing followed</p></div>
+      <button id="subscriptions-close" class="icon-button close-icon-button" type="button"
+              aria-label="Close subscriptions" data-i18n-attrs="aria-label:subscriptions.close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+    </div>
+    <div class="download-jobs">
+      <!-- What a new subscription starts with. Its frequency can be changed
+           from the subscription's own row afterwards; the backlog only ever
+           applies at the moment of following. -->
+      <section class="customisation-group subscription-defaults" aria-labelledby="subscriptions-new-title">
+        <h3 id="subscriptions-new-title" data-i18n="subscriptions.new">New subscriptions</h3>
+        <div class="customisation-card"><div class="customisation-setting">
+        <div class="subscription-defaults-fields">
+          <label data-i18n="subscriptions.check">Check for new videos
+            <select id="subscriptions-interval">
+              <option value="1" data-i18n="interval.1">Hourly</option><option value="3" data-i18n="interval.3">Every 3 hours</option>
+              <option value="6" data-i18n="interval.6">Every 6 hours</option><option value="12" data-i18n="interval.12">Every 12 hours</option>
+              <option value="24" data-i18n="interval.24">Daily</option><option value="168" data-i18n="interval.168">Weekly</option>
+            </select>
+          </label>
+          <label data-i18n="subscriptions.existing">Existing videos
+            <select id="subscriptions-backlog">
+              <option value="new" data-i18n="backlog.new">Start with future uploads</option>
+              <option value="5" data-i18n="backlog.5">Download the latest 5</option>
+              <option value="10" data-i18n="backlog.10">Download the latest 10</option>
+              <option value="25" data-i18n="backlog.25">Download the latest 25</option>
+              <option value="all" data-i18n="backlog.all">Download any that are missing</option>
+            </select>
+          </label>
+        </div>
+        </div></div>
+      </section>
+      <section class="customisation-group subscription-followed" aria-labelledby="subscriptions-followed-title">
+        <h3 id="subscriptions-followed-title" data-i18n="subscriptions.followed">Following</h3>
+        <div id="subscriptions-list"></div>
+      </section>
+    </div>
+  </dialog>
+
+  <!-- What a channel, playlist or search lists, held or not. Opened from the
+       Browse buttons on those pages and on a subscription's row. -->
+  <dialog id="browse-drawer" class="download-drawer browse-drawer" aria-labelledby="browse-title">
+    <div class="download-drawer-head">
+      <button id="browse-back" class="icon-button close-icon-button browse-back" type="button" hidden
+              aria-label="Back to the search" title="Back to the search"
+              data-i18n-attrs="aria-label:browse.back,title:browse.back">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-left"/></svg>
+      </button>
+      <div><h2 id="browse-title"></h2>
+        <p id="browse-summary"></p></div>
+      <div class="download-drawer-actions">
+        <button id="browse-options" class="icon-button close-icon-button" type="button"
+                popovertarget="browse-options-menu" aria-haspopup="menu" aria-expanded="false"
+                aria-label="Browse options" title="Browse options"
+                data-i18n-attrs="aria-label:browse.options,title:browse.options">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-edit"/></svg>
+        </button>
+        <button id="browse-close" class="icon-button close-icon-button" type="button"
+                aria-label="Close browsing" data-i18n-attrs="aria-label:browse.close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="download-jobs">
+      <div class="browse-tools">
+        <input id="browse-filter" type="search" placeholder="Filter these…" autocomplete="off"
+               spellcheck="false" aria-label="Filter the listed videos by title or channel"
+               data-i18n-attrs="placeholder:browse.filterPlaceholder,aria-label:browse.filterLabel">
+      </div>
+      <div id="browse-list"></div>
+      <button id="browse-more" class="browse-more" type="button" hidden data-i18n="browse.more">Show more</button>
+    </div>
+    <!-- Within the dialog, which makes all else inert while it is modal. -->
+    <div id="browse-options-menu" class="menu-popover download-profile-menu browse-options-menu"
+         popover="auto" role="menu" aria-label="Browse options" data-i18n-attrs="aria-label:browse.options"></div>
+  </dialog>
+
+  <dialog id="libraries-drawer" class="download-drawer" aria-labelledby="libraries-title">
+    <div class="drawer-heading-block">
+    <div class="download-drawer-head">
+      <div><h2 id="libraries-title" data-i18n="folders.title">Library folders</h2>
+        <p id="libraries-summary" data-i18n="folders.none">No folders yet</p></div>
+      <div class="download-drawer-actions">
+        <button id="libraries-new" class="profile-add drawer-add" type="button" aria-expanded="false" aria-controls="libraries-form" data-i18n="folders.add">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>Add folder
+        </button>
+      <button id="libraries-close" class="icon-button close-icon-button" type="button"
+              aria-label="Close library folders" data-i18n-attrs="aria-label:folders.close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+      </div>
+    </div>
+      <div class="drawer-editor" hidden><div>
+      <form id="libraries-form" class="libraries-form">
+        <label class="libraries-path-label">
+          <span class="sr-only" data-i18n="folders.pathLabel">Folder path on the server</span>
+          <input id="libraries-path" type="text" required spellcheck="false" autocomplete="off"
+                 placeholder="/home/you/Videos/ytdlp">
+        </label>
+        <button class="libraries-add" type="submit" aria-label="Add folder" title="Add folder" data-i18n-attrs="aria-label:folders.add,title:folders.add">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>
+        </button>
+      </form>
+      </div></div>
+    </div>
+    <div class="download-jobs">
+      <div id="libraries-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="accounts-drawer" class="download-drawer" aria-labelledby="accounts-title">
+    <div class="drawer-heading-block">
+    <div class="download-drawer-head">
+      <div><h2 id="accounts-title" data-i18n="accounts.title">Accounts</h2>
+        <p id="accounts-summary" data-i18n="accounts.none">No accounts yet</p></div>
+      <div class="download-drawer-actions">
+        <button id="accounts-new" class="profile-add drawer-add" type="button" aria-expanded="false" aria-controls="accounts-form" data-i18n="accounts.add">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>Add account
+        </button>
+      <button id="accounts-close" class="icon-button close-icon-button" type="button"
+              aria-label="Close accounts" data-i18n-attrs="aria-label:accounts.close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+      </div>
+    </div>
+      <div class="drawer-editor" hidden><div>
+      <form id="accounts-form" class="libraries-form accounts-form">
+        <input name="username" type="text" required spellcheck="false" autocomplete="off"
+               aria-label="Username" placeholder="Username"
+               data-i18n-attrs="aria-label:accounts.username,placeholder:accounts.username">
+        <input name="password" type="password" required minlength="12" autocomplete="new-password"
+               aria-label="Initial password" placeholder="Password, 12+ characters"
+               data-i18n-attrs="aria-label:accounts.initialPassword,placeholder:accounts.passwordHint">
+        <button class="libraries-add" type="submit" aria-label="Add account" title="Add account" data-i18n-attrs="aria-label:accounts.add,title:accounts.add">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>
+        </button>
+      </form>
+      </div></div>
+    </div>
+    <div class="download-jobs">
+      <div id="accounts-list"></div>
+    </div>
+    <section class="customisation-group customisation-defaults" aria-labelledby="accounts-defaults-title" data-customisation-defaults hidden>
+      <h3 id="accounts-defaults-title" data-i18n="accounts.defaults">Defaults</h3>
+      <div class="customisation-card">
+        <div class="customisation-setting">
+          <p class="customisation-option-note" data-i18n="accounts.defaults.note">Default settings applied to new accounts, and to anyone who has not chosen for themselves. They cover appearance, the player, SponsorBlock and download options.</p>
+          <div class="customisation-default-actions">
+            <button type="button" class="profile-save" data-customisation-set-defaults data-i18n="accounts.defaults.use">Use current</button>
+            <button type="button" class="profile-cancel" data-customisation-clear-defaults data-i18n="accounts.defaults.clear">Clear defaults</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog id="profiles-drawer" class="download-drawer" aria-labelledby="profiles-title">
+    <div class="drawer-heading-block">
+    <div class="download-drawer-head">
+      <div><h2 id="profiles-title" data-i18n="profiles.title">Download profiles</h2>
+        <p id="profiles-summary" data-i18n="profiles.none">No profiles yet</p></div>
+      <div class="download-drawer-actions">
+        <button id="profiles-new" class="profile-add drawer-add" type="button" aria-expanded="false" aria-controls="profiles-editor" data-i18n="profiles.new">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>New profile
+        </button>
+        <button id="profiles-reset" class="icon-button close-icon-button" type="button"
+                aria-label="Restore the starter profiles" title="Restore the starter profiles"
+                data-i18n-attrs="aria-label:profiles.restore,title:profiles.restore">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#reset"/></svg>
+        </button>
+        <button id="profiles-close" class="icon-button close-icon-button" type="button"
+                aria-label="Close download profiles" data-i18n-attrs="aria-label:profiles.close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="profiles-editor" class="drawer-editor" hidden><div></div></div>
+    </div>
+    <div id="profiles-list" class="download-jobs"></div>
+  </dialog>
+
+  <dialog id="customisation-drawer" class="download-drawer" aria-labelledby="customisation-title">
+    <div class="download-drawer-head">
+      <div><h2 id="customisation-title" data-i18n="appearance.title">Appearance</h2><p data-i18n="appearance.saved">Saved to your account</p></div>
+      <div class="download-drawer-actions">
+        <button data-customisation-reset class="icon-button close-icon-button" type="button"
+                aria-label="Restore default appearance" title="Restore default appearance" data-i18n-attrs="aria-label:appearance.reset,title:appearance.reset">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#reset"/></svg>
+        </button>
+        <button class="icon-button close-icon-button" type="button" aria-label="Close appearance settings" data-i18n-attrs="aria-label:appearance.close" data-customisation-close>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+      </div>
+    </div>
+    <section class="customisation-group" aria-labelledby="customisation-group-general">
+      <h3 id="customisation-group-general" data-i18n="appearance.group.general">General</h3>
+      <div class="customisation-card">
+      <div class="customisation-setting" role="group" aria-labelledby="theme-label">
+        <div class="customisation-heading">
+          <span class="customisation-title" id="theme-label" data-i18n="appearance.theme">Theme</span>
+          <p class="customisation-option-note" data-i18n="appearance.theme.note">Choose the page colours, or follow the system's.</p>
+        </div>
+        <div class="statistics-ranking" role="group" aria-labelledby="theme-label">
+          <button type="button" data-choice-for="theme" data-value="dark" aria-pressed="false"><svg class="icon theme-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#moon"/></svg><span data-i18n="appearance.dark">Dark</span></button>
+          <button type="button" data-choice-for="theme" data-value="light" aria-pressed="false"><svg class="icon theme-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#sun"/></svg><span data-i18n="appearance.light">Light</span></button>
+          <button type="button" data-choice-for="theme" data-value="system" aria-pressed="false"><svg class="icon theme-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#sun-moon"/></svg><span data-i18n="appearance.system">System</span></button>
+        </div>
+      </div>
+      <div class="customisation-setting" role="group" aria-labelledby="palette-label">
+        <div class="customisation-heading">
+          <span class="customisation-title" id="palette-label" data-i18n="appearance.colours">Colours</span>
+          <p class="customisation-option-note" data-i18n="appearance.colours.note">The logo's gradient, and the accent buttons and highlights take from it.</p>
+        </div>
+        <div class="palette-swatches" data-palette-choices></div>
+        <p class="customisation-option-note customisation-chosen" data-selected-name="palette"></p>
+      </div>
+      <div class="customisation-setting" role="radiogroup" aria-labelledby="language-label">
+        <div class="customisation-heading">
+          <span class="customisation-title" id="language-label" data-i18n="appearance.language">Language</span>
+          <p class="customisation-option-note" data-i18n="appearance.language.note">The spelling and date formats the interface uses.</p>
+        </div>
+        <div class="customisation-list">
+          <label><input type="radio" name="language" value="en-GB"><span data-i18n="language.en-GB">English (UK)</span></label>
+          <label><input type="radio" name="language" value="en-US"><span data-i18n="language.en-US">English (US)</span></label>
+        </div>
+      </div>
+      </div>
+    </section>
+    <section class="customisation-group" aria-labelledby="customisation-group-library">
+      <h3 id="customisation-group-library" data-i18n="appearance.group.library">Library</h3>
+      <div class="customisation-card">
+      <div class="customisation-setting customisation-row" role="group" aria-labelledby="card-size-label">
+        <span class="customisation-preview preview-cards" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <div class="customisation-controls">
+          <span class="customisation-title" id="card-size-label" data-i18n="appearance.cards" data-i18n-attrs="title:appearance.cards.note" title="How wide video cards are in the library, shelves and related videos.">Card size</span>
+          <div class="statistics-ranking" role="group" aria-labelledby="card-size-label">
+            <button type="button" data-choice-for="card-size" data-value="small" aria-pressed="false"><span data-i18n="appearance.small">Small</span></button>
+            <button type="button" data-choice-for="card-size" data-value="medium" aria-pressed="false"><span data-i18n="appearance.medium">Medium</span></button>
+            <button type="button" data-choice-for="card-size" data-value="large" aria-pressed="false"><span data-i18n="appearance.large">Large</span></button>
+          </div>
+        </div>
+      </div>
+      </div>
+    </section>
+    <section class="customisation-group" aria-labelledby="customisation-group-player">
+      <h3 id="customisation-group-player" data-i18n="appearance.group.player">Player</h3>
+      <div class="customisation-card">
+      <div class="customisation-setting customisation-row" role="group" aria-labelledby="player-lighting-label">
+        <span class="customisation-preview preview-player" aria-hidden="true"><span class="preview-screen"></span></span>
+        <div class="customisation-controls">
+          <span class="customisation-title" id="player-lighting-label" data-i18n="appearance.lighting" data-i18n-attrs="title:appearance.lighting.note" title="A soft glow around the player that follows the video's colours.">Player lighting</span>
+          <div class="statistics-ranking" role="group" aria-labelledby="player-lighting-label">
+            <button type="button" data-choice-for="player-lighting" data-value="on" aria-pressed="false"><span data-i18n="appearance.on">On</span></button>
+            <button type="button" data-choice-for="player-lighting" data-value="automatic" aria-pressed="false"><span data-i18n="appearance.automatic">Automatic</span></button>
+            <button type="button" data-choice-for="player-lighting" data-value="off" aria-pressed="false"><span data-i18n="appearance.off">Off</span></button>
+          </div>
+          <p class="customisation-option-note" data-note-for="player-lighting" data-note-value="on" data-i18n="appearance.on.note" hidden>Follows the playing video closely.</p>
+          <p class="customisation-option-note" data-note-for="player-lighting" data-note-value="automatic" data-i18n="appearance.automatic.note" hidden>Like On, but turns itself off if the page runs slowly.</p>
+          <p class="customisation-option-note" data-note-for="player-lighting" data-note-value="off" data-i18n="appearance.off.note" hidden>No glow around the player.</p>
+          <p class="customisation-option-note customisation-reduced" data-i18n="appearance.lighting.reduced">Turned off when reduced motion is on.</p>
+        </div>
+      </div>
+      <div class="customisation-setting customisation-row" role="group" aria-labelledby="player-rounding-label">
+        <span class="customisation-preview preview-rounding" aria-hidden="true"><span class="preview-screen"></span></span>
+        <div class="customisation-controls">
+          <span class="customisation-title" id="player-rounding-label" data-i18n="appearance.corners" data-i18n-attrs="title:appearance.corners.note" title="How round the video player's corners are on the watch page.">Player corners</span>
+          <div class="statistics-ranking" role="group" aria-labelledby="player-rounding-label">
+            <button type="button" data-choice-for="player-rounding" data-value="default" aria-pressed="false"><span data-i18n="appearance.default">Default</span></button>
+            <button type="button" data-choice-for="player-rounding" data-value="small" aria-pressed="false"><span data-i18n="appearance.small">Small</span></button>
+            <button type="button" data-choice-for="player-rounding" data-value="off" aria-pressed="false"><span data-i18n="appearance.off">Off</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="customisation-setting customisation-row" role="group" aria-labelledby="popup-player-size-label">
+        <span class="customisation-preview preview-popup-size" aria-hidden="true"><span class="preview-cards" style="--cols: 4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="preview-screen"></span></span>
+        <div class="customisation-controls">
+          <span class="customisation-title" id="popup-player-size-label" data-i18n="appearance.popup" data-i18n-attrs="title:appearance.popup.note" title="How wide the player is while you browse the library.">Background / popup player size</span>
+          <div class="statistics-ranking" role="group" aria-labelledby="popup-player-size-label">
+            <button type="button" data-choice-for="popup-player-size" data-value="small" aria-pressed="false"><span data-i18n="appearance.small">Small</span></button>
+            <button type="button" data-choice-for="popup-player-size" data-value="medium" aria-pressed="false"><span data-i18n="appearance.medium">Medium</span></button>
+            <button type="button" data-choice-for="popup-player-size" data-value="large" aria-pressed="false"><span data-i18n="appearance.large">Large</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="customisation-setting customisation-row" role="group" aria-labelledby="video-colours-label">
+        <span class="customisation-preview preview-adaptive" aria-hidden="true"><span class="pa-bar"></span><span class="pa-player"></span><span class="pa-panel"></span></span>
+        <div class="customisation-controls">
+          <span class="customisation-title" id="video-colours-label" data-i18n="appearance.video-colours" data-i18n-attrs="title:appearance.video-colours.note" title="Which parts of the page use the video's accent colour.">Adaptive watch page theme</span>
+          <div class="statistics-ranking" role="group" aria-labelledby="video-colours-label">
+            <button type="button" data-choice-for="video-colours" data-value="on" aria-pressed="false"><span data-i18n="appearance.video-colours.on">On</span></button>
+            <button type="button" data-choice-for="video-colours" data-value="player" aria-pressed="false"><span data-i18n="appearance.video-colours.player">Player</span></button>
+            <button type="button" data-choice-for="video-colours" data-value="off" aria-pressed="false"><span data-i18n="appearance.video-colours.off">Off</span></button>
+          </div>
+          <p class="customisation-option-note" data-note-for="video-colours" data-note-value="on" data-i18n="appearance.video-colours.on.note" hidden>The entire page.</p>
+          <p class="customisation-option-note" data-note-for="video-colours" data-note-value="player" data-i18n="appearance.video-colours.player.note" hidden>Just the player controls.</p>
+          <p class="customisation-option-note" data-note-for="video-colours" data-note-value="off" data-i18n="appearance.video-colours.off.note" hidden>Always use chosen theme.</p>
+        </div>
+      </div>
+      </div>
+    </section>
+    <p class="customisation-note customisation-footer" data-i18n="appearance.footer">Saved to your account, and followed from any browser you sign in on.</p>
+  </dialog>
+
+  <dialog id="about-drawer" class="download-drawer" aria-labelledby="about-title">
+    <div class="download-drawer-head">
+      <div><h2 id="about-title" data-i18n="about.title">About</h2>
+        <p id="about-summary"></p></div>
+      <button id="about-close" class="icon-button close-icon-button" type="button"
+              aria-label="Close about" data-i18n-attrs="aria-label:about.close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+    </div>
+    <section class="customisation-group about-versions" aria-labelledby="about-versions-title">
+      <h3 id="about-versions-title" data-i18n="about.versions">Versions</h3>
+      <dl id="about-list" class="about-list"></dl>
+    </section>
+    <section class="about-licenses" aria-labelledby="about-licenses-title">
+      <h3 id="about-licenses-title" data-i18n="about.licences">Licences and credits</h3>
+      <dl class="about-license-list">
+        <div><dt>Reruns</dt><dd><a href="/licenses/reruns.txt" target="_blank" rel="noopener noreferrer">MIT</a> · Copyright © 2026 dvdavd</dd></div>
+      </dl>
+      <h4 data-i18n="about.interface">Interface</h4>
+      <dl class="about-license-list">
+        <div><dt>Preact</dt><dd><a href="/licenses/preact.txt" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+        <div><dt>Preact render to string</dt><dd><a href="/licenses/preact-render-to-string.txt" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+        <div><dt>HTM</dt><dd><a href="/licenses/htm.txt" target="_blank" rel="noopener noreferrer">Apache-2.0</a></dd></div>
+        <div><dt>Tabler Icons</dt><dd><a href="/licenses/tabler-icons.txt" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+        <div><dt>Inter font</dt><dd><a href="/licenses/inter.txt" target="_blank" rel="noopener noreferrer">SIL OFL 1.1</a></dd></div>
+      </dl>
+      <h4 data-i18n="about.server">Server libraries</h4>
+      <dl class="about-license-list">
+        <div><dt>Authlib</dt><dd><a href="/licenses/authlib-LICENSE.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
+        <div><dt>joserfc</dt><dd><a href="/licenses/joserfc-LICENSE.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
+        <div><dt>Requests</dt><dd><a href="/licenses/requests-LICENSE.txt" target="_blank" rel="noopener noreferrer">Apache-2.0</a></dd></div>
+        <div><dt>cryptography</dt><dd><a href="/licenses/cryptography-LICENSE.APACHE.txt" target="_blank" rel="noopener noreferrer">Apache-2.0</a> OR <a href="/licenses/cryptography-LICENSE.BSD.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
+        <div><dt>curl_cffi</dt><dd><a href="/licenses/curl-cffi-LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+        <div><dt>CFFI</dt><dd><a href="/licenses/cffi-LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT-0</a></dd></div>
+        <div><dt>pycparser</dt><dd><a href="/licenses/pycparser-LICENSE.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
+        <div><dt>certifi</dt><dd><a href="/licenses/certifi-LICENSE.txt" target="_blank" rel="noopener noreferrer">MPL-2.0</a></dd></div>
+        <div><dt>charset-normalizer</dt><dd><a href="/licenses/charset-normalizer-LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+        <div><dt>idna</dt><dd><a href="/licenses/idna-LICENSE.md.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
+        <div><dt>urllib3</dt><dd><a href="/licenses/urllib3-LICENSE.txt.txt" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+        <div><dt>PyAV</dt><dd><a href="/licenses/pyav-LICENSE.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
+        <div><dt>Pillow</dt><dd><a href="/licenses/pillow-LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT-CMU</a></dd></div>
+      </dl>
+      <p><a href="/licenses/requests-NOTICE.txt" target="_blank" rel="noopener noreferrer" data-i18n="about.requests">Requests notices</a></p>
+      <h4 data-i18n="about.media">Media tools</h4>
+      <dl class="about-license-list">
+        <div><dt>yt-dlp</dt><dd><a href="https://github.com/yt-dlp/yt-dlp#license" target="_blank" rel="noopener noreferrer">Unlicense and bundled component licenses</a></dd></div>
+        <div><dt>FFmpeg</dt><dd><a href="https://ffmpeg.org/legal.html" target="_blank" rel="noopener noreferrer">LGPL-3.0-or-later in the Docker image; other builds vary</a></dd></div>
+        <div><dt>Deno</dt><dd><a href="https://github.com/denoland/deno/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">MIT</a></dd></div>
+      </dl>
+      <h4>SponsorBlock</h4>
+      <p data-i18n="about.sponsorCredit">Uses SponsorBlock data licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> from <a href="https://sponsor.ajay.app/" target="_blank" rel="noopener noreferrer">https://sponsor.ajay.app/</a>.</p>
+    </section>
+  </dialog>
+
+  <dialog id="statistics-drawer" class="download-drawer" aria-labelledby="statistics-title">
+    <div class="download-drawer-head">
+      <div><h2 id="statistics-title" data-i18n="stats.title">Statistics</h2>
+        <p id="statistics-subtitle"></p></div>
+      <div class="download-drawer-actions">
+        <div id="statistics-scope" class="statistics-ranking" role="group" aria-label="Show statistics for"
+             data-i18n-attrs="aria-label:stats.scope"></div>
+        <button id="statistics-close" class="icon-button close-icon-button" type="button"
+                aria-label="Close statistics" data-i18n-attrs="aria-label:stats.close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="statistics-content" class="library-statistics"></div>
+  </dialog>
+
+  <dialog id="orphans-drawer" class="download-drawer" aria-labelledby="orphans-title">
+    <div class="download-drawer-head">
+      <div><h2 id="orphans-title" data-i18n="orphans.title">Videos without metadata</h2>
+        <p id="orphans-summary" data-i18n="orphans.none">Every video has its metadata</p></div>
+      <div class="download-drawer-actions">
+        <button id="orphans-fetch-all" class="profile-add drawer-add drawer-add-text" type="button" data-i18n="orphans.fetchAll">
+          Fetch all
+        </button>
+        <button id="orphans-close" class="icon-button close-icon-button" type="button"
+                aria-label="Close videos without metadata" data-i18n-attrs="aria-label:orphans.close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="download-jobs">
+      <p class="download-empty" data-i18n="orphans.intro">These files have no .info.json beside them, so they are not in the gallery. Where the name holds a YouTube id, the details can be fetched from YouTube.</p>
+      <div id="orphans-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="orphans-confirm" class="confirm-dialog" aria-labelledby="orphans-confirm-title">
+    <form method="dialog">
+      <h2 id="orphans-confirm-title"></h2>
+      <p class="confirm-dialog-note" data-i18n="orphans.confirmNote">Each video is a separate request to YouTube, made one after another. A large batch can take a while, and YouTube may slow or block a server that asks for too many at once.</p>
+      <div class="confirm-dialog-actions">
+        <button class="confirm-dialog-button" type="submit" value="cancel" data-i18n="common.cancel">Cancel</button>
+        <button class="confirm-dialog-button" type="submit" value="first" id="orphans-confirm-first"></button>
+        <button class="profile-save" type="submit" value="all" data-i18n="orphans.confirmAll">Fetch all</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="activity-drawer" class="download-drawer" aria-labelledby="activity-title">
+    <div class="download-drawer-head">
+      <div><h2 id="activity-title" data-i18n="activity.title">Activity</h2>
+        <p id="activity-summary" data-i18n="activity.none">Nothing yet</p></div>
+      <div class="download-drawer-actions">
+        <button id="activity-clear" class="icon-button close-icon-button" type="button"
+                aria-label="Clear activity" title="Clear activity"
+                data-i18n-attrs="aria-label:activity.clear,title:activity.clear">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#eraser"/></svg>
+        </button>
+        <button id="activity-close" class="icon-button close-icon-button" type="button"
+              aria-label="Close activity" data-i18n-attrs="aria-label:activity.close">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+      </div>
+    </div>
+    <div class="download-jobs">
+      <div class="activity-filters">
+        <label><span class="sr-only" data-i18n="activity.showFrom">Show activity from</span>
+          <select id="activity-source">
+            <option value="all" data-i18n="activity.filter.all">Everything</option>
+            <option value="download" data-i18n="activity.filter.download">Downloads</option>
+            <option value="subtitles" data-i18n="activity.filter.subtitles">Subtitles</option>
+            <option value="subscription" data-i18n="activity.filter.subscription">Subscriptions</option>
+            <option value="portrait" data-i18n="activity.filter.portrait">Channel pictures</option>
+            <option value="other" data-i18n="activity.filter.other">Everything else</option>
+          </select>
+        </label>
+        <label><span class="sr-only" data-i18n="activity.showAt">Show entries at</span>
+          <select id="activity-level">
+            <option value="all" data-i18n="activity.level.all">All entries</option>
+            <option value="problems" data-i18n="activity.level.problems">Warnings and errors</option>
+            <option value="errors" data-i18n="activity.level.errors">Errors only</option>
+          </select>
+        </label>
+        <button id="activity-copy" class="library-row-action" type="button"
+                aria-label="Copy what is shown" title="Copy what is shown"
+                data-i18n-attrs="aria-label:activity.copy,title:activity.copy">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#copy"/></svg>
+        </button>
+      </div>
+      <div id="activity-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="sponsorblock-drawer" class="download-drawer sponsorblock-drawer" aria-labelledby="sponsorblock-title">
+    <div class="download-drawer-head">
+      <div><h2 id="sponsorblock-title">SponsorBlock</h2>
+        <p data-i18n="sponsor.subtitle">Default skipping behaviour for every video</p></div>
+      <div class="download-drawer-actions">
+        <a class="icon-button close-icon-button" href="https://sponsor.ajay.app/" target="_blank" rel="noreferrer noopener"
+           aria-label="Open SponsorBlock website" title="Open SponsorBlock website"
+           data-i18n-attrs="aria-label:sponsor.open,title:sponsor.open">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#external-link"/></svg>
+        </a>
+        <button data-sponsorblock-reset class="icon-button close-icon-button" type="button"
+                aria-label="Restore SponsorBlock defaults" title="Restore SponsorBlock defaults"
+                data-i18n-attrs="aria-label:sponsor.restore,title:sponsor.restore">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#reset"/></svg>
+        </button>
+        <button class="icon-button close-icon-button" type="button" aria-label="Close SponsorBlock settings" data-i18n-attrs="aria-label:sponsor.close" data-sponsorblock-close>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+      </div>
+    </div>
+    <div class="sponsorblock-drawer-body">
+      <button class="settings-row autoplay-row sponsorblock-toggle-row sponsorblock-global-toggle" type="button" role="switch"
+              aria-checked="true" data-sponsorblock-global>
+        <span data-i18n="sponsor.enable">Enable SponsorBlock</span>
+        <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+      </button>
+      <fieldset class="sponsorblock-options" data-sponsorblock-options>
+        <legend data-i18n="sponsor.whenPlays">When a segment plays</legend>
+        <div data-sponsorblock-rows></div>
+      </fieldset>
+      <section class="sponsorblock-overrides" aria-labelledby="sponsorblock-overrides-title">
+        <h3 id="sponsorblock-overrides-title" data-i18n="sponsor.overrides">Channel overrides</h3>
+        <div class="sponsorblock-block sponsorblock-overrides-block">
+          <input type="search" placeholder="Search channels…" aria-label="Search channel overrides"
+                 data-i18n-attrs="placeholder:sponsor.searchPlaceholder,aria-label:sponsor.searchLabel"
+                 data-sponsorblock-overrides-search>
+          <p data-sponsorblock-overrides-empty data-i18n="sponsor.noOverrides">No channel overrides yet.</p>
+          <div data-sponsorblock-overrides></div>
+        </div>
+      </section>
+      <p class="sponsorblock-attribution" data-i18n="sponsor.attribution">Uses SponsorBlock data licensed under CC BY-NC-SA 4.0 from
+        <a href="https://sponsor.ajay.app/" target="_blank" rel="noreferrer noopener">https://sponsor.ajay.app/</a>.</p>
+    </div>
+  </dialog>
+
+  <!-- Deleting asks here rather than through the browser's confirm: a video
+       can be several files, and which of them to remove is the question. -->
+  <dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-dialog-title">
+    <h2 id="delete-dialog-title" data-delete-title data-i18n="delete.heading">Delete this video?</h2>
+    <p class="confirm-dialog-note" data-delete-note></p>
+    <p class="confirm-dialog-total" data-delete-total hidden></p>
+    <div class="confirm-dialog-list" data-delete-versions></div>
+    <div class="confirm-dialog-actions">
+      <button class="confirm-dialog-button" type="button" data-delete-cancel autofocus data-i18n="common.cancel">Cancel</button>
+      <button class="confirm-dialog-button danger" type="button" data-delete-selected data-i18n="delete.selected">Delete selected</button>
+      <button class="confirm-dialog-button danger" type="button" data-delete-all data-i18n="delete.all">Delete all</button>
+    </div>
+  </dialog>
+
+  <dialog id="welcome-dialog" class="confirm-dialog welcome-dialog" aria-labelledby="welcome-dialog-title">
+    <form id="welcome-form" class="welcome-form">
+      <!-- The topbar's logo, borrowing its gradient so the chosen palette applies. -->
+      <svg class="welcome-logo" viewBox="0 0 40 24" width="75" height="45" aria-hidden="true">
+        <rect width="40" height="24" rx="6" fill="url(#reruns-rainbow)"/>
+        <g transform="translate(20 12) scale(.72) translate(-20.8 -12)" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-linejoin="round">
+          <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z"/><path d="M19.2 12l10-6v12z"/>
+        </g>
+      </svg>
+      <h2 id="welcome-dialog-title" data-i18n="welcome.title">Welcome to Reruns</h2>
+      <label class="welcome-field"><span data-i18n="welcome.location">Video library location (new or existing)</span>
+        <input id="welcome-path" name="path" type="text" required autocomplete="off" spellcheck="false"
+               placeholder="/full/path/to/archive"></label>
+      <p id="welcome-message" class="welcome-message" role="alert" hidden></p>
+      <p class="info-callout">
+        <svg class="info-callout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/>
+        </svg>
+        <span data-i18n="welcome.more">More library folders can be added later from Settings > Library folders.</span></p>
+      <p class="info-callout">
+        <svg class="info-callout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/>
+        </svg>
+        <span data-i18n="welcome.onlyExisting">Only existing videos with a <code>.info.json</code> file will be imported.</span></p>
+      <div class="confirm-dialog-actions">
+        <button class="confirm-dialog-button" type="button" id="welcome-later" data-i18n="welcome.later">Later</button>
+        <button class="profile-save" type="submit" data-i18n="folders.add">Add folder</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="password-dialog" class="confirm-dialog" aria-labelledby="password-dialog-title">
+    <form id="password-form" class="password-form">
+      <h2 id="password-dialog-title" data-i18n="password.title">Change your password</h2>
+      <input type="password" name="current" required autocomplete="current-password"
+             aria-label="Current password" placeholder="Current password"
+             data-i18n-attrs="aria-label:password.current,placeholder:password.current">
+      <input type="password" name="password" required minlength="12" autocomplete="new-password"
+             aria-label="New password" placeholder="New password, 12+ characters"
+             data-i18n-attrs="aria-label:password.new,placeholder:password.newHint">
+      <input type="password" name="repeat" required autocomplete="new-password"
+             aria-label="Repeat the new password" placeholder="Repeat new password"
+             data-i18n-attrs="aria-label:password.repeatLabel,placeholder:password.repeatHint">
+      <p id="password-message" class="confirm-dialog-note" role="alert"></p>
+      <div class="confirm-dialog-actions">
+        <button class="confirm-dialog-button" type="button" id="password-cancel" data-i18n="common.cancel">Cancel</button>
+        <button class="profile-save" type="submit" id="password-submit" data-i18n="password.change">Change password</button>
+      </div>
+    </form>
+  </dialog>
+
+  <section id="archive-player" class="archive-watch" aria-label="Watch video" data-i18n-attrs="aria-label:watch.label" hidden>
+    <!-- Shown only while the player is shrunk to the corner (background play). -->
+    <div class="archive-mini-controls" data-mini-controls role="group" aria-label="Background player" data-i18n-attrs="aria-label:watch.background">
+      <button type="button" data-mini-play data-state="playing" aria-label="Pause" data-i18n-attrs="aria-label:watch.pause">
+        <svg class="icon mini-icon-pause" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#pause"/></svg>
+        <svg class="icon mini-icon-play" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#play"/></svg>
+      </button>
+      <button type="button" data-mini-mute data-state="sound" aria-label="Mute" data-i18n-attrs="aria-label:watch.mute">
+        <svg class="icon mini-icon-sound" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-high"/></svg>
+        <svg class="icon mini-icon-muted" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-muted"/></svg>
+      </button>
+      <button type="button" data-mini-mode aria-label="Switch to the music player" title="Switch to the music player"
+              data-i18n-attrs="aria-label:watch.toMusicPlayer,title:watch.toMusicPlayer">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#music"/></svg>
+      </button>
+      <span class="archive-mini-spacer"></span>
+      <button type="button" data-mini-restore aria-label="Back to full page" title="Back to full page"
+              data-i18n-attrs="aria-label:watch.restore,title:watch.restore">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#maximize"/></svg>
+      </button>
+      <button type="button" data-mini-close aria-label="Close player" title="Close player"
+              data-i18n-attrs="aria-label:watch.closePlayer,title:watch.closePlayer">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+      </button>
+    </div>
+    <input type="range" class="archive-mini-seek" data-mini-seek min="0" max="1000" step="1" value="0" aria-label="Seek" data-i18n-attrs="aria-label:watch.seek">
+    <!-- Background play for sound alone: a bar along the foot of the page
+         rather than a corner window, since there is no picture to show. -->
+    <div class="archive-audio-bar" data-audio-bar role="group" aria-label="Now playing" data-i18n-attrs="aria-label:watch.audioBar">
+      <div class="archive-audio-now">
+        <span class="archive-audio-cover"><img data-audio-cover alt="" hidden></span>
+        <span class="archive-audio-text">
+          <a class="archive-audio-title" data-audio-title title="Back to full page" data-i18n-attrs="title:watch.restore"></a>
+          <span class="archive-audio-byline" data-audio-byline></span>
+        </span>
+      </div>
+      <div class="archive-audio-transport">
+        <div class="archive-audio-buttons">
+          <button type="button" data-audio-previous aria-label="Previous" title="Previous"
+                  data-i18n-attrs="aria-label:player.previous,title:player.previous">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#track-previous"/></svg>
+          </button>
+          <button type="button" class="archive-audio-play" data-mini-play data-state="playing" aria-label="Pause" data-i18n-attrs="aria-label:watch.pause">
+            <svg class="icon mini-icon-pause" viewBox="0 0 18 18" aria-hidden="true"><use href="/media-ui/shared/icons.svg#pause-18"/></svg>
+            <svg class="icon mini-icon-play" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#play"/></svg>
+          </button>
+          <button type="button" data-audio-next aria-label="Next in playlist" title="Next in playlist"
+                  data-i18n-attrs="aria-label:player.nextInPlaylist,title:player.nextInPlaylist">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#track-next"/></svg>
+          </button>
+        </div>
+        <div class="archive-audio-progress">
+          <span class="archive-audio-time" data-audio-elapsed>0:00</span>
+          <input type="range" class="archive-audio-seek" data-audio-seek min="0" max="1000" step="1" value="0" aria-label="Seek" data-i18n-attrs="aria-label:watch.seek">
+          <span class="archive-audio-time" data-audio-total>0:00</span>
+        </div>
+      </div>
+      <div class="archive-audio-tools">
+        <button type="button" data-audio-shuffle aria-pressed="false" aria-label="Shuffle" title="Shuffle"
+                data-i18n-attrs="aria-label:player.shuffle,title:player.shuffle">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#shuffle"/></svg>
+        </button>
+        <button type="button" data-audio-repeat data-repeat="off" aria-label="Repeat: off" title="Repeat: off">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use data-audio-repeat-icon href="/media-ui/shared/icons.svg#repeat"/></svg>
+        </button>
+        <a class="archive-audio-icon" data-audio-playlist aria-label="Back to the playlist" title="Back to the playlist"
+           data-i18n-attrs="aria-label:watch.backToPlaylist,title:watch.backToPlaylist" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-numbers"/></svg>
+        </a>
+        <!-- The player's own volume button and pill (player.css draws both by
+             these attributes), so the level can be set here too, not only muted. -->
+        <button type="button" data-audio-volume data-media-volume-toggle data-volume-state="high"
+                aria-label="Volume" data-i18n-attrs="aria-label:ui.volume">
+          <svg class="icon media-icon-volume-high" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-high"/></svg>
+          <svg class="icon media-icon-volume-medium" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-medium"/></svg>
+          <svg class="icon media-icon-volume-zero" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-zero"/></svg>
+          <svg class="icon media-icon-volume-muted" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-muted"/></svg>
+        </button>
+        <span class="media-player-volume-popup" data-audio-volume-popup>
+          <input type="range" data-audio-volume-slider min="0" max="1" step="0.05" value="1"
+                 aria-label="Volume" data-i18n-attrs="aria-label:ui.volume">
+          <button type="button" data-media-mute data-audio-mute aria-pressed="false" aria-label="Mute" data-i18n-attrs="aria-label:ui.mute">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#volume-muted"/></svg>
+          </button>
+        </span>
+        <button type="button" data-mini-mode aria-label="Switch to the video player" title="Switch to the video player"
+                data-i18n-attrs="aria-label:watch.toVideoPlayer,title:watch.toVideoPlayer">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#video"/></svg>
+        </button>
+        <button type="button" data-mini-restore aria-label="Back to full page" title="Back to full page"
+                data-i18n-attrs="aria-label:watch.restore,title:watch.restore">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#maximize"/></svg>
+        </button>
+        <button type="button" data-mini-close aria-label="Close player" title="Close player"
+                data-i18n-attrs="aria-label:watch.closePlayer,title:watch.closePlayer">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="archive-watch-main">
+      <div class="archive-watch-stage" data-player-host></div>
+      <div class="archive-watch-head">
+        <a class="archive-watch-avatar-link" data-watch-avatar-link hidden>
+          <img class="archive-watch-avatar" data-watch-avatar alt="" width="48" height="48">
+        </a>
+        <div class="archive-watch-heading">
+          <h1 data-watch-title></h1>
+          <p class="archive-watch-summary" data-watch-summary></p>
+        </div>
+        <div class="archive-watch-actions">
+          <button class="archive-watch-action" type="button" data-watch-favourite
+                  aria-pressed="false" aria-label="Add to favourite videos" title="Favourite"
+                  data-i18n-attrs="aria-label:watch.addFavourite,title:watch.favourite">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#heart-outline"/></svg>
+          </button>
+          <button class="archive-watch-action" type="button" data-watch-add-playlist
+                  aria-label="Add to playlists" title="Add to playlists"
+                  data-i18n-attrs="aria-label:watch.addPlaylists,title:watch.addPlaylists">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>
+          </button>
+          <button class="watch-subscribe" type="button" data-watch-subscribe-channel hidden
+                  title="Check this channel for new videos on a schedule"
+                  data-i18n="subscriptions.subscribe" data-i18n-attrs="title:subscriptions.subscribeChannelTitle">Subscribe</button>
+          <button class="library-row-action subscription-interval" type="button" hidden
+                  data-channel-subscription-interval aria-haspopup="menu" aria-expanded="false"
+                  aria-controls="channel-subscription-interval-menu"
+                  popovertarget="channel-subscription-interval-menu"></button>
+          <div id="channel-subscription-interval-menu" class="menu-popover subscription-interval-menu"
+               popover="auto" role="menu" aria-label="Check frequency"
+               data-i18n-attrs="aria-label:subscriptions.frequency"></div>
+          <button class="library-row-action" type="button" hidden data-channel-subscription-check
+                  aria-label="Check now" title="Check now"
+                  data-i18n-attrs="aria-label:subscriptions.checkNow,title:subscriptions.checkNow">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#refresh"/></svg>
+          </button>
+          <a class="archive-watch-action is-secondary" data-watch-source target="_blank" rel="noreferrer noopener"
+             title="Open source page" aria-label="Open source page" hidden
+             data-i18n-attrs="aria-label:watch.source,title:watch.source">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#external-link"/></svg>
+          </a>
+          <a class="archive-watch-action is-secondary" data-watch-file download
+             title="Save the file to this computer" aria-label="Save the file to this computer" hidden
+             data-i18n-attrs="aria-label:watch.saveFile,title:watch.saveFile">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#device-floppy"/></svg>
+          </a>
+          <button class="archive-watch-action" type="button" data-watch-download hidden
+                  aria-haspopup="true" aria-expanded="false" aria-controls="download-advanced"
+                  title="Download another format to the library"
+                  aria-label="Download another format to the library"
+                  data-i18n-attrs="aria-label:watch.downloadFormat,title:watch.downloadFormat">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#download"/></svg>
+          </button>
+          <button class="archive-watch-action is-secondary" type="button" data-watch-refresh hidden
+                  title="Refresh views, heatmap and subtitles from the source"
+                  aria-label="Refresh metadata from the source"
+                  data-i18n-attrs="aria-label:watch.refreshLabel,title:watch.refreshTitle">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#refresh"/></svg>
+          </button>
+          <button class="archive-watch-action is-secondary danger" type="button" data-watch-delete hidden
+                  title="Delete from the library" aria-label="Delete from the library"
+                  data-i18n-attrs="aria-label:watch.delete,title:watch.delete">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#trash"/></svg>
+          </button>
+          <button class="archive-watch-action archive-watch-overflow" type="button" hidden
+                  data-watch-overflow aria-haspopup="menu" aria-expanded="false"
+                  aria-label="More actions" title="More actions"
+                  data-i18n-attrs="aria-label:watch.moreActions,title:watch.moreActions">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#menu-dots"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- Under the title: the file's facts, the words, and the neighbours,
+           side by side when the page is wide and in a single column when it
+           is not (see .archive-watch-lower). Only the facts sit in a card. -->
+      <div class="archive-watch-lower">
+        <section class="archive-watch-facts" aria-label="Details" data-i18n-attrs="aria-label:watch.aboutDetails">
+          <h2 data-i18n="watch.aboutDetails">Details</h2>
+          <dl class="archive-watch-specs" data-watch-specs></dl>
+        </section>
+        <section class="archive-watch-story" aria-label="Description" data-i18n-attrs="aria-label:watch.aboutDescription">
+          <div class="archive-watch-description" data-watch-description hidden>
+            <div class="archive-watch-description-head">
+              <h2 data-i18n="watch.aboutDescription">Description</h2>
+              <div class="archive-watch-description-toggle statistics-ranking">
+                <button type="button" data-watch-description-toggle aria-expanded="false" hidden>
+                  <span data-shelf-more-label data-i18n="watch.showMore">Show more</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+                </button>
+              </div>
+            </div>
+            <p data-watch-description-text></p>
+          </div>
+        </section>
+      <!-- One grid cell for the two, so a video with neither leaves no gap
+           where the stylesheet names their row. -->
+      <div class="archive-watch-discussion">
+        <section class="archive-watch-chat" data-watch-chat hidden
+                 aria-label="Chat replay" data-i18n-attrs="aria-label:watch.chat">
+          <div class="archive-watch-comments-head">
+            <h2 data-i18n="watch.chat">Chat replay</h2>
+            <div class="archive-watch-comments-tabs statistics-ranking" role="group">
+              <button type="button" data-chat-toggle aria-pressed="false" data-i18n="watch.chat.show">Show</button>
+            </div>
+          </div>
+          <p class="archive-comments-status archive-chat-status" data-chat-status hidden></p>
+          <div class="archive-chat-list" data-chat-list role="log" aria-live="off" hidden
+               aria-label="Chat replay" data-i18n-attrs="aria-label:watch.chat"></div>
+        </section>
+        <section class="archive-watch-comments" data-watch-comments hidden
+                 aria-label="Comments" data-i18n-attrs="aria-label:watch.comments">
+          <div class="archive-watch-comments-head">
+            <h2 data-i18n="watch.comments">Comments</h2>
+            <div class="archive-watch-comments-controls">
+              <button class="archive-comments-refresh" type="button" data-watch-comments-refresh hidden
+                      title="Fetch the comments again" aria-label="Fetch the comments again"
+                      data-i18n-attrs="aria-label:watch.comments.refresh,title:watch.comments.refresh">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#refresh"/></svg>
+              </button>
+              <div class="archive-watch-comments-tabs statistics-ranking" role="group" data-watch-comments-modes
+                   aria-label="Show comments" data-i18n-attrs="aria-label:watch.comments.sort">
+                <button type="button" data-comments-mode="none" aria-pressed="true">None</button>
+                <button type="button" data-comments-mode="top" aria-pressed="false"
+                        data-i18n="watch.comments.sortTop">Top</button>
+                <button type="button" data-comments-mode="newest" aria-pressed="false"
+                        data-i18n="watch.comments.sortNewest">Newest</button>
+              </div>
+            </div>
+          </div>
+          <div class="archive-comments" data-watch-comments-list hidden></div>
+        </section>
+      </div>
+      <section class="archive-related" aria-label="Related videos" data-i18n-attrs="aria-label:watch.related" hidden>
+        <div class="archive-related-head">
+          <h2 data-related-heading data-i18n="watch.moreFromChannel">More from this channel</h2>
+        </div>
+        <div class="archive-related-list"></div>
+      </section>
+      </div>
+    </div>
+    <!-- The other formats this video was downloaded in. It wears the list's
+         own class as well as its own: it is the same panel, opened from the
+         same bar, and only its rows differ. -->
+    <div id="watch-format-popup" class="playlist-popup format-popup" popover="auto"
+         aria-label="Video formats" data-i18n-attrs="aria-label:watch.formatsLabel">
+      <div class="playlist-popup-head">
+        <h2 data-i18n="watch.formats">Formats</h2>
+      </div>
+      <div class="format-popup-list" data-format-entries></div>
+    </div>
+    <!-- The first page stays terse; each choice slides to its own page. -->
+    <div id="watch-settings-popup" class="playlist-popup settings-popup" popover="auto"
+         aria-label="Playback settings" data-i18n-attrs="aria-label:player.settingsLabel">
+      <div class="settings-pages" data-settings-pages>
+        <section class="settings-page" data-settings-page="main">
+          <button class="settings-row settings-link" type="button" data-settings-go="speed">
+            <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"/><path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"/></svg></span>
+            <span data-i18n="player.speed">Playback speed</span><span data-speed-summary>Normal</span>
+          </button>
+          <button class="settings-row settings-link" type="button" data-settings-go="subtitles">
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3l12 0"/><path d="M7 15h5"/><path d="M15 15h2"/><path d="M17 12h-3"/><path d="M11 12h-1"/></svg></span>
+            <span data-i18n="player.subtitles">Subtitles</span><span data-subtitle-summary>Off</span>
+          </button>
+          <button class="settings-row settings-link" type="button" data-settings-go="audio" data-audio-row hidden>
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8a5 5 0 0 1 0 8"/><path d="M17.7 5a9 9 0 0 1 0 14"/><path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"/></svg></span>
+            <span data-i18n="player.audio">Audio</span><span data-audio-summary></span>
+          </button>
+          <button class="settings-row settings-link autoplay-row" type="button" role="switch"
+                  aria-checked="false" aria-label="Autoplay the next part" data-i18n-attrs="aria-label:player.autoplayLabel"
+                  data-autoplay-setting data-autoplay-toggle>
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8h-14"/><path d="M5 12h7"/><path d="M10 16h-5"/><circle cx="18" cy="17" r="4.5" fill="currentColor" stroke="none"/><text x="18" y="19.2" text-anchor="middle" font-size="6.5" font-weight="700" font-family="Arial, sans-serif" fill="#171717" stroke="none">A</text></svg></span>
+            <span data-i18n="player.autoplay">Autoplay</span>
+            <span class="archive-autoplay settings-toggle" aria-hidden="true">
+              <span class="archive-autoplay-track" aria-hidden="true">
+                <span class="archive-autoplay-knob"></span>
+              </span>
+            </span>
+          </button>
+          <button class="settings-row settings-link" type="button" data-settings-go="background">
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4"/><path d="M14 15a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1l0 -3"/></svg></span>
+            <span data-i18n="player.background">Background play</span><span data-background-summary>Off</span>
+          </button>
+          <button class="settings-row settings-link" type="button" data-settings-go="immersive">
+            <span class="settings-menu-icon" aria-hidden="true">
+              <svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 20h16"/>
+                <path d="M20 16v-10a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v10l4 -6c2.667 1.333 5.333 1.333 8 0l4 6"/>
+              </svg>
+            </span>
+            <span data-i18n="player.immersive">Immersive mode</span><span data-immersive-summary>20 seconds</span>
+          </button>
+          <button class="settings-row settings-link autoplay-row" type="button" role="switch"
+                  aria-checked="false" aria-label="Show playback statistics" data-i18n-attrs="aria-label:stats.toggleLabel"
+                  data-stats-toggle>
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></svg></span>
+            <span data-i18n="stats.toggle">Stats for nerds</span>
+            <span class="archive-autoplay settings-toggle" aria-hidden="true">
+              <span class="archive-autoplay-track" aria-hidden="true">
+                <span class="archive-autoplay-knob"></span>
+              </span>
+            </span>
+          </button>
+          <button class="settings-row settings-link" type="button" data-settings-go="sponsorblock" data-sponsorblock-player-row hidden>
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="sponsorblock-icon" viewBox="0 0 512 512"><use href="#sponsorblock-icon"/></svg></span>
+            <span>SponsorBlock</span><span data-sponsorblock-summary>On</span>
+          </button>
+        </section>
+        <section class="settings-page" data-settings-page="speed" aria-label="Playback speed" data-i18n-attrs="aria-label:player.speed">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="player.speed">Playback speed</h2>
+          </div>
+          <output class="settings-speed-value" data-speed-value>Normal</output>
+          <input class="settings-speed-slider" type="range" data-playback-speed
+                 min="0" max="0" step="1" value="0" aria-label="Playback speed" data-i18n-attrs="aria-label:player.speed">
+          <div class="settings-speed-presets" data-speed-presets></div>
+        </section>
+        <section class="settings-page" data-settings-page="subtitles" aria-label="Subtitles" data-i18n-attrs="aria-label:player.subtitles">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="player.subtitles">Subtitles</h2>
+          </div>
+          <div class="settings-list" data-subtitle-list role="radiogroup" aria-label="Subtitle language" data-i18n-attrs="aria-label:player.subtitleLanguage"></div>
+          <p class="settings-note" data-subtitle-empty hidden data-i18n="player.noSubtitles">None downloaded for this video yet.</p>
+          <div data-subtitle-download>
+            <h3 class="settings-heading" data-i18n="downloads.download">Download</h3>
+            <div class="settings-list settings-list-scroll" data-subtitle-downloads></div>
+          </div>
+        </section>
+        <section class="settings-page" data-settings-page="audio" aria-label="Audio" data-i18n-attrs="aria-label:player.audio">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="player.audio">Audio</h2>
+          </div>
+          <div class="settings-list" data-audio-list role="radiogroup" aria-label="Audio track" data-i18n-attrs="aria-label:player.audioTrack"></div>
+        </section>
+        <section class="settings-page" data-settings-page="immersive" aria-label="Immersive mode" data-i18n-attrs="aria-label:player.immersive">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="player.immersive">Immersive mode</h2>
+          </div>
+          <div class="settings-list" data-immersive-options role="radiogroup" aria-label="Immersive mode inactivity delay" data-i18n-attrs="aria-label:player.immersiveDelay"></div>
+        </section>
+        <section class="settings-page" data-settings-page="background" aria-label="Background play" data-i18n-attrs="aria-label:player.background">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="player.background">Background play</h2>
+          </div>
+          <div class="settings-list" data-background-options role="radiogroup" aria-label="Keep playing in a corner when leaving this page" data-i18n-attrs="aria-label:player.backgroundLabel"></div>
+          <p class="settings-note" data-background-note></p>
+        </section>
+        <section class="settings-page" data-settings-page="sponsorblock" aria-label="SponsorBlock">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:sponsor.back" data-settings-back><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg></button>
+            <h2>SponsorBlock</h2>
+          </div>
+          <button class="settings-row autoplay-row sponsorblock-toggle-row" type="button" role="switch" aria-checked="true" data-sponsorblock-video-toggle>
+            <span data-i18n="sponsor.enableVideo">Enable for this video</span>
+            <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+          </button>
+          <label class="settings-field sponsorblock-channel-setting">
+            <span data-sponsorblock-channel-label>This Channel Default</span>
+            <select data-sponsorblock-channel-select aria-label="SponsorBlock setting for this channel" data-i18n-attrs="aria-label:sponsor.channelLabel">
+              <option value="default" data-i18n="sponsor.useGlobal">Use global setting</option><option value="on" data-i18n="sponsor.alwaysEnable">Always enable</option><option value="off" data-i18n="sponsor.alwaysDisable">Always disable</option>
+            </select>
+          </label>
+          <p class="settings-note" data-sponsorblock-source></p>
+        </section>
+      </div>
+    </div>
+    <div id="watch-playlist-popup" class="playlist-popup" popover="auto"
+         aria-label="Playlist entries" data-i18n-attrs="aria-label:watch.playlistEntries">
+      <div class="playlist-popup-head">
+        <h2 data-playlist-title></h2>
+        <p class="playlist-popup-note" data-playlist-note></p>
+        <button class="playlist-popup-reverse" type="button" aria-pressed="false"
+                data-playlist-reverse>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#arrows-sort"/></svg>
+        </button>
+      </div>
+      <div class="playlist-popup-list" data-playlist-entries></div>
+    </div>
+  </section>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+recursive-include web *.js *.css *.html *.svg *.txt
+recursive-include ui *.js *.css *.svg *.woff2 *.txt *.json *.md
+prune ui/tests
+include requirements.txt
+recursive-include docs *.md
+recursive-include tests *.py *.mjs
+include Dockerfile compose.yaml
+

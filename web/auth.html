@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    try {
+      const theme = localStorage.getItem('archive-theme');
+      if (theme === 'light' || theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    } catch { /* The dark default still works without browser storage. */ }
+  </script>
+  <title>Sign in · Reruns</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/media-ui/shared/chrome.css">
+  <link rel="stylesheet" href="./styles/base.css">
+  <link rel="stylesheet" href="./styles/topbar.css">
+  <link rel="stylesheet" href="./styles/cards.css">
+  <link rel="stylesheet" href="./styles/popups.css">
+  <link rel="stylesheet" href="./styles/library.css">
+  <link rel="stylesheet" href="./styles/panels.css">
+  <link rel="stylesheet" href="./light.css">
+  <link rel="stylesheet" href="./auth.css">
+  <style id="palette-default">
+    /* Original, the palette a fresh install resolves to, so the sign-in button and
+       logo do not first show the stylesheet's purple until auth.js has fetched the
+       config. The stored palette below wins over it, and auth.js's inline styles
+       over both. Generated from palette.js; keep in step with it. */
+    :root{--button-hue:oklch(from #e83a68 l calc(c * 1) h);--color-accent:oklch(from #e83a68 .56 min(calc(c * 1), .24) h);--color-accent-strong:oklch(from #e83a68 .47 min(calc(c * 1), .22) h);--logo-gradient:linear-gradient(in oklch to right, oklch(from color-mix(in oklch, #ff7a0f 65%, #f0307c) l calc(c * 1) h), oklch(from color-mix(in oklch, #f0307c 65%, #f0307c) l calc(c * 1) h), oklch(from color-mix(in oklch, #7a38e8 65%, #f0307c) l calc(c * 1) h));--logo-1:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 75%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h);--logo-2:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 25%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h);--logo-3:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 75%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h);--logo-4:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 25%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(1){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 100%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(2){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 75%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(3){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 50%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(4){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 25%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(5){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 100%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(6){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 75%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(7){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 50%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(8){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 25%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(9){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 0%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+  </style>
+  <script>
+    // The palette this browser last chose, as customisation.js keeps it for
+    // index.html, so a returning browser sees it from the first paint. Cooler is
+    // the stylesheet's own colours and has no stored copy, so it just loses the
+    // Original default above.
+    try {
+      const palette = localStorage.getItem('archive-palette-style');
+      if (palette) document.write(`<style id="palette-early">${palette}</style>`);
+      else if (localStorage.getItem('archive-palette') === 'cooler') document.getElementById('palette-default').remove();
+    } catch { /* The palette still arrives with auth.js. */ }
+  </script>
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <svg class="topbar-logo auth-logo" viewBox="0 0 40 24" width="90" height="54" aria-hidden="true">
+        <defs>
+          <linearGradient id="reruns-rainbow" x1="0" y1="0" x2="1" y2="0">
+            <!-- Pink, purple, indigo, with the steps between them taken around the
+                 hue wheel (OKLCH) so the blend never greys out. -->
+            <stop offset="0.0" stop-color="#ce4178"/>
+            <stop offset="0.125" stop-color="#c53e93"/>
+            <stop offset="0.25" stop-color="#b73fac"/>
+            <stop offset="0.375" stop-color="#a442c4"/>
+            <stop offset="0.5" stop-color="#8d47d8"/>
+            <stop offset="0.625" stop-color="#7b46d2"/>
+            <stop offset="0.75" stop-color="#6845cb"/>
+            <stop offset="0.875" stop-color="#5644c2"/>
+            <stop offset="1" stop-color="#4442b8"/>
+          </linearGradient>
+        </defs>
+        <!-- The player's rounded screen, with a rewind symbol on it. -->
+        <rect width="40" height="24" rx="6" fill="url(#reruns-rainbow)"/>
+        <!-- The symbol, scaled about the centre. The lead arrow is notched for the
+             follower to nest in, with a small gap. Each triangle's weight sits at its
+             flat side, so it is nudged left to look centred rather than measure so.
+             A faint shadow lifts it off the colours. -->
+        <g transform="translate(20 12) scale(.72) translate(-20.8 -12)">
+          <g class="arrow arrow-lead">
+            <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z" fill="#0003" stroke="#0003" stroke-width="1.5"
+                  stroke-linejoin="round" transform="translate(0 .4)"/>
+            <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z" fill="#fff" stroke="#fff" stroke-width="1.5"
+                  stroke-linejoin="round"/>
+          </g>
+          <g class="arrow arrow-follow">
+            <path d="M19.2 12l10-6v12z" fill="#0003" stroke="#0003" stroke-width="1.5"
+                  stroke-linejoin="round" transform="translate(0 .4)"/>
+            <path d="M19.2 12l10-6v12z" fill="#fff" stroke="#fff" stroke-width="1.5"
+                  stroke-linejoin="round"/>
+          </g>
+        </g>
+      </svg>
+    <h1>Reruns</h1>
+    <p id="auth-intro" data-i18n="auth.intro">Sign in to your archive.</p>
+    <p id="auth-warning" class="auth-note auth-warning" role="alert" hidden></p>
+    <form id="auth-form">
+      <label><span data-i18n="auth.username">Username</span><input name="username" type="text" autocomplete="username" required></label>
+      <label><span data-i18n="auth.password">Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+      <label id="repeat-row" hidden><span data-i18n="auth.repeat">Repeat password</span><input name="repeat" type="password" autocomplete="new-password" disabled></label>
+      <label id="setup-token-row" hidden><span data-i18n="auth.token">Setup token</span><input name="token" type="text" autocomplete="off" spellcheck="false">
+        <small class="auth-note info-callout">
+          <svg class="info-callout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/>
+          </svg>
+          <span id="setup-token-hint">Printed in the server's console when it starts.
+            With Docker, run <code>docker logs</code> on the container.</span></small></label>
+      <button id="auth-submit" class="profile-save" type="submit" data-i18n="auth.signIn">Sign in</button>
+    </form>
+    <div id="auth-or" class="auth-or" role="separator" hidden><span data-i18n="auth.or">or</span></div>
+    <a id="oidc-link" class="profile-save auth-oidc" href="/auth/oidc/start" hidden>Sign in with OIDC</a>
+    <p id="auth-message" role="status"></p>
+  </main>
+  <script type="module" src="/auth.js"></script>
+</body>
+</html>
