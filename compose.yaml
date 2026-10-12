@@ -1,0 +1,49 @@
+# An example, pulling the published image from the GitHub Container Registry.
+# To build from a checkout instead, use compose.build.yaml.
+# Settings, subscriptions and the managed yt-dlp live in ./config;
+# ./cache holds scrub sprites, channel pictures and probes, and can be deleted.
+services:
+  reruns:
+    image: ghcr.io/dvdavd/reruns:latest
+    environment:
+      # The host user the server runs as, so it can read your media and write
+      # downloads and config. Find yours with `id -u` and `id -g`.
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      # Disable sign-in and give every visitor full administrator access.
+      # RERUNS_NO_AUTH: "true"
+      # Downloads: how many run at once (default 2), and the yt-dlp output
+      # template that lays files out under the library (default
+      # uploader/title.ext).
+      # RERUNS_CONCURRENCY: 2
+      # RERUNS_OUTPUT: "%(uploader,channel,extractor_key|Unknown)s/%(title)s.%(ext)s"
+      #
+      # Behind a reverse proxy, uncomment these. Setting ALLOWED_HOSTS refuses
+      # every other Host, so a website the browser visits cannot reach the
+      # server by pointing a name it owns at it. Loopback names stay allowed.
+      # RERUNS_ALLOWED_HOSTS: reruns.example.com
+      #
+      # Optional OIDC single sign-on. The issuer, client ID, client secret and
+      # public URL must all be set together. Register
+      # $RERUNS_PUBLIC_URL/auth/oidc/callback as the provider's redirect URI;
+      # the public URL must match the browser-facing origin, and should be
+      # HTTPS outside localhost. Keep the secret out of version control.
+      # RERUNS_PUBLIC_URL: https://reruns.example.com
+      # RERUNS_OIDC_ISSUER: https://identity.example.com
+      # RERUNS_OIDC_CLIENT_ID: reruns
+      # RERUNS_OIDC_CLIENT_SECRET: set-this-outside-version-control
+      # The sign-in button reads "Sign in with <name>" (default "OIDC").
+      # RERUNS_OIDC_NAME: Authentik
+      # Groups from the provider's `groups` claim. Members are approved on
+      # first sign-in, as admins or as ordinary users respectively.
+      # RERUNS_OIDC_ADMIN_GROUP: reruns_admin
+      # RERUNS_OIDC_USER_GROUP: reruns_user
+    ports:
+      - "127.0.0.1:8800:8800"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      # Choose /media in first-run setup. Mount more folders anywhere and
+      # add them under Settings > Library folders.
+      - /path/to/videos:/media
+    restart: unless-stopped

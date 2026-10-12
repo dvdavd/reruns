@@ -1,0 +1,442 @@
+/* Shared media-card visual contract. Consumers may override these tokens on
+   :root or an ancestor without importing an application stylesheet. */
+:root {
+  --media-card-bg: #1b1b1b;
+  --media-card-border: #303030;
+  --media-card-text: #d0d0d0;
+  --media-card-accent: oklch(62% 0.02 300);
+  --media-card-menu-bg: #171717;
+  --media-card-font: "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* The card's material, as tokens a consumer can retune without reaching into
+   the selectors below. The defaults use an outline-and-tinted-fill
+   look; a consumer whose chrome is solid gradients with a lit top edge sets
+   these to match rather than overriding .video-card, which would silently
+   drift the moment the shared rules change. Each token has a hover twin, so
+   the hover can be a change of surface rather than of outline. Every value
+   is resolved against the card's own --card-accent, which is why they are
+   declared on .video-card and not on :root. */
+.video-card {
+  --media-card-surface: color-mix(in srgb, var(--card-accent) 9%, var(--media-card-bg));
+  --media-card-surface-hover: color-mix(in srgb, var(--card-accent) 17%, var(--media-card-bg));
+  --media-card-edge: 1px solid color-mix(in srgb, var(--card-accent) 34%, var(--media-card-border));
+  --media-card-edge-hover-colour: color-mix(in srgb, var(--card-accent) 55%, var(--media-card-border));
+  --media-card-shadow: 0 2px 8px #0004, 0 0 18px color-mix(in srgb, var(--card-accent) 9%, transparent);
+  --media-card-shadow-hover: 0 4px 12px #0005, 0 0 24px color-mix(in srgb, var(--card-accent) 15%, transparent);
+  --media-card-footer-rule: 1px solid color-mix(in srgb, var(--card-accent) 28%, var(--media-card-border));
+  --media-chip-edge: 1px solid color-mix(in srgb, var(--card-accent) 62%, #ffffff29);
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 25%, #141414e6);
+  --media-chip-shadow: none;
+}
+
+.video-card, .video-card * { box-sizing: border-box; }
+.gallery-spacer { grid-column: 1 / -1; min-width: 0; pointer-events: none; }
+.gallery-spacer[hidden] { display: none; }
+.gallery-chunk { display: contents; }
+
+.video-card {
+  --card-accent: var(--media-card-accent);
+  position: relative;
+  min-width: 0;
+  contain: layout paint style;
+  border: var(--media-card-edge);
+  border-radius: 9px;
+  background: var(--media-card-surface);
+  box-shadow: var(--media-card-shadow);
+  color: var(--media-card-text);
+  font-family: var(--media-card-font);
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+.video-card:hover, .video-card:focus-within {
+  border-color: var(--media-card-edge-hover-colour);
+  background: var(--media-card-surface-hover);
+  box-shadow: var(--media-card-shadow-hover);
+}
+/* The menu may extend past the card when it opens below its trigger. Paint
+   containment clips that popout, so lift it only while the menu is visible. */
+.video-card.menu-open, .video-card.menu-closing { contain: layout style; z-index: 10; }
+.video-card[hidden], .video-card [hidden] { display: none; }
+.video-card button { font-family: inherit; }
+
+.thumbnail-area, .thumbnail-frame { position: relative; }
+.thumbnail-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  cursor: pointer;
+}
+.thumbnail-button:focus-visible { outline: 2px solid #aaa; outline-offset: 2px; }
+.thumbnail-frame { display: block; aspect-ratio: 16 / 9; overflow: hidden; }
+.thumbnail-frame--alpha {
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--card-accent) 12%, black),
+    color-mix(in srgb, var(--card-accent) 28%, black));
+}
+.thumbnail-frame--alpha .thumbnail-image { filter: drop-shadow(0 8px 22px #0009); }
+.thumbnail-image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.video-card.is-generating .thumbnail-image { opacity: .38; }
+.thumbnail-image[data-missing] { visibility: hidden; }
+/* The glyph is icons.svg's "video", inlined: a mask cannot point into a
+   sprite, and the card's own SVGs are held to a budget. */
+.thumbnail-frame:has(> .thumbnail-image[data-missing]) {
+  background:
+    radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--card-accent) 16%, transparent), transparent 70%),
+    color-mix(in srgb, var(--card-accent) 7%, var(--media-card-bg));
+}
+.thumbnail-frame:has(> .thumbnail-image[data-missing])::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--card-accent) 45%, var(--media-card-text));
+  opacity: .3;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4'/%3E%3Cpath d='M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8'/%3E%3C/svg%3E") center / 22% auto no-repeat;
+  pointer-events: none;
+}
+
+.thumbnail-chip-row {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: none;
+}
+.quality-chip, .part-indicator {
+  padding: 2px 7px;
+  border: 1px solid #ffffff2e;
+  border-radius: 10px;
+  background: #000b;
+  color: #f2f2f2;
+  font-size: var(--font-size-helper);
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: .04em;
+  backdrop-filter: blur(4px);
+}
+.watch-count-chip { display: inline-flex; align-items: center; gap: 4px; }
+.watch-count-chip svg { width: 13px; height: 13px; }
+.remastered-chip { border-color: #dcb45a8c; color: #f4d58a; }
+
+/* Something with no picture of its own. Its thumbnail is usually a square
+   cover rather than a frame, so it is shown whole against the card's accent
+   instead of cropped to 16:9, and the corner says it is only sound. The note
+   is icons.svg's "music" drawn by a mask, as the missing-picture glyph is. */
+.video-card[data-audio-only] {
+  --audio-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0'/%3E%3Cpath d='M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0'/%3E%3Cpath d='M9 17v-13h10v13'/%3E%3Cpath d='M9 8h10'/%3E%3C/svg%3E");
+}
+.video-card[data-audio-only] .thumbnail-frame {
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--card-accent) 14%, black),
+    color-mix(in srgb, var(--card-accent) 30%, black));
+}
+.video-card[data-audio-only] .thumbnail-image { object-fit: contain; }
+.video-card[data-audio-only] .thumbnail-frame:has(> .thumbnail-image[data-missing])::after {
+  mask-image: var(--audio-glyph);
+}
+.audio-only-chip { display: inline-flex; align-items: center; }
+.audio-only-chip::before {
+  content: "";
+  width: 13px;
+  height: 1.4em;
+  background: currentColor;
+  mask: var(--audio-glyph) center / contain no-repeat;
+}
+
+.thumbnail-watch-progress {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  background: #0008;
+  pointer-events: none;
+}
+.thumbnail-watch-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--card-accent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--card-accent) 75%, transparent);
+}
+
+.external-play-details, .video-favourite-button, .part-navigation button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  /* The chrome's button hover would ring the disc and recolour the icon with
+     the theme's text colour, which in a light theme is dark on a dark disc. */
+  --button-border-hover: transparent;
+  --button-text-hover: white;
+}
+/* A white icon vanishes over a bright frame, so each control is shadowed. The
+   heart and part arrows take it on the icon rather than the button, since on
+   the button it also smudges a dark halo round the hover disc. */
+.external-play-details, .video-favourite-button > svg, .part-navigation button > svg { filter: drop-shadow(0 1px 3px #000e); }
+.external-play-details { position: absolute; z-index: 5; bottom: 9px; left: 9px; width: 34px; height: 34px; }
+.external-play-details svg { width: 18px; height: 18px; fill: currentColor; }
+.external-play-details[data-open-details] { left: 4px; bottom: 9px; width: 28px; height: 28px; }
+.external-play-details[data-open-details] svg { fill: none; }
+.video-favourite-button { position: absolute; right: 9px; bottom: 9px; z-index: 5; width: 34px; height: 34px; }
+.external-play-details:hover, .external-play-details:focus-visible,
+.video-favourite-button:hover, .video-favourite-button:focus-visible,
+.part-navigation button:hover, .part-navigation button:focus-visible { background: #0009; outline: none; }
+.heart-icon { width: 18px; height: 18px; }
+.heart-filled { display: none; color: white; }
+[aria-pressed="true"] > .heart-outline { display: none; }
+[aria-pressed="true"] > .heart-filled { display: block; }
+
+.part-navigation {
+  position: absolute;
+  inset: 50% 0 auto;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 7px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.part-navigation button { width: 36px; height: 36px; pointer-events: auto; }
+.part-navigation .icon { width: 22px; height: 22px; }
+
+.card-footer { display: flex; align-items: flex-start; gap: 8px; min-height: 42px; padding: 7px 7px 7px 11px; border-top: var(--media-card-footer-rule); }
+/* Even padding, or centring the row inside it leaves the whole footer - text
+   and controls alike - sitting a pixel above the middle of its own box. */
+.card-footer--single-row { align-items: center; min-height: 0; padding-block: 4px; }
+.card-footer--single-row .card-side { align-self: center; }
+.card-footer--single-row .card-menu { margin-top: 0; }
+.card-meta { flex: 1; min-width: 0; }
+.card-title-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.card-name { min-width: 0; align-self: center; overflow: hidden; color: #ddd; font-size: var(--font-size-panel-title); font-weight: 500; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.card-name:is(a, button) { display: block; padding: 0; border: 0; background: none; font-family: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.card-context-chips, .card-actors { display: flex; flex-wrap: wrap; gap: 4px; }
+.card-context-chips { max-width: 65%; flex: 0 0 auto; min-width: 0; }
+.card-context-chips:empty { display: none; }
+.card-actors { min-width: 0; justify-content: flex-start; margin-top: 6px; padding-bottom: 3px; }
+
+.metadata-chip, .actor-chip {
+  appearance: none;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 7px;
+  border: var(--media-chip-edge);
+  border-radius: 999px;
+  background: var(--media-chip-surface);
+  box-shadow: var(--media-chip-shadow);
+  color: color-mix(in srgb, var(--card-accent) 45%, white);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actor-chip { display: inline-flex; align-items: center; padding: 0; }
+.actor-name-button, .actor-favourite-button, .studio-chip, .source-chip {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.actor-name-button { padding: 2px 3px 2px 7px; }
+.actor-favourite-button { display: grid; place-items: center; padding: 2px 5px 2px 0; }
+.actor-favourite-button .heart-icon { width: 12px; height: 12px; }
+.metadata-chip { display: inline-flex; align-items: stretch; padding: 0; }
+/* The identity chip is greyer than the rest at rest; it and the hovered
+   states set the surface token rather than painting a background, so a
+   consumer's material still reaches them. */
+.identity-chip { --identity-border: color-mix(in srgb, var(--card-accent) 35%, #ffffff29); --media-chip-surface: #262626e6; flex: 0 0 auto; border-color: var(--identity-border); font-size: var(--font-size-control); }
+.studio-chip { min-width: 0; overflow: hidden; padding: 3px 8px; text-overflow: ellipsis; white-space: nowrap; }
+/* The logo lights on its own when hovered rather than lighting the chip:
+   it filters by something other than the name beside it. Beside a name only
+   the glyph brightens, since a lit box would stop in a hard edge against it;
+   alone, the whole chip is the logo's to light. */
+.source-chip { display: grid; place-items: center; padding: 3px 2px 3px 8px; }
+.source-chip:only-child { padding-inline: 8px; }
+.source-chip + .studio-chip { padding-left: 4px; }
+.source-icon { width: 14px; height: 14px; }
+.source-chip:hover, .source-chip:focus-visible { outline: none; background: transparent; color: white; }
+.source-chip:only-child:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--card-accent) 30%, #ffffff14);
+}
+.release-chip { padding: 3px 8px; color: color-mix(in srgb, var(--card-accent) 25%, #ccc); }
+.chip-divider { width: 1px; align-self: stretch; background: var(--identity-border); }
+.actor-chip:hover, .actor-chip:focus-within,
+.identity-chip:has(.studio-chip:hover),
+.identity-chip:has(.studio-chip:focus-visible) {
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 25%, #141414e6);
+  border-color: color-mix(in srgb, var(--card-accent) 82%, white);
+  color: white;
+}
+.actor-name-button:focus-visible, .actor-favourite-button:focus-visible,
+.studio-chip:hover, .studio-chip:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  outline: none;
+}
+.add-actor-chip { padding: 2px 7px; border-style: dashed; cursor: pointer; }
+
+.card-side { align-self: stretch; display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 4px; }
+.card-menu { position: relative; margin-top: -5px; }
+.group-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; min-width: 0; }
+.group-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 140px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 35%, #ffffff29);
+  border-radius: 999px;
+  background: #262626e6;
+  color: color-mix(in srgb, var(--card-accent) 22%, #bbb);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  cursor: pointer;
+}
+.group-chip:hover, .group-chip:focus-visible { outline: none; border-color: color-mix(in srgb, var(--card-accent) 82%, white); color: white; }
+.group-chip .icon { width: 16px; height: 9px; flex: none; }
+.group-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.menu-trigger { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; padding: 0; border: 1px solid transparent; border-radius: 50%; background: transparent; color: #ffffffdb; cursor: pointer; }
+.menu-trigger:hover, .menu-trigger[aria-expanded="true"] { border-color: #ffffff1f; background: #ffffff1a; color: white; }
+.menu-popover { position: absolute; right: 0; bottom: calc(100% + 5px); z-index: 20; width: 208px; padding: 5px; border: 1px solid #ffffff1f; border-radius: 8px; background: var(--media-card-menu-bg); box-shadow: 0 14px 34px #0009; }
+.card-menu > .menu-popover { width: 240px; overflow-y: auto; }
+.menu-popover button[role="menuitem"] { display: flex; width: 100%; align-items: center; gap: 9px; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--media-card-text); cursor: pointer; }
+.menu-popover button[role="menuitem"]:is(:hover, :focus-visible):not([aria-expanded="true"]),
+.menu-popover:not(:has(> button[role="menuitem"]:is(:hover, :focus-visible):not([aria-expanded="true"]))) > button[role="menuitem"][aria-expanded="true"] { outline: none; background: var(--highlight-fill, var(--color-menu-item-hover)); color: var(--highlight-foreground, var(--color-text-strong)); }
+.menu-popover button[aria-haspopup] { padding-right: 14px; }
+.menu-popover button[aria-haspopup] .icon:last-child { width: 14px; height: 14px; margin-left: auto; }
+.menu-popover .menu-divider { height: 1px; margin: 5px 9px; background: var(--menu-border, var(--color-menu-border)); }
+.menu-popover button.danger { color: #e05252; }
+.menu-popover .icon, .menu-trigger .icon { width: 18px; height: 18px; }
+
+.status-chip { position: absolute; bottom: 8px; left: 8px; z-index: 4; padding: 2px 7px; border-radius: 10px; background: #0009; color: #777; font-size: var(--font-size-helper); pointer-events: none; }
+.status-chip.is-fading { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .video-card { transition: none; }
+}
+
+.card-title-copy.card-title-copy--inline { display: contents; }
+.card-title-row--portrait { align-items: flex-start; gap: 10px; }
+.card-title-copy { flex: 1; min-width: 0; display: flex; flex-direction: column-reverse; gap: 0; padding-top: 0; }
+.card-title-row--portrait .card-name { align-self: stretch; }
+.card-title-row--portrait .card-context-chips { max-width: 100%; }
+.card-title-row--portrait .identity-chip { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-weight: 400; color: var(--color-text-muted, #aaa); }
+.card-title-row--portrait .studio-chip { padding: 0; }
+.card-owner-portrait { position: relative; display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; margin-top: 3px; padding: 0; overflow: hidden; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--card-accent) 28%, var(--media-card-bg)); color: #ddd; font: inherit; font-size: 12px; cursor: pointer; }
+.card-owner-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.card-owner-portrait img[hidden] { display: none; }
+.card-owner-portrait:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.card-owner-figure { position: relative; flex: 0 0 40px; }
+
+.card-title-row--portrait .source-chip,
+.card-title-row--portrait .source-chip:only-child:is(:hover, :focus-visible) { padding: 0 5px 0 0; background: transparent; color: inherit; box-shadow: none; }
+
+.card-footer:has(.card-title-row--portrait) { padding-block: 7px; }
+.card-title-row--portrait .card-owner-portrait { margin-top: 0; transform: translateY(1px); }
+
+.card-title-row--portrait .card-context-chips { flex-wrap: nowrap; align-items: center; gap: 5px; overflow: hidden; }
+.card-title-row--portrait .identity-chip { flex: 0 1 auto; min-width: 0; }
+.card-channel-detail { flex: 0 0 auto; color: color-mix(in srgb, var(--card-accent) 22%, var(--color-text-muted, #aaa)); font-size: var(--font-size-control); white-space: nowrap; }
+.card-channel-detail::before { content: "·"; margin-right: 5px; }
+
+/* MediaRow: a video in a panel list. Sizes differ only in the thumbnail's
+   width and the title's type; everything else is shared. */
+.media-row {
+  --media-row-thumb-width: var(--row-thumb-width, 64px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+  list-style: none;
+}
+.media-row[data-size="regular"] { --media-row-thumb-width: 112px; align-items: flex-start; gap: 12px; padding-block: 11px; }
+.media-row--divided { border-bottom: 1px solid var(--row-divider, rgb(255 255 255 / .045)); }
+.media-row--divided:last-child { border-bottom: 0; }
+.media-row-lead {
+  flex: none;
+  width: 22px;
+  color: var(--shell-muted, var(--color-text-muted));
+  font-size: var(--font-size-control);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.media-row-thumb {
+  position: relative;
+  display: grid;
+  flex: none;
+  width: var(--media-row-thumb-width);
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--row-thumb-radius, var(--radius-sm));
+  background: var(--row-thumb-bg, #ffffff14);
+  color: var(--shell-muted, var(--color-text-muted));
+}
+/* Level with the top of the title's letters rather than the top of its line
+   box, which sits a few pixels higher on the half-leading. */
+.media-row[data-size="regular"] .media-row-thumb { margin-top: 5px; }
+.media-row[data-round="true"] .media-row-thumb {
+  width: 40px;
+  aspect-ratio: 1;
+  /* Room for the badge that overhangs the avatar's corner. */
+  margin-inline-end: 24px;
+  border-radius: var(--radius-pill);
+}
+/* Positioned out of flow so a picture whose own ratio is not 16:9 cannot
+   stretch the frame (the badge overhangs it, so it cannot clip instead). */
+.media-row-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.media-row-thumb img[hidden] { display: none; }
+.media-row-thumb > .icon { width: 20px; height: 20px; }
+.media-row-duration {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #000c;
+  color: #fff;
+  font-size: var(--font-size-helper);
+  font-variant-numeric: tabular-nums;
+}
+.media-row-body { display: grid; flex: 1; align-content: start; gap: 1px; min-width: 0; }
+.media-row-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--media-row-lines, 2);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: inherit;
+  font-size: var(--font-size-control);
+  line-height: 1.3;
+  text-decoration: none;
+}
+.media-row[data-size="regular"] .media-row-title { font-size: var(--font-size-body); }
+.media-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  color: var(--shell-muted, var(--color-text-muted));
+  font-size: var(--font-size-control);
+}
+.media-row-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-row-actions { display: flex; flex: none; align-items: center; gap: 4px; }

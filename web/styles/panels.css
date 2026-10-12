@@ -1,0 +1,1278 @@
+/* Overhangs the frame's corner, ringed in the panel's own colour so it
+   reads as sitting on top rather than clipped by it. */
+.subscription-new-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to right, var(--logo-1), var(--logo-3));
+  box-shadow: 0 0 0 2px var(--color-menu-bg);
+  color: #fff;
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  line-height: 1;
+}
+.subscription-item[data-paused="true"] :is(.media-row-thumb, .subscription-title) { opacity: .5; }
+.subscription-title-line { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; }
+.subscription-title {
+  overflow: hidden;
+  min-width: 0;
+  color: inherit;
+  font-size: var(--font-size-body);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subscription-detail[data-error="true"] { color: #f5a39c; }
+.subscription-status-icon { flex: none; width: 13px; height: 13px; }
+.subscription-kind {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(255,255,255,.08);
+  color: #bbb;
+  font-size: var(--font-size-helper);
+  line-height: 1.5;
+}
+/* The frequency reads as a short word, so its button is a pill. */
+.library-row-action.subscription-interval {
+  width: auto;
+  min-width: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--font-size-control);
+  white-space: nowrap;
+}
+.subscription-interval-menu, .shelf-settings-menu, .directory-menu, .account-password-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu {
+  position: fixed;
+  inset: auto;
+  width: 160px;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--color-menu-border);
+  border-radius: 9px;
+  background: var(--color-menu-bg);
+  color: var(--shell-fg);
+  box-shadow: var(--shadow-menu);
+}
+.shelf-settings-menu { width: 200px; }
+:is(.subscription-interval-menu, .shelf-settings-menu, .directory-menu, .account-password-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu):not(:popover-open) { display: none; }
+.watch-overflow-menu { width: 260px; max-width: calc(100vw - 12px); }
+.watch-overflow-menu .danger { color: var(--color-danger-text); }
+.subscription-interval-menu [role="menuitemradio"]::after { content: '✓'; margin-left: auto; opacity: 0; }
+.subscription-interval-menu [role="menuitemradio"][aria-checked="true"]::after { opacity: 1; }
+
+/* The star named in the profiles drawer's explanation, sized to sit on the
+   line of the sentence rather than the row of buttons it points at. */
+.profile-inline-icon { width: 15px; height: 15px; vertical-align: -3px; }
+/* The chosen one, wherever a list marks one: the folder downloads go to, the
+   starred profile, the SponsorBlock mode a category plays with. The same
+   softened fill and contrasting foreground, so
+   the chosen one is unmistakable beside its dull siblings. No glow: a row
+   of them would read as a string of lights.
+
+   All of them have to be declared after the chrome material above, which
+   re-states background and colour for every button of this shape. Its :is()
+   takes the specificity of its longest arm, three classes, so the short
+   selectors lose to it however far down the file they sit and each has to
+   name what it is inside as well. */
+.customisation-choices label:has(:checked),
+.library-row .library-row-action.active,
+.account-row .library-row-action.active,
+.profile-row .library-row-action[aria-checked="true"],
+.sponsorblock-drawer .sponsorblock-options .sponsorblock-modes button[aria-checked="true"] {
+  background: var(--highlight-fill);
+  box-shadow: none;
+  color: var(--highlight-foreground);
+}
+/* Already the chosen one, so there is nothing to click towards. */
+.customisation-choices label:has(:checked):is(:hover, :has(:focus-visible)),
+.library-row .library-row-action.active:is(:hover, :focus-visible),
+.account-row .library-row-action.active:not(:disabled):is(:hover, :focus-visible),
+.profile-row .library-row-action[aria-checked="true"]:is(:hover, :focus-visible),
+.sponsorblock-drawer .sponsorblock-options .sponsorblock-modes button[aria-checked="true"]:is(:hover, :focus-visible) {
+  /* A selected item keeps its fill while hovered or focused. */
+  background: var(--highlight-fill);
+  color: var(--highlight-foreground);
+}
+/* The built-in row keeps its edit and delete so the list stays one shape,
+   but they are not its to use. */
+.profile-row .library-row-action:disabled { opacity: .3; cursor: default; }
+.profile-row .library-row-action:disabled:hover { background: none; box-shadow: none; }
+/* The built-in Default row has no edit or delete, so its actions are a grid
+   of the same three columns with the last two empty: every star in the list
+   then sits under the one above it, which is what makes the starred row
+   readable as a column rather than as three loose buttons. */
+.profile-row .library-row-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 4px;
+}
+
+/* Versions are one raised block, as a group of Appearance settings is. */
+.about-versions { margin-bottom: 8px; }
+.about-list { display: grid; gap: 2px; margin: 0; padding: 8px 0; border-radius: 14px; background: var(--raised-surface); }
+.about-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 18px; }
+.about-row dt { font-weight: 600; }
+.about-row dt a { display: inline-flex; align-items: center; gap: 5px; color: inherit; text-decoration: none; }
+.about-row dt a .icon { width: 14px; height: 14px; opacity: .55; transition: opacity 140ms ease; }
+.about-row dt a:is(:hover, :focus-visible) .icon { opacity: 1; }
+.about-row dd { margin: 0; font-family: ui-monospace, monospace; }
+.about-row dd[data-missing="true"] { opacity: .55; font-family: inherit; }
+.about-licenses { padding: 0 var(--drawer-inset) 28px; }
+/* The group heading Appearance uses; the 24px with the versions block's 8px
+   below it makes the 32px between groups. */
+.about-licenses h3 { margin: 24px 0 12px 2px; color: var(--shell-muted); font-size: var(--font-size-label); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+/* Inset as the versions block's text is, without the block. */
+.about-licenses > :not(h3, h4, h4 + p) { padding-inline: 18px; }
+.about-licenses h4 { margin: 18px 0 8px; color: var(--shell-muted); font-size: var(--font-size-control); }
+.about-licenses p { margin: 10px 0 0; color: var(--shell-muted); font-size: var(--font-size-control); overflow-wrap: anywhere; }
+.about-licenses a { color: inherit; }
+.about-license-list { display: grid; gap: 8px; margin: 0; font-size: var(--font-size-control); }
+.about-license-list > div { display: flex; justify-content: space-between; gap: 16px; }
+.about-license-list dt { flex-shrink: 0; }
+.about-license-list dd { margin: 0; color: var(--shell-muted); text-align: right; }
+.library-statistics { padding-top: var(--drawer-content-top); padding-bottom: 16px; }
+.library-statistics > .about-section:first-child h3 { margin-top: 0; }
+/* A yt-dlp the server keeps current itself gets a second line: when it last
+   looked, and the channel and check that belong to it. */
+.about-row.has-update { flex-wrap: wrap; row-gap: 6px; }
+.about-row .about-update {
+  display: flex; flex-basis: 100%; align-items: center; justify-content: space-between; gap: 12px;
+  font-family: inherit; font-size: var(--font-size-helper); color: var(--shell-muted);
+}
+.about-update-status[data-error="true"] { color: #f5a39c; }
+.about-update-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.about-section { padding: 0 var(--drawer-inset) 12px; }
+.about-section h3 { margin: 14px 0 0; color: var(--shell-muted); font-size: var(--font-size-label); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.about-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+.about-tile { padding: 10px 12px; border-radius: 8px; background: rgb(255 255 255 / .04); }
+.about-tile dt { color: var(--shell-muted); font-size: var(--font-size-helper); }
+.about-tile dd { margin: 2px 0 0; font-size: var(--font-size-section-title); font-weight: 600; font-variant-numeric: tabular-nums; }
+.about-bars { display: grid; gap: 12px; margin: 10px 0 0; padding: 0; list-style: none; }
+.about-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; align-items: baseline; }
+.about-bar-name { min-width: 0; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.about-bar-name a { color: inherit; text-decoration: none; }
+.about-bar-name a:hover { text-decoration: underline; }
+.about-bar-value { color: var(--shell-muted); font-variant-numeric: tabular-nums; }
+.about-bar-track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: rgb(255 255 255 / .06); }
+.about-bar-fill { display: block; height: 100%; border-radius: 3px; background: var(--color-accent); }
+@media (max-width: 520px) { .about-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Activity: the server's log, newest first. A line is a time and what
+   happened; its kind of work is a small label above, and what went wrong
+   is marked by a rule down its left edge rather than colouring the whole line,
+   so a run of errors still reads as text. */
+.activity-filters { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.activity-filters label { display: flex; flex: 1; min-width: 0; }
+.activity-filters select { width: 100%; }
+.activity-filters .library-row-action:disabled { opacity: .3; cursor: default; }
+.activity-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.activity-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  /* The rule sits out in the drawer's inset, so every line's text still
+     starts where the filters above it do. */
+  margin-left: -12px;
+  padding: 8px 0 8px 10px;
+  border-bottom: 1px solid var(--row-divider);
+  border-left: 2px solid transparent;
+}
+.activity-row:last-child { border-bottom: 0; }
+.activity-day {
+  padding: 12px 0 4px;
+  border-bottom: 1px solid var(--row-divider);
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.activity-day:first-child { padding-top: 2px; }
+.activity-row[data-level="warning"] { border-left-color: #e8b04a; }
+.activity-row:is([data-level="error"], [data-level="critical"]) { border-left-color: #f28b82; }
+.activity-time {
+  padding-top: 1px;
+  color: var(--shell-muted);
+  font-size: var(--font-size-helper);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.activity-body { display: grid; gap: 1px; min-width: 0; }
+.activity-source { color: var(--shell-muted); font-size: var(--font-size-helper); }
+.activity-message { margin: 0; overflow-wrap: anywhere; font-size: var(--font-size-control); }
+.activity-row:is([data-level="error"], [data-level="critical"]) .activity-message { color: #f5a39c; }
+.activity-detail { margin-top: 3px; font-size: var(--font-size-helper); }
+.activity-detail summary { color: var(--shell-muted); cursor: pointer; width: fit-content; }
+.activity-detail summary:hover { color: var(--shell-fg); }
+.activity-detail pre {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  max-height: 16em;
+  overflow: auto;
+  border-radius: var(--radius-sm, 6px);
+  background: rgb(255 255 255 / .04);
+  color: #aaa;
+  font-family: var(--mono, ui-monospace, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The folder picker at the left of the search box, a pill at the field's height
+   and filled like the field.
+   Its name is the chosen folder, so a narrowed archive says so; the label gives
+   way on a narrow screen and leaves the icon, lit while a folder is chosen. */
+.topbar-directory {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  height: 36px;
+  margin-right: 8px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: rgba(255,255,255,.08);
+  color: var(--shell-muted);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.topbar-directory[hidden] { display: none; }
+.topbar-directory .icon { flex: none; width: 18px; height: 18px; }
+.topbar-directory > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-directory[data-filtered="true"] { color: var(--shell-fg); }
+.topbar-directory:is(:hover, :focus-visible), .topbar-directory[aria-expanded="true"] { border-color: transparent; background: rgba(255,255,255,.1); color: var(--shell-fg); }
+@media (max-width: 700px) {
+  .topbar-directory { margin-right: 6px; padding: 0 9px; }
+  .topbar-directory > span, .topbar-directory-chevron { display: none; }
+}
+/* Folders nest as deep as the archive does; each level steps in a little. */
+.directory-menu, .playlist-add-menu, .collection-menu { width: 260px; max-width: calc(100vw - 12px); overflow-y: auto; overscroll-behavior: contain; }
+.directory-menu button { justify-content: space-between; gap: 10px; min-width: 0; padding-left: calc(10px + var(--depth, 0) * 14px); text-align: left; cursor: pointer; }
+.directory-menu button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.directory-menu button small { flex: none; color: var(--shell-muted); font-size: var(--font-size-helper); font-variant-numeric: tabular-nums; }
+.directory-menu button:is(:hover, :focus-visible) small { color: inherit; opacity: .8; }
+body[data-can-fetch="false"] [data-watch-download],
+body[data-can-fetch="false"] [data-subtitle-download],
+body[data-can-fetch="false"] [data-channel-download-trigger],
+body[data-can-fetch="false"] [data-playlist-download-trigger],
+body[data-can-fetch="false"] #download-submit,
+body[data-can-fetch="false"] #download-advanced-toggle,
+body[data-can-fetch="false"] #download-subscribe,
+body[data-can-fetch="false"] #download-browse,
+body[data-can-fetch="false"] [data-channel-profile-browse],
+body[data-can-fetch="false"] #playlist-browse,
+body[data-can-delete="false"] [data-watch-delete],
+body[data-can-delete="false"] #delete-dialog,
+body[data-can-delete="false"] [data-channel-profile-subscribe],
+body[data-can-delete="false"] #playlist-subscribe,
+body[data-can-delete="false"] [data-watch-subscribe-channel],
+[data-settings-action][hidden] {display:none !important}
+
+/* Accounts: the library list's rows, with a line of permission switches on
+   each and the rarer edits folded under it. */
+.accounts-form { flex-wrap: wrap; }
+.accounts-form input { flex: 1 1 8rem; min-width: 0; }
+/* Raised blocks with a small gap, square where they face a neighbour, as the
+   Appearance settings are. Accounts and library folders use them. */
+.account-list, .library-blocks, .subscription-blocks { gap: 4px; }
+.subscription-blocks .subscription-item { padding: 10px 18px; border-bottom: 0; background: var(--raised-surface); }
+.account-row, .library-blocks .library-row { padding: 12px 18px; border-bottom: 0; background: var(--raised-surface); }
+:is(.account-row, .library-blocks .library-row, .subscription-blocks .subscription-item):not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
+:is(.account-row, .library-blocks .library-row, .subscription-blocks .subscription-item):not(:last-child) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+:is(.account-row, .library-blocks .library-row, .subscription-blocks .subscription-item):first-child { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+:is(.account-row, .library-blocks .library-row, .subscription-blocks .subscription-item):last-child { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+.account-row .account-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.account-row[data-disabled="true"] .account-name { color: var(--shell-muted); text-decoration: line-through; }
+.account-name { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.account-meta { color: var(--shell-muted); font-size: var(--font-size-control); }
+.account-row .library-row { display: block; padding: 0; border: 0; }
+.directory-menu button[aria-disabled="true"] { opacity: .5; cursor: default; }
+.account-password-menu { display: grid; gap: 8px; width: 260px; max-width: calc(100vw - 12px); }
+.account-password-menu:not(:popover-open) { display: none; }
+.account-password-menu input { width: 100%; min-height: 34px; }
+.account-password-menu .profile-save { justify-self: end; }
+/* Switched on, an account's action is lit like the other lists' chosen
+   one (shared above); it stays clickable, so it keeps the pointer. */
+.account-row .library-row-action.active { cursor: pointer; }
+.account-row .library-row-action.danger.active:not(:disabled):is(:hover, :focus-visible) {
+  background: linear-gradient(color-mix(in srgb, var(--color-danger) 58%, transparent),
+    color-mix(in srgb, var(--color-danger) 38%, transparent));
+  color: var(--color-danger);
+}
+.account-row .library-row-action.danger.active {
+  background: linear-gradient(color-mix(in srgb, var(--color-danger) 38%, transparent),
+    color-mix(in srgb, var(--color-danger) 38%, transparent));
+  color: var(--color-danger);
+}
+.account-row .library-row-action.active:disabled { opacity: .55; cursor: default; }
+
+/* Change your password: three fields and the dialog's usual buttons. */
+.password-form { display: grid; gap: 10px; }
+.password-form input { width: 100%; min-height: 36px; }
+.password-form .confirm-dialog-note { margin: 0; color: var(--color-danger-text); }
+.password-form .confirm-dialog-note:empty { display: none; }
+.password-form .confirm-dialog-actions { margin-top: 4px; }
+.password-form .confirm-dialog-actions .confirm-dialog-button { margin-right: auto; }
+
+/* The hover preview (hover-preview.js). The video sits over the thumbnail but
+   under the chips, and ignores the pointer so a click still follows the card's
+   link; only the two buttons take clicks. It stays clear until it has a frame,
+   so the picture is never swapped for black while the file opens. */
+.hover-preview-video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.hover-preview-video.is-ready { opacity: 1; }
+.hover-preview-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+}
+.hover-preview-controls button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #0008;
+  color: #fff;
+  cursor: pointer;
+  --button-border-hover: transparent;
+  --button-text-hover: #fff;
+}
+.hover-preview-controls button:is(:hover, :focus-visible) { background: #000c; outline: none; }
+.hover-preview-controls .icon { width: 16px; height: 16px; }
+/* Each button carries both glyphs and shows the one for what a click does next
+   not what is happening: pause while playing, the speaker once unmuted. */
+.hover-preview-controls .hover-preview-play,
+.hover-preview-controls .hover-preview-sound { display: none; }
+.hover-preview-controls.is-paused .hover-preview-pause { display: none; }
+.hover-preview-controls.is-paused .hover-preview-play { display: block; }
+.hover-preview-controls [aria-pressed="false"] .hover-preview-muted { display: none; }
+.hover-preview-controls [aria-pressed="false"] .hover-preview-sound { display: block; }
+
+/* The preview's position bar. The zone is 18px tall so the pointer need only
+   come near; the line inside is 3px, like the card's own progress bar, and
+   swells to 7px while the zone is hovered or dragged. */
+.hover-preview-seek {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 6;
+  height: 18px;
+  display: flex;
+  align-items: flex-end;
+  cursor: pointer;
+  touch-action: none;
+}
+.hover-preview-seek-track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  background: #0008;
+  transition: height .12s ease;
+}
+.hover-preview-seek:is(:hover, .is-dragging) .hover-preview-seek-track { height: 7px; background: #000a; }
+.hover-preview-seek-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--card-accent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--card-accent) 75%, transparent);
+}
+.hover-preview-seek-thumb {
+  position: absolute;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  color: #fff;
+}
+.hover-preview-seek-thumb[hidden], .hover-preview-seek-image[hidden] { display: none; }
+.hover-preview-seek-image {
+  display: block;
+  border-radius: 5px;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 1px #ffffff2e, 0 2px 8px #0008;
+}
+.hover-preview-seek-time {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #000b;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Background play: the watch page, shrunk to a corner window while the gallery
+   is browsed. It is the same section and the same <video>, only restyled -
+   moving the element would pause it - so everything but the stage is hidden
+   and the player's own bar gives way to four buttons of ours. */
+.archive-mini-controls { display: none; }
+body[data-popup-player-size="small"] { --popup-player-width: 360px; }
+body[data-popup-player-size="large"] { --popup-player-width: 720px; }
+.archive-watch.is-mini {
+  --watch-stage-height: auto;
+  position: fixed;
+  /* On the page gutter, so the window's right edge lines up with the gallery's
+     rightmost cards rather than sitting a couple of pixels off them. */
+  right: var(--page-gutter);
+  bottom: var(--page-gutter);
+  z-index: 30;
+  display: block;
+  width: min(var(--popup-player-width, 520px), calc(100vw - 2 * var(--page-gutter)));
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px #000a;
+}
+.archive-watch.is-mini .archive-watch-main { max-width: none; }
+.archive-watch.is-mini .archive-watch-main > :not(.archive-watch-stage) { display: none; }
+.archive-watch.is-mini .archive-watch-stage {
+  max-width: none;
+  /* The phone layout pulls the stage out through the page gutter, and the
+     corner window has no gutter: left alone the picture ran wider than the
+     window and its buttons, which are laid out against the window. */
+  margin-inline: 0;
+  border-radius: 12px;
+}
+/* The picture rounds itself. Dark fills under its antialiased edge stack
+   into a black rim, so only the picture paints the popup's corners. */
+.archive-watch.is-mini .archive-watch-stage,
+.archive-watch.is-mini .media-player:not(:fullscreen),
+.archive-watch.is-mini .media-player:not(:fullscreen) .media-player-video { background: transparent; }
+/* The player's own bar is too big for the corner, but fullscreen is the
+   player at full size again and needs it back. */
+.archive-watch.is-mini :is(.archive-part-nav, .archive-playlist-open) { display: none; }
+.archive-watch.is-mini .archive-watch-stage > .archive-ambient-glow,
+.archive-watch.is-mini .media-player:not(:fullscreen) :is(.media-player-controls, .media-player-seek-preview) { display: none; }
+/* The mini player has no overlay bar to lift the music visual above. */
+.archive-watch.is-mini .media-player:not(:fullscreen) {
+  --audio-controls-bottom: 12px;
+  --audio-video-bottom: 12px;
+}
+.archive-watch.is-mini .media-player:not(:fullscreen) .media-player-audio-visual {
+  padding: 6px 10px;
+  /* Scale the large container's fixed corners to the smaller width. */
+  border-radius: 15px;
+}
+.archive-watch.is-mini .media-player:not(:fullscreen) .media-player-audio-icon {
+  width: 48px;
+  height: 48px;
+}
+.archive-watch.is-mini .media-player:not(:fullscreen) .media-player-audio-waveform {
+  width: 40px;
+  height: 24px;
+}
+.archive-watch.is-mini .media-player:not(:fullscreen) .media-player-audio-waveform span {
+  width: 2px;
+}
+.archive-watch.is-mini .archive-mini-controls {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 12px 12px 0 0;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.archive-watch.is-mini:is(:hover, :has(:focus-visible)) :is(.archive-mini-controls, .archive-mini-seek),
+.archive-watch.is-mini:has([data-mini-play][data-state="paused"]) :is(.archive-mini-controls, .archive-mini-seek) { opacity: 1; }
+@media (hover: none) {
+  .archive-watch.is-mini :is(.archive-mini-controls, .archive-mini-seek) { opacity: 1; }
+}
+.archive-mini-spacer { flex: 1; }
+/* A slim seek bar along the window's bottom edge: a hairline of progress at
+   rest once shown, thickening under the pointer so it is easy to grab. The input is a
+   tall hit area with its fill painted along its bottom edge, so one rule
+   covers both engines and the native track and thumb stay invisible. */
+.archive-mini-seek { display: none; }
+.archive-mini-seek-preview { z-index: 4; }
+.archive-watch:not(.is-mini) .archive-mini-seek-preview { display: none; }
+.archive-watch.is-mini .archive-mini-seek {
+  --range-progress: 0%;
+  --mini-track: 3px;
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 0 12px 12px;
+  background:
+    linear-gradient(to right, var(--color-accent-bright, #fff) var(--range-progress), #fff5 var(--range-progress))
+    bottom / 100% var(--mini-track) no-repeat;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  /* Hidden until the window is hovered, like the buttons above it. */
+  opacity: 0;
+  transition: background-size .1s ease, opacity .15s ease;
+}
+.archive-watch.is-mini .archive-mini-seek:is(:hover, :focus-visible) { --mini-track: 6px; outline: none; }
+.archive-mini-seek::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+.archive-mini-seek::-moz-range-track { height: 100%; background: transparent; }
+.archive-mini-seek::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 0; height: 0; border: 0; }
+.archive-mini-seek::-moz-range-thumb { width: 0; height: 0; border: 0; }
+.archive-mini-controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #0007;
+  color: #fff;
+  cursor: pointer;
+  --button-border-hover: transparent;
+  --button-text-hover: #fff;
+}
+.archive-mini-controls button:is(:hover, :focus-visible) { background: #000c; outline: none; }
+/* The switch between the corner window and the bar, not offered for sound
+   alone, which has no picture to show. */
+.archive-watch [data-mini-mode][hidden] { display: none; }
+.archive-mini-controls .icon { width: 18px; height: 18px; }
+/* Each toggle draws the glyph for its state, as the preview's buttons do. */
+.archive-mini-controls [data-state="playing"] .mini-icon-play,
+.archive-mini-controls [data-state="paused"] .mini-icon-pause,
+.archive-mini-controls [data-state="sound"] .mini-icon-muted,
+.archive-mini-controls [data-state="muted"] .mini-icon-sound { display: none; }
+
+/* Play and pause are solid shapes here, not the sprite's outlines. */
+:is(.hover-preview-controls, .archive-mini-controls, .archive-audio-bar) :is(.hover-preview-pause, .hover-preview-play, .mini-icon-pause, .mini-icon-play) {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* Menus lift from the page through their solid surface and shadow, with the
+   same subtle light/dark shift as the drawer headings. */
+:is(.settings-menu, .menu-popover, .thumbnail-settings-popup,
+    .actor-editor-popover, .thumbnail-type-menu,
+    .channel-download-profile-menu, .subscription-profile-menu,
+    .browse-options-menu, .subscription-interval-menu, .shelf-settings-menu,
+    .directory-menu, .account-password-menu) {
+  border: 0;
+  background: var(--raised-surface);
+  box-shadow: var(--shadow-menu);
+}
+@supports (appearance: base-select) {
+  select::picker(select) {
+    border: 0;
+    background: var(--raised-surface);
+  }
+}
+
+/* Editors extend the heading's surface. The inner clip lets the grid
+   collapse to zero. */
+.drawer-editor {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin: 0;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 240ms ease, opacity 180ms ease, margin-top 240ms ease, margin-bottom 240ms ease, visibility 240ms;
+}
+.drawer-editor > div { position: relative; min-height: 0; overflow: hidden; }
+.drawer-editor > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  inset-inline: var(--drawer-inset);
+  height: 1px;
+  background: var(--color-menu-border);
+}
+.drawer-editor :is(.libraries-form, .profile-editor) {
+  margin: 0;
+  padding: 16px var(--drawer-inset);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  translate: 0 0;
+  transition: translate 240ms ease;
+}
+/* Folded shut by collapsing rather than display: none. A display change only
+   transitions where allow-discrete is honoured, and Firefox snapped these
+   closed; visibility interpolates everywhere, staying visible until the fold
+   ends and then taking the editor out of the tab order. */
+.drawer-editor[hidden] { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; }
+/* A collapsed editor must not cancel the list's inset below the heading. */
+.drawer-editor[hidden] { margin-top: 0; margin-bottom: 0; }
+.drawer-editor[hidden] form { translate: 0 -12px; }
+@starting-style {
+  .drawer-editor { grid-template-rows: 0fr; opacity: 0; }
+  .drawer-editor :is(.libraries-form, .profile-editor) { translate: 0 -12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer-editor, .drawer-editor form { transition: none; }
+}
+
+
+/* The first-run welcome: the logo, a line of guidance and the one field that matters. */
+.welcome-dialog { max-width: 28rem; }
+.welcome-form { display: grid; gap: 12px; justify-items: stretch; }
+.welcome-field { display: grid; gap: 6px; }
+.welcome-field > span { color: var(--shell-muted); font-size: var(--font-size-control); }
+.welcome-form input { width: 100%; min-height: 36px; }
+.welcome-logo { justify-self: center; }
+.welcome-form h2 { text-align: center; }
+.welcome-form .confirm-dialog-note { margin: 0; text-align: center; }
+.welcome-form .info-callout { margin: 0; }
+.welcome-message { margin: 0; color: var(--color-danger-text); font-size: var(--font-size-control); }
+.welcome-message[hidden] { display: none; }
+.welcome-form .confirm-dialog-actions { justify-content: flex-end; margin-top: 4px; }
+
+/* An info callout, tinted with the accent so it follows the chosen palette. */
+.info-callout {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  /* The strong text colour with a little accent in it: near-white in dark, near-black in light. */
+  color: color-mix(in srgb, var(--color-accent) 30%, var(--color-text-strong));
+  font-size: var(--font-size-helper);
+  line-height: 1.4;
+}
+.info-callout-icon { flex: none; margin-top: 1px; color: var(--color-accent); }
+
+/* Idle immersion leaves layout space for the title and first action row.
+   Exit has no stagger: every surface comes back together. */
+body.watch-open .immersive-chrome,
+body.watch-open .topbar-brand,
+body.watch-open :is(.archive-watch-head, .archive-watch-facts, .archive-watch-story, .archive-watch-discussion, .archive-related, .archive-formats) {
+  transition: opacity 160ms ease;
+}
+body.watch-open .archive-watch-head { transition: opacity 160ms ease, margin-top 180ms ease; }
+body.watch-open .archive-watch-actions,
+body.watch-open .topbar-logo > rect { transition: opacity 160ms ease; }
+body.watch-open .topbar-logo .arrow > path {
+  transition: opacity 160ms ease, fill 160ms ease, stroke 160ms ease;
+}
+/* The immersive wave gives each piece of the top bar a `translate`, which
+   makes it a stacking context of its own and traps a menu's z-index inside
+   it. On a narrow screen the settings menu then opened under the search
+   field's row, so the actions, menus and all, are lifted above their
+   neighbours. */
+.topbar-actions { z-index: 2; }
+body.watch-open .topbar .immersive-chrome,
+body.watch-open .archive-watch-actions > :is(button, a) {
+  translate: 0 0;
+  visibility: visible;
+  transition: opacity 160ms ease, translate 180ms ease, visibility 0s;
+}
+body.watch-open:not(.is-player-immersive) .archive-watch-actions > :is(button, a) {
+  opacity: 1;
+  transition: none;
+}
+body.watch-open .archive-watch-stage > .archive-ambient-glow { transition: transform 180ms ease, opacity 180ms ease; }
+body.watch-open .archive-ambient-glow > canvas { transition: filter 180ms ease; }
+body.watch-open .archive-watch-stage {
+  transform-origin: center bottom;
+  transition: transform 180ms cubic-bezier(.22,.8,.25,1),
+              aspect-ratio 300ms ease, max-width 300ms ease;
+}
+body.watch-open.is-player-immersive .immersive-chrome {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 600ms ease var(--immersive-delay, 0ms);
+}
+body.watch-open.is-player-immersive .topbar .immersive-chrome {
+  translate: 0 -24px;
+  visibility: hidden;
+  transition: opacity 300ms ease-out var(--immersive-delay, 0ms),
+              translate 600ms linear var(--immersive-delay, 0ms),
+              visibility 0s calc(300ms + var(--immersive-delay, 0ms));
+}
+body.watch-open.is-player-immersive .topbar-brand { opacity: .65; transition: opacity 300ms ease-out var(--immersive-logo-delay, 0ms); }
+body.watch-open.is-player-immersive .topbar-logo > rect { opacity: 0; transition: opacity 300ms ease-out var(--immersive-logo-delay, 0ms); }
+body.watch-open.is-player-immersive .topbar-logo .arrow > path {
+  transition-duration: 300ms;
+  transition-timing-function: ease-out;
+  transition-delay: var(--immersive-logo-delay, 0ms);
+}
+/* The inverted mark uses one accent colour on the page background. */
+body.watch-open.is-player-immersive .topbar-logo .arrow > path:last-child {
+  fill: var(--button-hue);
+  stroke: var(--button-hue);
+}
+body.watch-open.is-player-immersive .topbar-logo .arrow > path:first-child { opacity: 0; }
+body.watch-open.is-player-immersive .topbar-brand::before { opacity: 0; transition: opacity 300ms ease-out var(--immersive-logo-delay, 0ms); }
+body.watch-open.is-player-immersive .topbar-shell:has(> .topbar) {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* The enlarged glow is decorative overflow, not additional page width.
+   Clip at the viewport while retaining vertical page scrolling. */
+body.watch-open { overflow-x: clip; }
+body.watch-open.is-player-immersive .archive-watch-stage {
+  transform: translateY(var(--immersive-drop, 0px)) scale(var(--immersive-scale, 1));
+  transition: transform 900ms cubic-bezier(.22,.8,.25,1) 350ms,
+              aspect-ratio 300ms ease, max-width 300ms ease;
+}
+body.watch-open.is-player-immersive .archive-watch-head {
+  opacity: .45;
+  margin-top: 32px;
+  transition: opacity 800ms ease, margin-top 900ms cubic-bezier(.22,.8,.25,1) 350ms;
+}
+body.watch-open.is-player-immersive .archive-watch-actions {
+  pointer-events: none;
+}
+body.watch-open.is-player-immersive .archive-watch-actions > :is(button, a) {
+  opacity: 0;
+  translate: 0 24px;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 300ms ease-out var(--immersive-delay, 0ms),
+              translate 600ms linear var(--immersive-delay, 0ms),
+              visibility 0s calc(300ms + var(--immersive-delay, 0ms));
+}
+body.watch-open.is-player-immersive .archive-watch-stage > .archive-ambient-glow {
+  opacity: .7;
+  transform: scale(1.09);
+  transition: transform 900ms ease 350ms, opacity 900ms ease 350ms;
+}
+body.watch-open.is-player-immersive .archive-ambient-glow > canvas {
+  filter: blur(13px) saturate(1.3);
+  transition: filter 900ms ease 350ms;
+}
+:root[data-theme="light"] body.watch-open.is-player-immersive .archive-ambient-glow > canvas {
+  filter: blur(13px);
+}
+body.watch-open.is-player-immersive :is(.archive-watch-facts, .archive-watch-story, .archive-watch-discussion, .archive-related, .archive-formats) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 800ms ease 100ms;
+}
+body.watch-open.is-player-immersive .media-player:not(:fullscreen) .media-player-controls {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
+  /* Keep the phone's control strip in the layout so the title, portrait and
+     stats stay put when its controls fade away. */
+  body.watch-open.is-player-immersive .archive-watch-stage { transform: none; }
+  body.watch-open.is-player-immersive .archive-watch-stage > .archive-ambient-glow { transform: scaleY(1.09); }
+  body.watch-open.is-player-immersive .archive-watch-head { margin-top: 14px; }
+  body.watch-open.is-player-immersive .archive-watch:not(.is-mini) .media-player:not(:fullscreen)[data-player-state="playing"].is-controls-hidden .media-player-controls {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  body.watch-open.is-player-immersive .archive-watch-stage {
+    transform: translateY(var(--immersive-landscape-offset, 0px)) scale(var(--immersive-scale, 1));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.watch-open.is-player-immersive .topbar .immersive-chrome,
+  body.watch-open.is-player-immersive .archive-watch-actions > :is(button, a) { translate: none; }
+  body.watch-open :is(.immersive-chrome, .topbar-brand, .archive-watch-stage, .archive-watch-head,
+    .archive-watch-facts, .archive-watch-story, .archive-watch-discussion, .archive-related, .archive-formats, .media-player-controls,
+    .archive-watch-actions, .archive-watch-actions > button, .archive-watch-actions > a,
+    .topbar-logo > rect, .topbar-logo .arrow > path,
+    .archive-ambient-glow, .archive-ambient-glow > canvas) {
+    transition: none;
+  }
+}
+
+.statistics-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.statistics-section-heading h3 { margin: 0; }
+.statistics-ranking { display: flex; gap: 4px; --pill-pad: 12px; }
+/* Pills in the round buttons' colours (the layout switch's discs): a quiet
+   fill at rest, lit under the pointer, and the chosen one in the accent. No
+   outline on the group or the buttons; focus is shown by the lighter fill. */
+.statistics-ranking button {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 var(--pill-pad);
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.72);
+  font: inherit;
+  font-size: var(--font-size-helper);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+/* A segmented control: still separate pills with the small gap, but the edges
+   that face a neighbour are square, so the group reads as one switch. The
+   outer ends keep the full round. */
+.statistics-ranking button:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.statistics-ranking button:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+/* The round end swallows some of its own padding, so the label is nudged
+   toward the flat side to look centred between the two edges. */
+.statistics-ranking button:first-child:not(:last-child) { padding-left: calc(var(--pill-pad) + 3px); }
+.statistics-ranking button:last-child:not(:first-child) { padding-right: calc(var(--pill-pad) + 3px); }
+.statistics-ranking button:focus-visible { outline: none; }
+.statistics-ranking button:is(:hover, :focus-visible) { background: rgba(255,255,255,.16); color: #fff; }
+.statistics-ranking button[aria-pressed="true"] { background: var(--highlight-fill); color: var(--highlight-foreground); }
+.statistics-completion { grid-column: 1 / -1; display: grid; gap: 5px; color: var(--shell-muted); font-size: var(--font-size-helper); font-variant-numeric: tabular-nums; }
+.statistics-completion .about-bar-track { display: block; height: 3px; }
+.statistics-completion .about-bar-fill { opacity: .55; }
+.about-tile dd a { color: inherit; text-decoration: none; }
+.about-tile dd a:hover { text-decoration: underline; }
+
+.library-statistics .statistics-primary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.statistics-primary .about-tile { padding: 14px 10px; }
+.statistics-primary dd { font-size: clamp(18px, 4vw, 26px); overflow-wrap: anywhere; letter-spacing: -.025em; }
+.statistics-secondary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
+.statistics-secondary .about-tile { padding: 4px 10px; background: transparent; }
+.statistics-secondary dd { font-size: var(--font-size-control); }
+.statistics-quality-bar { display: flex; height: 18px; margin-top: 12px; border-radius: 6px; }
+.statistics-quality-bar a { display: block; min-width: 0; }
+.statistics-quality-bar a:first-child { border-radius: 6px 0 0 6px; }
+.statistics-quality-bar a:last-child { border-radius: 0 6px 6px 0; }
+.statistics-quality-bar a:only-child { border-radius: 6px; }
+.statistics-quality-bar a:hover { filter: brightness(1.15); }
+.statistics-quality-bar a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; z-index: 1; }
+.statistics-quality-legend { display: grid; gap: 8px; padding: 0; margin: 12px 0 0; list-style: none; }
+.statistics-quality-legend li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.statistics-quality-dot { width: 8px; height: 8px; border-radius: 50%; }
+.statistics-quality-legend a { color: inherit; text-decoration: none; }
+.statistics-quality-legend a:hover { text-decoration: underline; }
+
+/* The library/view switch sits in the header, a gap clear of the close
+   button, and is a header button: the close button's height and fills, the
+   chosen one in the accent. A long view's name is cut short rather than
+   pushing the switch off. */
+#statistics-drawer .download-drawer-actions { gap: 16px; }
+#statistics-drawer .download-drawer-head > div:first-child { min-width: 0; }
+#statistics-subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.download-drawer-head .statistics-ranking { --pill-pad: 16px; }
+.download-drawer-head .statistics-ranking button { height: 36px; }
+.download-drawer-head .statistics-ranking button:not([aria-pressed="true"]) {
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.72);
+}
+.download-drawer-head .statistics-ranking button:not([aria-pressed="true"]):is(:hover, :focus-visible) {
+  background: rgba(255,255,255,.16);
+  color: #fff;
+}
+.statistics-empty { margin: 8px var(--drawer-inset) 16px; color: var(--shell-muted); }
+
+body.watch-open.is-player-immersive.is-immersive-logo-overlapped .topbar-brand {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 300ms ease-out var(--immersive-logo-delay, 0ms),
+              visibility 0s calc(300ms + var(--immersive-logo-delay, 0ms));
+}
+@media (prefers-reduced-motion: reduce) {
+  body.watch-open.is-player-immersive .topbar-brand,
+  body.watch-open.is-player-immersive.is-immersive-logo-overlapped .topbar-brand,
+  body.watch-open.is-player-immersive .topbar-brand::before,
+  body.watch-open.is-player-immersive .topbar-logo > rect,
+  body.watch-open.is-player-immersive .topbar-logo .arrow > path {
+    transition: none;
+  }
+}
+
+/* Video colours: on the player page the theme follows the video's accent.
+   This sits on :root because the tokens derived from --color-accent (light,
+   bright, deep) resolve there, and is !important because the chosen palette is
+   written inline on :root and on the logo's stops. Lightness and chroma are
+   pinned as palette.js pins them for text highlights; filled controls keep
+   the video lightness and choose a contrasting foreground.
+   The logo and the navigation take the palette's gradient rather than its
+   accent; here the two shades stay close to the source lightness so yellow
+   does not turn olive at the darker end. */
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) {
+  --video-shade-1: oklch(from var(--video-accent) min(calc(l + .06), .86) min(c, .24) h);
+  --video-shade-2: oklch(from var(--video-accent) max(calc(l - .04), .58) min(c, .24) h);
+  --button-hue: oklch(from var(--video-accent) l c h) !important;
+  --color-accent: oklch(from var(--video-accent) .56 min(c, .24) h) !important;
+  --color-accent-strong: oklch(from var(--video-accent) .47 min(c, .22) h) !important;
+  --logo-gradient: linear-gradient(in oklch to right, var(--video-shade-1), var(--video-shade-2)) !important;
+  --logo-1: color-mix(in oklch, var(--video-shade-1) 88%, var(--video-shade-2)) !important;
+  --logo-2: color-mix(in oklch, var(--video-shade-1) 62%, var(--video-shade-2)) !important;
+  --logo-3: color-mix(in oklch, var(--video-shade-1) 38%, var(--video-shade-2)) !important;
+  --logo-4: color-mix(in oklch, var(--video-shade-1) 12%, var(--video-shade-2)) !important;
+}
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(1) { stop-color: color-mix(in oklch, var(--video-shade-1) 100%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(2) { stop-color: color-mix(in oklch, var(--video-shade-1) 88%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(3) { stop-color: color-mix(in oklch, var(--video-shade-1) 75%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(4) { stop-color: color-mix(in oklch, var(--video-shade-1) 62%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(5) { stop-color: color-mix(in oklch, var(--video-shade-1) 50%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(6) { stop-color: color-mix(in oklch, var(--video-shade-1) 38%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(7) { stop-color: color-mix(in oklch, var(--video-shade-1) 25%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(8) { stop-color: color-mix(in oklch, var(--video-shade-1) 12%, var(--video-shade-2)) !important; }
+:root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(9) { stop-color: color-mix(in oklch, var(--video-shade-1) 0%, var(--video-shade-2)) !important; }
+.customisation-switch { --watch-accent: var(--color-accent); margin-top: 12px; }
+/* The larger track and the coloured handle the light theme gave the
+   SponsorBlock switches, for both themes. */
+.sponsorblock-toggle-row .archive-autoplay-track { width: 38px; height: 22px; border-radius: 11px; }
+.sponsorblock-toggle-row .archive-autoplay-knob { top: 3px; left: 3px; width: 16px; height: 16px; }
+.customisation-switch[aria-checked="true"] .archive-autoplay-track { background: color-mix(in srgb, var(--color-accent) 75%, transparent); }
+.customisation-switch[aria-checked="true"] .archive-autoplay-knob { background: var(--color-accent-bright); }
+.customisation-switch small { display: block; margin-top: 2px; color: var(--shell-muted); font-size: var(--font-size-helper); }
+.collection-menu button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Background play for sound alone: a bar along the foot of the page, with no
+   picture to show and the transport always in sight - what is playing on the
+   left, previous, play and next large in the middle over the time, and the
+   lesser buttons on the right. It is the corner window's section and <video>
+   restyled, as that is, so the stage is only hidden; a video element out of
+   the layout plays its sound on. */
+.archive-audio-bar { display: none; }
+.archive-watch.is-mini.is-audio-bar {
+  left: var(--page-gutter);
+  right: var(--page-gutter);
+  bottom: 12px;
+  width: auto;
+  /* Capped and centred on a wide screen: the seek stops at 560px and the
+     title is cut short anyway, so more width was only empty bar. */
+  max-width: 1040px;
+  margin-inline: auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--raised-surface) 90%, transparent);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 4px 16px #0003, inset 0 0 0 1px color-mix(in srgb, var(--shell-line) 70%, transparent);
+}
+.archive-watch.is-audio-bar .archive-watch-main,
+.archive-watch.is-audio-bar :is(.archive-mini-controls, .archive-mini-seek, .archive-mini-seek-preview) { display: none; }
+.archive-watch.is-mini.is-audio-bar .archive-audio-bar {
+  /* The buttons take only their own width, so the title and byline run up
+     to them; the seek is a row of its own beneath, under the text's end,
+     so the two never share a line. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0 16px;
+  /* More room at the ends than above and below, so the last button sits
+     clear of the rounded end rather than in its curve. The cover's side is
+     the gap it has above and below, so its own pill ends run concentric
+     with the bar's. */
+  padding: 9px 20px 9px 12px;
+  color: var(--shell-fg);
+}
+/* The last tracks of a list scroll clear of the bar rather than under it. */
+body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bottom: 100px; }
+.archive-audio-now { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.archive-audio-cover {
+  position: relative;
+  flex: 0 0 44px;
+  height: 44px;
+  overflow: hidden;
+  /* Pill-ended, to follow the bar's ends: a square cover is a disc, a wider
+     still a stadium. */
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-line) 62%, transparent);
+}
+.archive-audio-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* A video's still, not a cover: as tall, but 16:9 so none of it is lost. */
+.archive-audio-bar:not([data-cover]) .archive-audio-cover { flex-basis: 78px; }
+.archive-audio-text { display: grid; min-width: 0; }
+.archive-audio-title, .archive-audio-byline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.archive-audio-title { font-weight: 600; color: inherit; text-decoration: none; }
+.archive-audio-byline a { color: inherit; text-decoration: none; }
+:is(.archive-audio-title, .archive-audio-byline a):is(:hover, :focus-visible) { color: var(--shell-fg); outline: none; }
+.archive-audio-byline { color: var(--shell-muted); font-size: var(--font-size-helper); }
+.archive-audio-transport { display: contents; }
+/* The cover is centred on the whole bar, the two lines level with the
+   buttons, so the seek beneath passes under the text rather than through it. */
+.archive-audio-now { grid-column: 1; grid-row: 1 / 3; align-self: stretch; }
+.archive-audio-now .archive-audio-text { align-self: start; }
+.archive-audio-buttons { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 12px; }
+.archive-audio-tools { grid-column: 3; grid-row: 1 / 3; }
+.archive-audio-bar .archive-audio-icon[hidden] { display: none; }
+.archive-audio-bar :is(button, .archive-audio-icon) {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--shell-muted);
+  cursor: pointer;
+}
+.archive-audio-bar :is(button, .archive-audio-icon):is(:hover, :focus-visible) { color: var(--shell-fg); background: color-mix(in srgb, var(--shell-fg) 8%, transparent); outline: none; }
+.archive-audio-bar button:disabled { opacity: .35; cursor: default; background: transparent; color: var(--shell-muted); }
+.archive-audio-bar .icon { width: 18px; height: 18px; }
+.archive-audio-buttons [data-audio-previous] .icon,
+.archive-audio-buttons [data-audio-next] .icon { width: 18px; height: 18px; fill: currentColor; stroke: none; }
+.archive-audio-bar .archive-audio-play {
+  width: 36px;
+  height: 36px;
+  background: var(--shell-fg);
+  color: var(--shell-bg);
+  transition: background 140ms ease;
+}
+/* Brightened under the pointer rather than grown: scaling would also move
+   the pause glyph off the whole pixels it is drawn on. */
+.archive-audio-bar .archive-audio-play:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--shell-fg), #fff 70%); color: var(--shell-bg); }
+.archive-audio-bar .archive-audio-play .icon { width: 18px; height: 18px; }
+.archive-audio-bar [data-state="playing"] .mini-icon-play,
+.archive-audio-bar [data-state="paused"] .mini-icon-pause,
+.archive-audio-bar [data-state="sound"] .mini-icon-muted,
+.archive-audio-bar [data-state="muted"] .mini-icon-sound { display: none; }
+.archive-audio-progress {
+  display: grid;
+  grid-template-columns: 4em minmax(0, 1fr) 4em;
+  align-items: center;
+  gap: 8px;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: center;
+  /* Clear of the tools at the right end, at any width. */
+  width: min(560px, calc(100% - 260px));
+  /* The seek's hit area is taller than its line; the part under the line
+     runs into the bar's padding, so the line sits as far from the bottom
+     edge as the play button does from the top. Undone on a phone, where the
+     line moves under the title. Pushed down a little from the byline it
+     passes under. */
+  margin: 3px 0 -7px;
+}
+.archive-audio-time { color: var(--shell-muted); font-size: var(--font-size-helper); font-variant-numeric: tabular-nums; }
+.archive-audio-time:first-child { text-align: right; }
+/* The bar's seek is the corner window's, a painted fill on a tall hit area,
+   only always shown and rounded. */
+.archive-audio-seek {
+  --range-progress: 0%;
+  --audio-track: 4px;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background:
+    linear-gradient(to right, var(--color-accent-bright, #fff) var(--range-progress),
+      color-mix(in srgb, var(--shell-fg) 22%, transparent) var(--range-progress))
+    center / 100% var(--audio-track) no-repeat;
+  border-radius: 999px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.archive-audio-seek:is(:hover, :focus-visible) { --audio-track: 6px; outline: none; }
+.archive-audio-seek::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+.archive-audio-seek::-moz-range-track { height: 100%; background: transparent; }
+.archive-audio-seek::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 0; height: 0; border: 0; }
+.archive-audio-seek::-moz-range-thumb { width: 0; height: 0; border: 0; }
+.archive-audio-tools { display: flex; justify-content: flex-end; gap: 2px; }
+.archive-audio-bar :is([data-audio-shuffle], [data-audio-repeat])[aria-pressed="true"] { color: var(--color-accent); }
+.archive-audio-bar [data-audio-volume][aria-expanded="true"] { color: var(--shell-fg); background: color-mix(in srgb, var(--shell-fg) 12%, transparent); }
+/* The bar has no room for the slider inline, as the player's bar does, so
+   the pill's contents are not drawn at all until it is stood up. */
+.archive-audio-bar .media-player-volume-popup:not(.is-open) { display: none; }
+/* The player's volume pill, in the bar's glass rather than the video's, so
+   it reads as part of the bar in either theme; its slider is filled as the
+   bar's seek is. */
+.archive-audio-bar .media-player-volume-popup.is-open {
+  background: color-mix(in srgb, var(--raised-surface) 90%, transparent);
+  color: var(--shell-fg);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 4px 16px #0003, inset 0 0 0 1px color-mix(in srgb, var(--shell-line) 70%, transparent);
+}
+.archive-audio-bar .media-player-volume-popup input[type="range"] {
+  --range-accent: var(--color-accent-bright, #fff);
+  --range-rest: color-mix(in srgb, var(--shell-fg) 22%, transparent);
+}
+.archive-audio-bar .media-player-volume-popup [data-media-mute][aria-pressed="true"] { color: var(--shell-fg); background: color-mix(in srgb, var(--shell-fg) 12%, transparent); }
+/* A phone keeps what is playing, play and next. The time is a line under
+   the title, in the byline's place: along the bar's edge it read as a stripe
+   laid over the rounded ends. The wrappers step aside so the cover, the two
+   lines and the buttons share one grid. */
+@media (max-width: 640px) {
+  .archive-watch.is-mini.is-audio-bar { bottom: 8px; }
+  .archive-watch.is-mini.is-audio-bar .archive-audio-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "cover title buttons tools" "cover seek buttons tools";
+    gap: 0 6px;
+    padding: 6px 12px 6px 6px;
+  }
+  :is(.archive-audio-now, .archive-audio-text, .archive-audio-transport) { display: contents; }
+  .archive-audio-cover { grid-area: cover; width: 40px; height: 40px; margin-right: 6px; }
+  .archive-audio-bar:not([data-cover]) .archive-audio-cover { width: 71px; }
+  .archive-audio-title { grid-area: title; align-self: end; }
+  .archive-audio-byline { display: none; }
+  .archive-audio-buttons { grid-area: buttons; gap: 2px; }
+  .archive-audio-tools { grid-area: tools; }
+  .archive-audio-buttons [data-audio-previous] { display: none; }
+  .archive-audio-bar .archive-audio-play { width: 40px; height: 40px; }
+  .archive-audio-progress { grid-area: seek; align-self: start; justify-self: stretch; display: block; width: auto; margin: 0 10px 0 0; }
+  .archive-audio-progress .archive-audio-time { display: none; }
+  /* A tall hit area round a thin line, so it is still easy to catch. */
+  .archive-audio-seek { display: block; height: 14px; --audio-track: 3px; }
+  .archive-audio-seek:is(:hover, :focus-visible) { --audio-track: 4px; }
+  .archive-audio-tools [data-audio-volume] { display: none; }
+}
+
+/* The comments wear the description's card: neutral grey, so a long thread
+   sits as quietly as the prose above it. The sort pills borrow the statistics
+   drawer's (.statistics-ranking) and take the theme's hue. */
+.archive-watch-comments {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface-raised);
+}
+.archive-watch-comments[hidden], .archive-comments[hidden] { display: none; }
+
+/* The chat replay shares the comments' card and sits above them. It is
+   its own scroller: a stream's chat is far longer than the page, and the
+   list follows the video rather than the reader. */
+.archive-watch-discussion { display: grid; gap: 20px; min-width: 0; }
+.archive-watch-chat {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface-raised);
+}
+.archive-watch-chat[hidden], .archive-chat-list[hidden], .archive-chat-status[hidden] { display: none; }
+.archive-chat-status { margin-top: 12px; }
+.archive-chat-list {
+  margin-top: 12px; max-height: min(420px, 60vh); overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 14px; line-height: 1.4; color: var(--color-text);
+}
+.archive-chat-message { overflow-wrap: anywhere; }
+.archive-chat-time { font-size: 12px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.archive-chat-author { font-weight: 600; color: color-mix(in srgb, var(--color-text) 75%, transparent); }
+.archive-chat-author.is-owner { padding: 0 6px; border-radius: 10px; background: color-mix(in srgb, var(--button-hue) 30%, transparent); color: var(--color-text); }
+.archive-chat-author.is-moderator { color: color-mix(in srgb, var(--color-accent) 60%, #fff); }
+.archive-chat-author.is-member { color: color-mix(in srgb, #2ba640 55%, var(--color-text)); }
+/* Paid and membership events are what the stream remembers, so they get a band. */
+.archive-chat-message.is-paid, .archive-chat-message.is-member {
+  padding: 6px 8px; border-radius: 8px;
+  background: color-mix(in srgb, var(--button-hue) 18%, transparent);
+}
+.archive-chat-amount { font-weight: 600; }
+.archive-watch-comments-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* No margin under the head: collapsed, the card is just the head, and the list
+   below it brings its own gap, so the padding is even above and below. */
+.archive-watch-comments-head h2 { margin: 0; }
+.archive-watch-comments-head { flex-wrap: wrap; }
+.archive-watch-comments-controls { display: flex; align-items: center; gap: 8px; }
+.archive-watch-comments-tabs { display: flex; gap: 4px; }
+/* Apart from the group, on its left: it fetches, where the pills only choose
+   what to show. It wears the pills' colours, as a disc the pills' height. */
+.archive-comments-refresh {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.72);
+  transition: background 140ms ease, color 140ms ease;
+}
+.archive-comments-refresh .icon { width: 16px; height: 16px; }
+.archive-comments-refresh:focus-visible { outline: none; }
+.archive-comments-refresh:is(:hover, :focus-visible):not(:disabled) { background: rgba(255,255,255,.16); color: #fff; }
+.archive-comments-refresh[hidden] { display: none; }
+.archive-comments-refresh:disabled { cursor: progress; }
+.archive-comments-refresh.is-spinning .icon { animation: archive-comments-spin 1s linear infinite; }
+.archive-comments-status { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
+.archive-comments-spinner {
+  width: 14px; height: 14px; border-radius: 50%; flex: none;
+  border: 2px solid color-mix(in srgb, var(--color-text) 25%, transparent);
+  border-top-color: var(--color-accent);
+  animation: archive-comments-spin 1s linear infinite;
+}
+@keyframes archive-comments-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .archive-comments-refresh.is-spinning .icon, .archive-comments-spinner { animation-duration: 3s; }
+}
+.archive-comments { display: grid; gap: 14px; margin-top: 12px; color: var(--color-text); }
+.archive-comment { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
+.archive-comment.is-reply { grid-template-columns: 28px minmax(0, 1fr); margin-top: 12px; }
+.archive-comment-avatar {
+  display: block; width: 100%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+  background: color-mix(in srgb, var(--button-hue) 30%, var(--color-surface));
+}
+.archive-comment-avatar > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.archive-comment-head { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 13px; }
+.archive-comment-head span, .archive-comment-foot { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.archive-comment-head strong.is-uploader {
+  padding: 0 6px; border-radius: 10px;
+  background: color-mix(in srgb, var(--button-hue) 30%, transparent);
+}
+.archive-comment-text { margin: 2px 0 0; font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.archive-comment-foot { margin-top: 4px; font-size: 12px; }
+.archive-comment-likes { display: inline-flex; align-items: center; gap: 4px; }
+.archive-comment-likes .icon { width: 14px; height: 14px; }
+.archive-comment-time {
+  all: unset; cursor: pointer; color: color-mix(in srgb, var(--color-accent) 50%, #fff); border-radius: 3px;
+}
+.archive-comment-time:is(:hover, :focus-visible) { text-decoration: underline; }
+/* No pill behind it, but the shelves' chevron: the native marker is hidden and
+   the icon turns over as the replies open. */
+.archive-comment-replies summary {
+  display: inline-flex; align-items: center; gap: 4px; list-style: none;
+  cursor: pointer; margin-top: 6px; font-size: 13px;
+  /* The bare accent is too dim on the dark card; light.css puts it back. */
+  color: color-mix(in srgb, var(--color-accent) 50%, #fff);
+}
+.archive-comment-replies summary::-webkit-details-marker { display: none; }
+.archive-comment-replies summary .icon { width: 16px; height: 16px; transition: transform .2s ease; }
+.archive-comment-replies[open] > summary .icon { transform: rotate(-180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .archive-comment-replies summary .icon { transition: none; }
+}
+.download-page:not([data-download-page="main"]) .download-subtitle-languages { padding: 0 0 6px; }
+.download-page-note { padding-left: 10px; }
+/* Buttons elsewhere carry a heavy ring and fill; in this menu the row lights
+   like its neighbours' controls instead. */
+/* The height of the select rows around it, which are set by their controls.
+   The highlight is a band the height of a menu item, drawn behind the text,
+   so lighting this row looks like lighting the profiles above rather than
+   filling the whole of its taller row. */
+.download-drill { position: relative; isolation: isolate; box-sizing: border-box; min-height: 42px; outline: 0; }
+.download-drill::before {
+  content: "";
+  position: absolute;
+  inset: 5px 0;
+  z-index: -1;
+  border-radius: 6px;
+  background: var(--highlight-fill);
+  opacity: 0;
+}
+.download-drill:is(:hover, :focus-visible) { background: none; box-shadow: none; color: var(--highlight-foreground); }
+.download-drill:is(:hover, :focus-visible)::before { opacity: 1; }
+.download-drill:is(:hover, :focus-visible) .download-drill-value { color: inherit; }
+/* The languages as a menu: one per row, ticked like the profiles, and the
+   tags box beneath it inset to line up with the names. */
+.download-language-list { display: grid; grid-template-columns: minmax(0, 1fr); }
+/* Inset like the menu's other dividers, between the no-preference row and the
+   languages it gives way to. */
+.download-language-divider { height: 1px; margin: 4px 9px; background: var(--color-menu-border); }
+.download-page .download-language-list + .subtitle-language-tags { width: auto; margin: 4px 5px 0; }
+.download-page .subtitle-languages small { padding: 0 10px; }
+/* The menu's other rows light instantly; the shared button easing would fade
+   this one's text and value in behind them. */
+.download-drill, .download-drill::before, .download-drill-value { transition: none; }
+.download-drill[hidden], [data-subtitle-languages-block][hidden] { display: none; }

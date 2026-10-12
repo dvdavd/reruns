@@ -1,0 +1,1108 @@
+/* Archive cards, in the gallery, the home shelf and the related row alike, keep their menu and playlist together instead of stacking
+   them into separate lines at the right of the footer. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .card-side {
+  align-self: center;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-start;
+}
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .card-menu { margin-top: 0; }
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .group-chip {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(255,255,255,.72);
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+/* The playlist page already shows the collection these buttons lead to. */
+.archive-gallery.is-playlist-view .group-chips { display: none; }
+/* Lit the same way as the menu button beside it. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .group-chip:is(:hover, :focus-visible) {
+  background: linear-gradient(var(--card-control-hover), var(--card-control-hover));
+  box-shadow: none;
+  color: #fff;
+}
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .group-chip .icon,
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .group-chip-name { display: none; }
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .group-chip::before {
+  /* The same playlist glyph as the player's playlist button (index.html),
+     painted through a mask since the shared card renders its own icon. */
+  content: "";
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: var(--playlist-glyph) center / contain no-repeat;
+  mask: var(--playlist-glyph) center / contain no-repeat;
+}
+
+/* The card takes the chrome's material without an outline or lit edge. Hover
+   brightens the surface, while the thumbnail casts its own shadow onto the
+   footer so the two halves read as one object. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .video-card {
+  --media-card-edge: 0;
+  --media-card-edge-hover-colour: transparent;
+  --media-card-surface: color-mix(in srgb, var(--card-accent) 12%, var(--media-card-bg));
+  --media-card-surface-hover: color-mix(in srgb, var(--card-accent) 24%, var(--media-card-bg));
+  --card-chip-base: var(--media-card-surface);
+  --card-control-hover: color-mix(in srgb, var(--card-accent) 28%,
+    oklch(from var(--card-chip-base) calc(l + .06) c h));
+  --media-card-shadow: none;
+  --media-card-shadow-hover: none;
+  --media-card-footer-rule: 0;
+  --media-chip-edge: 0;
+}
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .video-card:is(:hover, :focus-within) {
+  --card-chip-base: var(--media-card-surface-hover);
+}
+/* Hover, not scrolling, is what costs here, and a card hover is worth
+   knowing about before adding an animation to one. A card is one paint unit,
+   so while ANY transition inside it is in flight the whole card repaints
+   every frame - one animating property costs exactly what six do. Dragging
+   the pointer across the grid measured 117% of a core when the cards had
+   gradients, blurred shadows and a fading hover, against 13% with hover
+   suppressed altogether; it is 42% now. None of the obvious dodges helped:
+   removing one transition source at a time changed nothing, nor did
+   cross-fading an overlay's opacity on its own layer, nor dropping the
+   `contain` that makes the card a paint unit. Flat cards took it from 68%
+   to 42%, a gradient under two blurred shadows being the expensive thing to
+   repaint - but any fade at all put ~50 points straight back, so hover
+   lands in one step instead.
+
+   A delay long enough to sit out a passing pointer did make a fade cheap
+   again (49% at 240ms), and it was tried and rejected: waiting a quarter of
+   a second for a card to light up reads as lag, and it desynced the surface
+   from the shadow while the surface was still a gradient. If you want the
+   fade back, that is the shape it has to take, and that is how it felt.
+
+   The card's chips and small buttons do still animate: the cost is the
+   repaint per frame times how often a hover flips, and a chip is a small
+   target you only cross on purpose, where a card is most of the grid. The
+   thumbnail button is the exception, and the reason it is named here: it is
+   the whole 16:9 area, so the pointer is over one constantly, and it alone
+   measured 115% of a core. What it was animating was invisible anyway -
+   `button, a.btn` in the shared chrome.css transitions background-colour
+   and border-colour on every button, and its blanket :hover beats
+   .thumbnail-button's own `background: transparent` on specificity, so
+   hovering a card faded a dark fill across the whole thumbnail, behind an
+   opaque image that hid every frame of it. */
+.video-card,
+.video-card .thumbnail-button {
+  transition: none;
+}
+/* The menu button has no disc at rest: the footer is already a surface, and
+   a grey disc on it would be a control competing with the title. Hovered or
+   open it lights a step up in one flat fill, taking more of the card's colour
+   rather than a white wash, which greyed it below the card it sits on. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .menu-trigger {
+  border: 0;
+  color: rgba(255,255,255,.72);
+  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .menu-trigger:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: linear-gradient(var(--card-control-hover), var(--card-control-hover));
+  box-shadow: none;
+  color: #fff;
+}
+/* Keep the channel chip the same perceptual lightness above the card in every
+   card state. Its own hover adds another fixed step. The surface changes at
+   once with the card, so a passing pointer cannot leave a dark chip behind.
+   Each step also mixes in more of the card's colour, as light mode's do: a
+   lightness step alone keeps the card's chroma, which at the higher lightness
+   reads greyer, so the chip looked neutral on a tinted card. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .metadata-chip {
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 20%,
+    oklch(from var(--card-chip-base) calc(l + .03) c h));
+  --media-chip-shadow: none;
+  color: color-mix(in srgb, var(--card-accent) 30%, #e8e8e8);
+  transition: box-shadow 140ms ease, color 140ms ease;
+}
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .metadata-chip:is(:hover, :focus-within) {
+  --media-chip-surface: color-mix(in srgb, var(--card-accent) 26%,
+    oklch(from var(--card-chip-base) calc(l + .13) c h));
+  --media-chip-shadow: none;
+  color: color-mix(in srgb, var(--card-accent) 15%, #fff);
+  outline: none;
+}
+/* The shadow is the button's: the frame inside it is clipped by its
+   overflow, so a shadow there is never painted. The negative spread pulls
+   it in under the picture so only the bottom edge casts one. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .thumbnail-button {
+  box-shadow: 0 2px 4px -2px #0007;
+}
+/* Favourites keep their warmer surface without a separate lit edge. */
+:is(.archive-gallery, .video-shelf-track, .archive-related-list) .video-card[data-favourite="true"] {
+  --media-card-surface: color-mix(in srgb, var(--card-accent) 20%, var(--media-card-bg));
+  --media-card-surface-hover: color-mix(in srgb, var(--card-accent) 32%, var(--media-card-bg));
+}
+
+.archive-watch[hidden], #archive-home[hidden] { display: none; }
+.archive-watch {
+  /* The theme's hue. With Appearance's video colours on, --button-hue is
+     already the video's own accent (see the :root rule near the end), and
+     falls back to the palette's for a video with none; with it off, the page
+     keeps the theme's colouring throughout rather than mixing in a second
+     scheme from the video. The Player setting (below) is the way to ask for it. */
+  --watch-accent: var(--button-hue);
+  /* The avatar column is a fixed width, so the title keeps its place whether
+     or not the picture has arrived. */
+  --watch-avatar: 48px;
+  --watch-gutter: 12px;
+  display: grid;
+  align-items: start;
+  gap: 20px;
+  padding: 18px var(--page-gutter) 48px;
+}
+.archive-watch { grid-template-columns: minmax(0, 1fr); }
+
+/* Wide enough to fill the screen, but never so tall the title falls below
+   the fold; the 56px is the topbar above it. */
+/* Shown while press-and-hold plays at double speed, top centre like YouTube. */
+.archive-hold-speed {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #000a;
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  opacity: 0;
+  transform: translateX(-50%);
+  translate: 0 var(--hold-lean, 0px);
+  /* Returning to place overshoots a touch, so it reads as a spring. */
+  transition: opacity 120ms ease, translate 380ms cubic-bezier(.3, 1.8, .5, 1);
+  pointer-events: none;
+}
+/* The glyph is a filled pair of triangles, not the sprite's outlined stroke
+   work, so it sets fill and clears the stroke the shared .icon rule gives it. */
+.archive-hold-icon { width: 14px; height: 14px; fill: currentColor; stroke: none; }
+/* One triangle at 1× and below. The pair spans the viewBox evenly, so the
+   survivor slides over by half the gap between them to sit centred where the
+   two did, rather than hanging off to the left. */
+.archive-hold-speed.is-slow .archive-hold-trail { display: none; }
+.archive-hold-speed.is-slow .archive-hold-lead { translate: 5.5px 0; }
+/* While dragging it follows the pointer closely rather than springing. */
+.archive-hold-speed.is-leaning { transition: opacity 120ms ease, translate 60ms ease-out; }
+.media-player.is-hold-speeding .archive-hold-speed { opacity: 1; }
+
+/* A SponsorBlock fast forward wears the hold's badge at the same place, so
+   running past a sponsor reads as the same thing happening. A hold on top of
+   one takes the spot back, since that is the speed the viewer is setting. */
+.archive-sponsor-speeding {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #000a;
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.archive-sponsor-speeding[hidden] { display: none; }
+.media-player.is-hold-speeding .archive-sponsor-speeding { display: none; }
+
+/* The stage takes the shape of the video in it, which the player controller
+   sets from the file's own dimensions; 16:9 until it knows. The frame stays
+   height-led whatever that shape - as tall as the viewport leaves room for,
+   with the width following - so a 4:3 video is exactly as tall as a 16:9 one
+   and simply narrower, rather than pillarboxed inside a 16:9 box, and a
+   wider-than-16:9 film keeps its width and loses height instead.
+
+   Only the stage takes the video's shape. The column under it is the 16:9
+   width regardless, or a portrait video would squeeze the title and the
+   description into a phone-width ribbon. */
+/* The Appearance choice of player corners. The default is the control bar's
+   pill plus its inset, below; the mobile rule that squares the stage to the
+   window's edges sets border-radius itself, so it still wins over these. */
+body[data-player-rounding="small"] { --player-rounding: 12px; }
+body[data-player-rounding="off"] { --player-rounding: 0px; }
+.archive-watch { --watch-aspect: 16 / 9; --watch-stage-height: calc(100dvh - 8rem - 56px); }
+/* A phone on its side has no room for the header and title as well as the
+   picture: leaving them in the sum gave the video a third of the height and a
+   control bar several times its width. The picture takes what is under the
+   topbar and the title is simply scrolled to. */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Allow for the watch page's 18px top padding even on wider phones. */
+  .archive-watch:not(.is-mini) { --watch-stage-height: calc(100dvh - 56px - 24px); }
+}
+/* The topbar wraps to two rows below this width, and below it the control bar
+   takes a strip under the picture as well - the same width at which the player
+   runs edge to edge (see the 700px block further down), so the two change
+   together. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+  .archive-watch:not(.is-mini) { --watch-stage-height: calc(100dvh - 102px - 1rem - 48px); }
+}
+.archive-watch-main {
+  width: 100%;
+  max-width: calc(var(--watch-stage-height) * (16 / 9));
+  margin-inline: auto;
+  container: watch-main / inline-size;
+}
+.archive-watch-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  max-width: calc(var(--watch-stage-height) * (var(--watch-aspect)));
+  margin-inline: auto;
+  /* The control bar is a 48px pill (24px corners) inset 10px, so the player's
+     corners are that plus the inset: the gap stays 10px around the curve. */
+  border-radius: var(--player-rounding, 34px);
+  aspect-ratio: var(--watch-aspect);
+  background: #090a0c;
+  /* The shape is not always known when the page opens - a video stepped to
+     from the playlist, or a file whose header lied and is corrected once a
+     frame has been decoded - so the frame moves to a new shape rather than
+     snapping between them. The zoom from a card is the exception: there the
+     stage is covered, and the thumbnail over it does the moving. */
+  transition: aspect-ratio 300ms cubic-bezier(.22,.8,.25,1),
+              max-width 300ms cubic-bezier(.22,.8,.25,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .archive-watch-stage { transition: none; }
+}
+/* Mid-zoom the thumbnail is measured against the stage, so it must be still. */
+.archive-watch.is-thumbnail-transitioning .archive-watch-stage { transition: none; }
+.archive-watch-stage > * { width: 100%; height: 100%; }
+.archive-watch-stage > .archive-ambient-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: .5;
+  transform: scale(1.035);
+}
+.archive-ambient-glow[hidden] { display: none; }
+/* Two samples, the newer fading in as the older fades out. They add rather
+   than stack: the blur leaves the light's edges part transparent, and one
+   such layer over another is brighter than either. Added, the two weights
+   always come to one, so a still picture stays equally bright through a fade. */
+.archive-watch-stage > .archive-ambient-glow { isolation: isolate; }
+/* Blend the combined samples with the page so dark pixels cannot dim it.
+   The stage must let the glow reach that backdrop; the positioned player
+   follows the glow in paint order and covers it inside the picture. */
+:root:not([data-theme="light"]) .archive-watch-stage { isolation: auto; }
+:root:not([data-theme="light"]) .archive-watch-stage > .archive-ambient-glow {
+  z-index: 0;
+  mix-blend-mode: screen;
+}
+.archive-ambient-glow > canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Filter a quarter-size surface, then enlarge it. The source is only
+     64x36 pixels, so a full-stage blur spent GPU time on interpolated pixels,
+     especially on high-resolution displays. Scaling the blur radius with the
+     surface keeps its apparent 38px spread. */
+  width: 25%;
+  height: 25%;
+  transform: scale(4);
+  transform-origin: top left;
+  border-radius: 8.5px;
+  filter: blur(9.5px) saturate(1.3);
+  mix-blend-mode: plus-lighter;
+}
+@media (max-width: 420px) {
+  .archive-ambient-glow > canvas { border-radius: 0; }
+}
+/* The stage is positioned, and positioned boxes paint after ordinary ones, so
+   the glow's blur spilling past the stage's foot covered the title and the
+   buttons under it. Positioned too, and later in the page, they paint over. */
+.archive-watch-stage ~ * { position: relative; }
+/* Card size from the customisation drawer; medium is the :root default. */
+body[data-card-size="small"] { --video-card-min: clamp(280px, 15vw, 380px); }
+body[data-card-size="large"] { --video-card-min: clamp(480px, 28vw, 700px); }
+.customisation-options { margin: 24px var(--drawer-inset, 24px) 0; padding: 0; border: 0; }
+.download-drawer-head + .customisation-options { margin-top: var(--drawer-content-top); }
+.customisation-options + .customisation-options { padding-top: 24px; border-top: 1px solid var(--shell-line); }
+/* Floated so a fieldset's divider runs above its legend rather than through it. */
+.customisation-options legend { float: left; width: 100%; padding: 0; font-weight: 600; }
+.customisation-options legend + p { clear: both; }
+.customisation-options p { margin: 6px 0 14px; color: var(--shell-muted); font-size: var(--font-size-body); line-height: 1.5; }
+.customisation-options .customisation-note, .customisation-footer { margin: 10px 0 0; font-size: var(--font-size-control); }
+.customisation-default-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.customisation-options[hidden] { display: none; }
+/* The list above ends with 28px of padding; 4px more makes the 32px between groups. */
+.download-jobs + .customisation-defaults { margin-top: 4px; }
+.customisation-defaults { margin-bottom: 28px; }
+.customisation-defaults[hidden] { display: none; }
+.customisation-footer { margin: 20px var(--drawer-inset, 24px); color: var(--shell-muted); }
+/* Appearance is grouped under a heading each, every group one bordered card
+   of settings split by hairlines. A setting with a picture is a row: the
+   preview follows the chosen value (customisation.js already puts it on
+   <body> for the page's own styles, so the previews cost no scripting) and the
+   choices sit beside it. Full-size tiles for every option had the drawer
+   scrolling for a handful of settings, and each new one made it worse.
+
+   Two shapes, each for one job: what you press is a pill, the shared
+   .statistics-ranking, and what you look at (previews, cards) is a rounded
+   rectangle. Mixing them in one control is what looked wrong before. */
+.customisation-group { margin: 32px var(--drawer-inset, 24px) 0; }
+.download-drawer-head + .customisation-group { margin-top: var(--drawer-content-top); }
+.customisation-group > h3 { margin: 0 0 12px 2px; color: var(--shell-muted); font-size: var(--font-size-label); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+/* Settings are blocks with a small gap between them, square where they face
+   a neighbour and round at the outer ends, as the pills are. */
+.customisation-card { display: grid; gap: 4px; }
+.customisation-setting { display: grid; gap: 14px; padding: 18px; min-width: 0; background: var(--raised-surface); }
+.customisation-setting:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
+.customisation-setting:not(:last-child) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.customisation-setting:first-child { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+.customisation-setting:last-child { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+.customisation-heading { display: grid; gap: 4px; }
+.customisation-title { font-weight: 600; }
+.customisation-option-note { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); line-height: 1.4; }
+.customisation-option-note:empty { display: none; }
+.customisation-row { grid-template-columns: 112px minmax(0, 1fr); gap: 18px; align-items: start; }
+.customisation-controls { display: grid; gap: 12px; align-content: start; min-width: 0; }
+/* Only worth saying to someone who has asked for less motion. */
+@media (prefers-reduced-motion: no-preference) { .customisation-reduced { display: none; } }
+.customisation-setting .statistics-ranking button { flex: 1 1 0; min-width: 0; height: 32px; justify-content: center; align-items: center; gap: 8px; }
+/* The theme's icons are drawn finer than the app's usual stroke. */
+.theme-icon { stroke-width: 1.25; }
+/* Language is a list, so a new one is one more row. */
+.customisation-list { display: grid; }
+.customisation-list label {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 0; border-top: 1px solid var(--shell-line); cursor: pointer;
+}
+.customisation-list label:last-child { padding-bottom: 0; }
+.customisation-list label::after { content: '✓'; color: var(--color-accent); opacity: 0; }
+.customisation-list label:has(:checked)::after { opacity: 1; }
+.customisation-list label:has(:checked) { font-weight: 600; }
+.customisation-list label:has(:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+.customisation-list input { position: absolute; opacity: 0; pointer-events: none; }
+
+/* Bordered, so the black of a preview does not sit bare against the drawer's
+   grey. */
+.customisation-preview { box-sizing: border-box; display: grid; aspect-ratio: 16 / 10; border: 1px solid var(--shell-line); border-radius: 10px; background: #0b0b0e; overflow: hidden; }
+/* A little player on a dark page. Every tile plays the same cycling bands in
+   time with the others, so the only difference between them is the glow: it
+   follows the bands continuously, catches up in occasional jumps, or is absent. */
+.preview-player { position: relative; place-items: center; isolation: isolate; }
+.preview-screen, .preview-player::before {
+  width: 62%; aspect-ratio: 16 / 9;
+  /* Rainbow bands with a dark dip between each, so the glow visibly swaps
+     colour as each band passes rather than drifting through one smooth
+     blend. The dip is a dim tint of its two neighbours rather than black,
+     which read as a hard stripe. */
+  background: linear-gradient(90deg,
+    oklch(from color-mix(in oklch, oklch(55% .2 300), oklch(65% .21 25)) .26 calc(c * .5) h) 0.0%, oklch(65% .21 25) 8.3%,
+    oklch(from color-mix(in oklch, oklch(65% .21 25), oklch(75% .17 70)) .26 calc(c * .5) h) 16.7%, oklch(75% .17 70) 25.0%,
+    oklch(from color-mix(in oklch, oklch(75% .17 70), oklch(85% .17 105)) .26 calc(c * .5) h) 33.3%, oklch(85% .17 105) 41.7%,
+    oklch(from color-mix(in oklch, oklch(85% .17 105), oklch(70% .18 150)) .26 calc(c * .5) h) 50.0%, oklch(70% .18 150) 58.3%,
+    oklch(from color-mix(in oklch, oklch(70% .18 150), oklch(62% .15 240)) .26 calc(c * .5) h) 66.7%, oklch(62% .15 240) 75.0%,
+    oklch(from color-mix(in oklch, oklch(62% .15 240), oklch(55% .2 300)) .26 calc(c * .5) h) 83.3%, oklch(55% .2 300) 91.7%,
+    oklch(from color-mix(in oklch, oklch(55% .2 300), oklch(65% .21 25)) .26 calc(c * .5) h) 100%) 0 0 / 200% 100% repeat-x;
+  animation: preview-bands 8s linear infinite;
+}
+.preview-screen { border-radius: 4px; }
+.preview-rounding { place-items: center; }
+.preview-popup-size { position: relative; }
+.preview-popup-size .preview-cards { position: absolute; inset: 0; display: grid; opacity: .35; }
+.preview-popup-size .preview-screen { position: absolute; right: 8px; bottom: 8px; width: 36%; animation: none; }
+body[data-popup-player-size="medium"] .preview-popup-size .preview-screen { width: 52%; }
+body[data-popup-player-size="large"] .preview-popup-size .preview-screen { width: 70%; }
+/* A little landscape rather than a blank frame, so the corners have something
+   to be judged against: sky, sun, and a ridge cut from a pseudo-element. */
+.preview-rounding .preview-screen { position: relative; }
+:is(.preview-rounding, .preview-popup-size) .preview-screen {
+  overflow: hidden; animation: none;
+  background: radial-gradient(circle at 76% 30%, #ffdc70 0 9%, transparent 10%), linear-gradient(#1f5fd0, #a8dcff);
+}
+/* The ridge overhangs the frame, which clips it: flush with it, a fractional
+   zoom left a hairline of sky along the edges they were meant to meet. */
+:is(.preview-rounding, .preview-popup-size) .preview-screen::before {
+  content: ""; position: absolute; inset: -2px; background: #1d5468; clip-path: polygon(0 100%, 0 68%, 22% 41%, 40% 64%, 58% 47%, 82% 77%, 100% 61%, 100% 100%); }
+body[data-player-rounding="default"] .preview-rounding .preview-screen { border-radius: 12px; }
+body[data-player-rounding="small"] .preview-rounding .preview-screen { border-radius: 5px; }
+body[data-player-rounding="off"] .preview-rounding .preview-screen { border-radius: 0; }
+.preview-player::before {
+  content: ""; position: absolute; z-index: -1; border-radius: 30%;
+  scale: 1.25; filter: blur(10px) saturate(1.3); opacity: 1;
+}
+:root:not([data-theme="light"]) .preview-player::before {
+  mix-blend-mode: screen;
+}
+/* Hidden rather than display: none, which would stop its animation and start
+   it again from the beginning when lighting came back on, out of step with the
+   screen it is meant to be following. */
+body[data-player-lighting="off"] .preview-player::before { opacity: 0; }
+@keyframes preview-bands { to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { .preview-screen, .preview-player::before, .preview-player::after { animation: none; } }
+/* The gallery at the chosen size's column count, running on past the bottom
+   edge as it would on the page: more cards than even Small fits in the frame,
+   and the frame clips the rest. */
+body[data-card-size="small"] .customisation-row .preview-cards { --cols: 5; }
+body[data-card-size="large"] .customisation-row .preview-cards { --cols: 3; }
+.preview-cards { --cols: 4; grid-template-columns: repeat(var(--cols), 1fr); align-content: start; gap: 4px; padding: 8px 8px 0; }
+.preview-cards i { aspect-ratio: 16 / 12; border-radius: 3px; background: linear-gradient(#ffffff2e 0 68%, #ffffff12 68%); }
+body .customisation-row .preview-cards i { background: linear-gradient(color-mix(in srgb, var(--button-hue) 70%, #fff) 0 68%, color-mix(in srgb, var(--button-hue) 30%, transparent) 68%); }
+/* A little watch page: top bar, player with its seek bar, and the details
+   panel. Each tile paints those in the theme's hue or in a stand-in video's,
+   in the proportions the setting gives them: Off keeps the theme throughout,
+   Player gives the video the player, On gives it the panel and the bar too. */
+.preview-adaptive { --pa-video: oklch(68% .15 195); display: flex; flex-direction: column; gap: 4px; padding: 6px; box-sizing: border-box; }
+body[data-video-colours="off"] .preview-adaptive { --pa-chrome: var(--theme-hue); --pa-media: var(--theme-hue); --pa-panel: var(--theme-hue); }
+body[data-video-colours="player"] .preview-adaptive { --pa-chrome: var(--theme-hue); --pa-media: var(--pa-video); --pa-panel: var(--theme-hue); }
+body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); --pa-media: var(--pa-video); --pa-panel: var(--pa-video); }
+.pa-bar { display: flex; justify-content: space-between; align-items: center; height: 7px; }
+.pa-bar::before { content: ""; width: 20px; height: 100%; border-radius: 3px; background: var(--pa-chrome); }
+.pa-bar::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--pa-chrome); }
+.pa-player { position: relative; flex: 1; border-radius: 4px; background: color-mix(in srgb, var(--pa-media) 14%, #050505); }
+.pa-player::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 5px; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--pa-media) 0 40%, #ffffff40 40%); }
+.pa-panel { height: 14px; border-radius: 4px; background: color-mix(in srgb, var(--pa-panel) 30%, #1a1a1d); }
+/* A palette's logo and view buttons, small enough that all twelve fit in two
+   rows; its name is the line above them, and the label's tooltip. */
+/* A palette is a pill the size of its logo and view buttons, with the same
+   fill as the segmented pills, the chosen one ringed in the accent. Each fits
+   its preview with even padding so the ring sits centred round it. Its name is
+   the line below them, and the label's tooltip. */
+.palette-swatches { display: grid; grid-template-columns: repeat(auto-fill, 112px); justify-content: space-between; gap: 8px; }
+.palette-swatches label { display: grid; place-items: center; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.08); cursor: pointer; transition: background 140ms ease; }
+.palette-swatches label:hover { background: rgba(255,255,255,.16); }
+.palette-swatches label:has(:checked) { background: color-mix(in srgb, var(--color-accent) 22%, transparent); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.palette-swatches label:has(:focus-visible) { background: rgba(255,255,255,.16); }
+.palette-swatches input { position: absolute; opacity: 0; pointer-events: none; }
+.preview-palette { display: grid; grid-auto-flow: column; place-content: center; align-items: center; gap: 5px; }
+.preview-logo { width: 38px; height: 24px; border-radius: 999px; background: var(--preview-gradient); }
+.preview-button { --hue: var(--preview-first); width: 22px; height: 22px; border-radius: 50%;
+  color: var(--highlight-foreground);
+  background: var(--highlight-fill); }
+.preview-button-last { --hue: var(--preview-last); margin-left: -4px; }
+@media (max-width: 420px) {
+  .customisation-row { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
+}
+/* The shared player resets the accent to the app-wide one on its own root, so
+   hand it back the video's: the timeline then matches the page around it. */
+/* The control bar keeps its own width and stands proud of a narrow frame, so
+   neither the stage nor the player may clip it. The rounding that the stage's
+   overflow used to do is handed to the video and the poster themselves, which
+   is all there was inside the frame to round. */
+.archive-watch-stage, .archive-watch-stage .media-player { overflow: visible; }
+.archive-watch-stage .media-player-video,
+.archive-watch-stage .media-player-poster,
+.archive-watch-stage .media-player-canvas { border-radius: inherit; }
+.archive-watch-stage .media-player {
+  --card-accent: var(--watch-accent);
+  container-type: inline-size;
+  border-radius: inherit;
+}
+.archive-watch-stage .media-player:fullscreen { border-radius: 0; }
+/* On a phone the bar floating over the picture covers a good part of a small
+   video, and leaves the settings and playlist panels only the sliver above
+   it. So the bar gets a strip of its own under the picture: the stage's
+   padding adds the strip to the 16:9 (or whatever) frame, which is content-box
+   so the aspect ratio still describes the picture alone, and the player is
+   stretched over the strip while its picture layers stop short of it. The
+   player is taken out of the flow to do so: left in it, its extra height
+   made the stage grow by the strip a second time.
+   Fullscreen has no strip and keeps the overlay, and the idle fade is off
+   because the bar is no longer in the way of anything. */
+@media (max-width: 700px) {
+  .archive-watch:not(.is-mini) .archive-watch-stage {
+    --bar-strip: 48px;
+    box-sizing: content-box;
+    padding-bottom: var(--bar-strip);
+  }
+  /* Keep the glow aligned with the picture. Its blur can light the control
+     strip below without stretching the sampled frame over that strip. */
+  .archive-watch:not(.is-mini) .archive-watch-stage { background-clip: content-box; }
+  .archive-watch:not(.is-mini) .archive-watch-stage > .archive-ambient-glow { height: calc(100% - var(--bar-strip)); }
+  .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .media-player-controls {
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .archive-watch:not(.is-mini) .archive-watch-stage > .media-player:not(:fullscreen) {
+    --audio-controls-bottom: calc(var(--bar-strip) + 12px);
+    --audio-video-bottom: calc(var(--bar-strip) + 12px);
+    position: absolute;
+    inset: 0 0 auto;
+    height: 100%;
+    aspect-ratio: auto;
+    background: transparent;
+  }
+  /* Without a pill to sit inside, the bar's ends line up with the page's own
+     gutter, as the title and the buttons below do. */
+  .archive-watch:not(.is-mini) .media-player:not(:fullscreen) .media-player-controls {
+    bottom: 0;
+    width: calc(100% - 2 * var(--page-gutter));
+    padding-inline: 0;
+  }
+  .archive-watch:not(.is-mini) .media-player:not(:fullscreen) :is(.media-player-video, .media-player-poster, .media-player-canvas) {
+    inset: 0 0 var(--bar-strip);
+    height: auto;
+  }
+  .archive-watch:not(.is-mini) .media-player:not(:fullscreen)[data-player-state="playing"].is-controls-hidden .media-player-controls {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.archive-watch.is-thumbnail-transitioning .archive-watch-stage { background: var(--shell-bg); }
+.archive-watch.is-thumbnail-transitioning .archive-watch-stage > * { visibility: hidden; }
+.archive-watch-stage .media-player-video { transition: opacity .2s ease; }
+.archive-watch.is-switching .media-player-poster { visibility: hidden; }
+/* Over the video, not under it, until the video has the frame it opens on:
+   see holdPosterUntilReady. Under the controls and the player's message. */
+.archive-watch.is-holding-poster .media-player-poster:not([hidden]) { display: block; z-index: 1; }
+.archive-watch.is-switching .media-player-video { opacity: 0; transition: none; }
+.archive-watch-head {
+  display: grid;
+  grid-template-columns: var(--watch-avatar) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--watch-gutter);
+  /* Flush with the picture and the cards below, which have no side inset. This
+     bottom margin collapses into the lower block's own 14px top margin, so it
+     has to exceed that to count: 20px puts the buttons about 26px off the text
+     below against about 20px under the picture. */
+  margin: 14px 0 20px;
+}
+/* The picture arrives after the text, so it is sized and placed before it
+   loads: the header must not reflow once the fetch lands. */
+.archive-watch-avatar {
+  align-self: start;
+  width: var(--watch-avatar);
+  height: var(--watch-avatar);
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--shell-raised, #1b1d22);
+}
+.archive-watch-avatar-link { align-self: start; display: block; border-radius: 50%; }
+.archive-watch-avatar-link[hidden] { display: none; }
+.archive-watch-avatar { display: block; }
+/* The channel and playlist names lead into the gallery; they read as text,
+   brightening when pointed at. */
+:is(.archive-watch-channel, .archive-watch-specs dd a) { color: inherit; text-decoration: none; }
+:is(.archive-watch-channel, .archive-watch-specs dd a):is(:hover, :focus-visible) {
+  color: var(--shell-fg);
+}
+.archive-watch-heading { min-width: 0; grid-column: 2; }
+/* The title and the line under it sit close, and the pair is centred against
+   the portrait and the actions. The portrait and the actions are pinned to the
+   top, so a title that wraps leaves them level with its first line rather
+   than floating down the heading. */
+.archive-watch-heading h1 { margin: 0; font-size: 1.3rem; line-height: 1.25; }
+.archive-watch-summary { margin: 0; color: var(--shell-muted); font-size: var(--font-size-body); line-height: 1.35; }
+/* The actions stay at the top of the header, level with the title's first line,
+   when a long title wraps and makes the heading taller than the portrait. The
+   margin puts them at the portrait's own middle when it does not. */
+.archive-watch-actions { display: flex; align-self: start; margin-top: calc((var(--watch-avatar) - 36px) / 2); gap: 8px; }
+.archive-watch-actions .archive-watch-overflow { display: none; }
+/* Once the column is narrow the picture and title keep the first row and the
+   actions take one of their own, the full width and from the left edge, with
+   the rarer ones folded into the overflow button so the row stays one line.
+   In a window that is short rather than narrow the video, and so this column,
+   is small, and the title wrapped to a word a line beside them. */
+@container watch-main (max-width: 640px) {
+  .archive-watch-head {
+    grid-template-columns: var(--watch-avatar) minmax(0, 1fr);
+    grid-template-areas: "avatar heading" "actions actions";
+    row-gap: 10px;
+  }
+  .archive-watch-avatar-link, .archive-watch-avatar { grid-area: avatar; }
+  .archive-watch-heading { grid-area: heading; }
+  .archive-watch-actions { grid-area: actions; flex-wrap: wrap; gap: 4px; justify-content: flex-start; margin-top: 0; }
+  .archive-watch-actions .is-secondary { display: none; }
+  .archive-watch-actions .archive-watch-overflow:not([hidden]) { display: grid; }
+}
+.archive-watch-action {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--shell-line);
+  border-radius: 50%;
+  color: inherit;
+  text-decoration: none;
+}
+.archive-watch-action[hidden] { display: none; }
+.archive-watch-action:hover { border-color: var(--watch-accent); }
+.archive-watch-action .icon { width: 18px; height: 18px; }
+
+/* The playlist's controls in the player's bar. The list button grows from
+   the bar's round button into a pill just wide enough for the position. */
+.media-player-controls [data-media-restart] { margin-left: -6px; }
+/* Time belongs to the timeline; the mute button and slider form a separate
+   volume group with tight internal spacing and a little air on both sides. */
+.media-player-controls .archive-seek-track { margin-left: -5px; }
+.media-player-controls [data-media-volume-toggle] { margin-left: 4px; }
+.media-player-controls [data-media-volume] { margin-left: -5px; }
+/* Groups are set apart by a spacer (the bar's gap plus 4px); within the
+   right-hand group the buttons sit close. */
+.media-player-controls [data-media-time],
+.media-player-controls .archive-playlist-open { margin-left: 4px; }
+/* The shared 88px minimum left a short video's time floating in a box wider
+   than itself, so the gap to the seek bar grew and shrank with the digits
+   shown. Sized to its text, the gap is the same for every length. */
+.media-player-controls [data-media-time] {
+  min-width: 0;
+  /* Clear of the seek's thumb, which at the start sits at the track's very
+     left end and otherwise read as part of the time. */
+  margin-right: 10px;
+  box-sizing: content-box;
+  white-space: nowrap;
+  transition: width 180ms ease;
+}
+@media (prefers-reduced-motion: reduce) { .media-player-controls [data-media-time] { transition: none; } }
+.media-player-controls .archive-bar-tail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+}
+.media-player-controls .archive-playlist-open {
+  width: auto;
+  grid-auto-flow: column;
+  gap: 5px;
+  padding-inline: 8px 10px;
+  border-radius: 16px;
+}
+.archive-playlist-open[aria-expanded="true"] { background: #ffffff2e; }
+/* A phone's player has room for well under the whole bar once a playlist and
+   subtitles have added theirs, and what did not fit was pushed off the end or
+   squashed over its neighbours. Room is given back in order of how little
+   each thing is missed: the playlist's position first (the list itself says
+   where this video sits), then restart, which a drag of the seek bar does as
+   well, with the spacers closed up, and last the captions button, which only
+   repeats what the settings menu offers. These key off the player rather
+   than the window, so a fullscreen phone turned sideways gets them back. */
+@container (max-width: 560px) {
+  .media-player-controls .archive-playlist-position { display: none; }
+  .media-player-controls .archive-playlist-open { width: 32px; padding: 5px; border-radius: 50%; }
+}
+@container (max-width: 440px) {
+  .media-player-controls { gap: 4px; padding-inline: 6px; }
+  .media-player-controls [data-media-restart] { display: none; }
+  .media-player-controls :is(.archive-seek-track, [data-media-volume-toggle],
+    .archive-playlist-open, .archive-bar-tail) { margin-left: 0; }
+  .media-player-controls .archive-seek-track { min-width: 48px; }
+  .media-player-controls .archive-format-open { padding-inline: 8px; }
+}
+@container (max-width: 380px) {
+  .media-player-controls .archive-subtitle-toggle { display: none; }
+}
+/* The format switcher wears the same pill as the playlist button, but names
+   itself in words rather than an icon: what is playing is the whole point of
+   the control, so it is what the bar shows. */
+.media-player-controls .archive-format-open {
+  width: auto;
+  padding-inline: 10px;
+  border-radius: 16px;
+  font-size: var(--font-size-control);
+  line-height: 1;
+}
+.archive-format-open[aria-expanded="true"] { background: #ffffff2e; }
+.media-player-controls .archive-subtitle-toggle .icon,
+.media-player-controls .archive-background-button .icon { stroke: currentColor; fill: none; }
+/* On is a solid badge with the lines cut out of it, so it cannot be mistaken
+   for the translucent hover wash that every bar button shares. */
+.archive-subtitle-toggle[aria-pressed="true"] .subtitle-frame { fill: currentColor; }
+.archive-subtitle-toggle[aria-pressed="true"] .subtitle-line { stroke: #141414; }
+/* The settings gear sits with the other player controls. */
+.media-player-controls .archive-settings-open .icon {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+/* Stats for nerds: over the picture's top-left corner, above the captions,
+   and left up when the controls hide, since it is there to be read while
+   the video plays. Tabular figures keep the numbers from jittering as they
+   tick. */
+.archive-player-stats {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 4;
+  max-width: min(440px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 8px 32px 8px 10px;
+  border-radius: 8px;
+  background: #000000bf;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+.archive-player-stats[hidden] { display: none; }
+.archive-player-stats dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1px 10px; margin: 0; }
+.archive-player-stats dl > div { display: contents; }
+.archive-player-stats dt { color: #ffffffa6; font-weight: 600; text-align: right; }
+.archive-player-stats dd { margin: 0; overflow-wrap: anywhere; }
+.archive-player-stats-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.archive-player-stats-close:hover { background: #ffffff1f; }
+.archive-player-stats-close svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+/* Native cue positioning cannot account for the player's CSS-pixel control
+   bar as browser zoom changes. This overlay follows the bar itself and gives
+   the caption rows one padded backing rather than tight native cue boxes. */
+.archive-subtitles {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  width: max-content;
+  max-width: 90%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  color: #fff;
+  /* Cues are sized against the player rather than the page: 2rem over a
+     full-width desktop frame is the same share of the picture as the floor
+     is over a phone's. Everything else in a cue is already in em, so this
+     one length scales the padding, the corners and the gap with it. */
+  font-size: clamp(.8rem, 3.05cqw, 2rem);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: bottom 180ms ease;
+}
+.archive-subtitles:not(:empty) {
+  padding: .12em .38em;
+  border-radius: .18em;
+  background: #000000c7;
+  overflow: clip;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+.archive-subtitles.is-docked-top:not(.is-undocked) { top: 20px; bottom: auto; }
+.archive-subtitles.is-undocked { transform: none; transition: none; }
+.archive-subtitle-dock-placeholder {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  z-index: 2;
+  max-width: 90%;
+  border: 0;
+  border-radius: .4rem;
+  background: #ffffff24;
+  box-shadow: 0 3px 12px #0007;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: bottom 180ms ease;
+}
+/* The bottom dock sits clear of the control bar, and drops to the foot of the
+   picture only while the bar is really out of sight. is-controls-hidden alone
+   is not that: an open popup holds the bar up past it, and the autoplay tail
+   hides the bar without it. The player carries the answer, so the cue, its
+   drop target and the drag's hit test (media-provider.js reads it) agree on
+   where the cue will land. */
+.media-player { --subtitle-dock-bottom: var(--subtitle-controls-bottom, 70px); }
+.media-player[data-player-state="playing"].is-controls-hidden:has(.playlist-popup:popover-open) .media-player-audio-visual {
+  bottom: var(--audio-controls-bottom, 70px);
+}
+.media-player:is([data-player-state="playing"].is-controls-hidden:not(:has(.playlist-popup:popover-open)),
+                 .is-autoplay-ending) {
+  --subtitle-dock-bottom: var(--subtitle-video-bottom, 20px);
+}
+.archive-subtitles:not(.is-undocked, .is-docked-top),
+.archive-subtitle-dock-placeholder:not(.is-top) {
+  bottom: var(--subtitle-dock-bottom);
+}
+.archive-subtitle-dock-placeholder.is-top { top: 20px; bottom: auto; }
+.archive-subtitle-dock-placeholder[hidden] { display: none; }
+.archive-subtitle-cue {
+  max-width: 100%;
+  white-space: pre-line;
+}
+.archive-subtitles.is-undocked { cursor: grabbing; }
+@media (prefers-reduced-motion: reduce) {
+  .archive-subtitles, .archive-subtitle-dock-placeholder { transition: none; }
+}
+.archive-settings-open[aria-expanded="true"] { background: #ffffff2e; }
+.archive-format-label { font-variant-numeric: tabular-nums; }
+.archive-playlist-position {
+  font-size: var(--font-size-control);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.playlist-icon-play { fill: currentColor; stroke: none; }
+/* Autoplay is a small switch whose knob carries a play mark, sliding over and
+   taking the video's accent when on. */
+.media-player-controls .archive-autoplay { width: 44px; border-radius: 16px; }
+.archive-autoplay-track {
+  position: relative;
+  width: 30px;
+  height: 12px;
+  border-radius: 6px;
+  background: #ffffff40;
+  transition: background .15s ease;
+}
+.archive-autoplay-knob {
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: #ddd;
+  color: #111;
+  transition: transform .15s ease, background .15s ease;
+}
+.archive-autoplay-knob svg { width: 10px; height: 10px; fill: currentColor; }
+.autoplay-row[aria-checked="true"] .archive-autoplay-track {
+  background: color-mix(in srgb, var(--watch-accent) 55%, transparent);
+}
+.autoplay-row[aria-checked="true"] .archive-autoplay-knob {
+  background: #fff;
+  transform: translateX(16px);
+}
+/* While the list is open the bar it opened from stays put, rather than fading
+   out from under it as an idle player's controls do. */
+.media-player[data-player-state="playing"].is-controls-hidden:has(.playlist-popup:popover-open)
+  .media-player-controls { opacity: 1; pointer-events: auto; }
+
+/* The shared player carries a clip-path over a mask, to hold the canvas's own
+   compositing layer inside a rounded frame during VR playback in Firefox.
+   Both properties make the player a backdrop root, so anything inside it
+   that asks to blur — the part arrows and their cards — has only the
+   player's own painting to sample and comes out flat. (The control bar's
+   popovers escape it by sitting in the top layer, which is why those blur.)
+   We play no VR here and never set --player-radius, so the pair rounds a 0px
+   frame against a bug we cannot hit: dropping it costs nothing and lets the
+   glass see the video. */
+.media-player { clip-path: none; mask-image: none; }
+
+/* The part arrows over the player, dark discs at
+   the vertical centre of each edge. The layer itself takes no pointer, so
+   the surface keeps its own clicks everywhere but the arrows and cards. */
+.archive-part-nav {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  container: part-nav / inline-size;
+  pointer-events: none;
+}
+.archive-part-side {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(-50%);
+}
+.archive-part-side[hidden] { display: none; }
+/* While a card is out, the whole side — arrow, the gap and the card — is one
+   hover target, so moving from the arrow across to the card keeps it open. */
+.archive-part-side::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+}
+.archive-part-side:hover::before,
+.archive-part-side.is-announcing::before { pointer-events: auto; }
+.archive-part-side[data-part-side="-1"] { left: 16px; }
+.archive-part-side[data-part-side="1"] { right: 16px; flex-direction: row-reverse; }
+.archive-part-step {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(#222b, #121212c2);
+  color: #fff;
+  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: opacity .2s ease;
+}
+.archive-part-step:hover,
+.archive-part-step:focus-visible {
+  border-color: transparent;
+  background: linear-gradient(#3a3a3acc, #242424d6);
+  color: #fff;
+  outline: none;
+}
+.archive-part-step .icon { width: 22px; height: 22px; }
+/* Keep arrows tucked through the autoplay tail, until pointer movement
+   reveals the controls or the countdown is cancelled. */
+.media-player.is-autoplay-ending .media-player-controls,
+.media-player:is([data-player-state="playing"].is-controls-hidden, .is-autoplay-ending) .archive-part-step {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* A card slides out from its own edge: pointed at, focused through its
+   arrow, or — for the one ahead — near the end of the part. */
+.archive-part-card {
+  --slide: -14px;
+  /* How far the card moves into the space its arrow leaves: the arrow and gap. */
+  --tuck: -46px;
+  position: relative;
+  width: 340px;
+  overflow: hidden;
+  border-radius: 12px;
+  /* The same glass as the player's control bar. */
+  background: linear-gradient(#222b, #121212c2);
+  color: #fff;
+  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  transform: translateX(var(--slide));
+  transition: opacity .2s ease, transform .2s ease;
+}
+.archive-part-side[data-part-side="1"] .archive-part-card { --slide: 14px; --tuck: 46px; }
+.archive-part-side:hover .archive-part-card,
+.archive-part-step:focus-visible + .archive-part-card,
+.archive-part-side.is-announcing .archive-part-card {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+/* When the controls hide and take the arrow with them, a card still up slides
+   over into the arrow's place, and back out as the arrow returns. */
+.media-player:is([data-player-state="playing"].is-controls-hidden, .is-autoplay-ending) .archive-part-side.is-announcing .archive-part-card {
+  transform: translateX(var(--tuck));
+}
+@media (hover: none) {
+  .archive-part-side:not(.is-announcing) .archive-part-card { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .archive-part-card,
+  .media-player:is([data-player-state="playing"].is-controls-hidden, .is-autoplay-ending) .archive-part-side.is-announcing .archive-part-card {
+    transform: none;
+    transition: opacity .2s ease;
+  }
+}
+@container part-nav (max-width: 600px) {
+  .archive-part-card { display: none; }
+}
+.archive-part-card-body {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 34px 8px 8px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+}
+.archive-part-card-body:hover { border-color: transparent; background: rgba(255, 255, 255, .08); color: inherit; }
+.archive-part-thumb { position: relative; flex: none; line-height: 0; }
+.archive-part-thumb img {
+  width: 104px;
+  height: 58px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #222;
+}
+.archive-part-thumb img[hidden] { display: none; }
+.archive-part-number {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, .78);
+  font-size: var(--font-size-helper);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.archive-part-text { display: grid; min-width: 0; gap: 3px; }
+.archive-part-kicker {
+  color: rgba(255, 255, 255, .66);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.archive-part-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--font-size-body);
+  line-height: 1.3;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.archive-part-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: rgba(255, 255, 255, .7);
+  cursor: pointer;
+}
+.archive-part-dismiss:hover,
+.archive-part-dismiss:focus-visible { border-color: transparent; background: rgba(255, 255, 255, .14); color: #fff; }
+.archive-part-dismiss .icon { width: 15px; height: 15px; }
+/* The autoplay countdown fills along the card's foot in the video's accent. */
+.archive-part-countdown {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--watch-accent, #fff);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.archive-part-side.is-counting .archive-part-countdown {
+  animation: part-countdown var(--countdown, 8s) linear var(--countdown-delay, 0s) forwards;
+  animation-play-state: var(--countdown-state, running);
+}
+@keyframes part-countdown {
+  from { transform: scaleX(var(--countdown-from, 0)); }
+  to { transform: scaleX(1); }
+}

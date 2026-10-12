@@ -1,0 +1,235 @@
+/* The one colour lit buttons and menu items take, from the logo's gradient. */
+/* The logo's gradient, and four points evenly through its middle that the
+   views, the search ring and the download progress take. The customisation
+   drawer's palettes set all of these at once. */
+:root {
+  --button-hue: #8d47d8;
+  --theme-hue: #8d47d8;
+  --logo-gradient: linear-gradient(to right, #ce4178, #8d47d8, #4442b8);
+  --logo-1: #c53e93; --logo-2: #a442c4; --logo-3: #7b46d2; --logo-4: #5644c2;
+}
+
+/* The browser's dark scrollbar is a grey barely lighter than the page, so the
+   gallery's, which is the window's, was hard to find. An explicit thumb takes
+   the text colour at low strength, which stays visible on both themes since
+   --color-text flips. Both colours are opaque: a translucent thumb or track
+   lets the gallery's scrollbar show through a panel that overlaps it. */
+:root {
+  scrollbar-color: color-mix(in srgb, var(--color-text) 45%, var(--color-bg)) var(--color-bg);
+}
+
+/* Only the shell. Page chrome (the topbar, icon buttons, menus and the status
+   toast) comes from the shared package's chrome.css, cards and the player from
+   its styles.css and player.css; override their custom properties here rather
+   than restyling the components. */
+:root {
+  --playlist-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.5h12M5 10.5h12M5 14.5h7'/%3E%3Cpath d='M15 13.5l6 3.5l-6 3.5z' fill='black' stroke='none'/%3E%3C/svg%3E");
+  /* The archive's own accent. Everything purple in the shared chrome is
+     derived from this one token, so the topbar, menus, toast and buttons
+     follow it. */
+  /* The buttons' purple, held to the chroma cap thumbnail accents get, so a
+     card falling back to it sits with the rest rather than above them. */
+  --color-accent: oklch(56% .21 302);
+  --color-accent-strong: oklch(47% .19 302);
+  --media-card-accent: oklch(62% 0.02 25);
+  /* The narrowest a video card may get before the grid drops a column. The
+     gallery, the shelves and the related list share it, so a card is the same
+     size wherever it appears - bar the related row, which sits in the capped
+     watch column. It grows with the window rather than being
+     fixed: a large fixed minimum left too few columns just under each
+     breakpoint, so a 1400px window got two cards of nearly 700px each. */
+  --video-card-min: clamp(380px, 21vw, 520px);
+
+  /* Selected text takes the accent rather than the browser's blue, in both
+     the fields and the page's own prose. */
+  --selection-bg: color-mix(in srgb, var(--color-accent) 85%, #fff);
+
+  /* The package's muted grey is #555, which on this background measures 2.4:1
+     — under the 4.5:1 small text wants, and it showed: every label, count,
+     helper line and the search field's own glass read as switched off. This
+     is the one place to lift them, since the shelves' captions, the card
+     footers, the drawers and the watch page's specifications all read their
+     grey from this token, directly or through --shell-muted. 5.1:1 on the
+     page's #181818, and still 4.7:1 on the lightest surface it sits on. The
+     field's placeholder is a shade of the same and moves with it. */
+  --color-text-muted: #8a8a8a;
+  --color-field-placeholder: #8a8a8a;
+
+  --shell-bg: var(--color-bg);
+  --shell-fg: var(--color-text);
+  --shell-muted: var(--color-text-muted);
+  --shell-line: var(--color-border);
+  --raised-surface: #262626;
+  --shadow-menu: 0 6px 16px #000000b3, 0 2px 5px #0006;
+}
+
+::selection { background: var(--selection-bg); color: #fff; }
+
+/* Shared webfont, served from the component package. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/media-ui/fonts/InterVariable.woff2") format("woff2");
+}
+
+body {
+  margin: 0;
+  background: var(--shell-bg);
+  color: var(--shell-fg);
+  font: var(--font-size-body)/var(--line-height-copy) var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* The topbar is full-bleed and sticky, so the shell's gutter belongs to the
+   scrolling content rather than to the shell itself. */
+.archive-shell { padding: 0 0 64px; }
+.archive-summary,
+.library-heading,
+.creator-shelf,
+.archive-gallery { padding-inline: var(--page-gutter); }
+
+/* The shared library heading: what the list is, and its sorts on the right. */
+/* Every view's heading opens where the home shelves' headings do, so moving
+   between Home, Videos, Playlists and Channels leaves the heading in place. The first heading sits close under the topbar;
+   between sections the gap is that 8px plus the 11px every section ends with
+   (the shelf tracks, the profiles, a channel's playlists), so a heading sits
+   the same distance under whatever precedes it. */
+.library-heading { flex-wrap: wrap; padding-top: 8px; }
+/* The padding counts inside the minimum, so the pills' 28px needs 8 more. */
+.section-heading.library-heading { min-height: 36px; }
+.gallery-sort-control[hidden] { display: none; }
+/* The sort options are a segmented control like the layout switch beside
+   them (.statistics-ranking draws the pills); only the wrap for a narrow
+   window is its own. */
+.gallery-sort-control {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  color: var(--shell-muted);
+  font-size: var(--font-size-body);
+}
+
+/* The creator shelf: a heading with its
+   own "More", then a grid of portrait cards that filter the gallery. Ordered
+   by the creator's most recent video, which is what an archive accrues. */
+.home-shelf { min-width: 0; max-width: 100%; padding-top: 8px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 28px; }
+.section-heading h2 {
+  margin: 0;
+  font-size: var(--font-size-section-title);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+}
+/* Styled as the heading row's other round buttons (library-row-action), which
+   brings the resting fill and the hover. This is the one chevron turned over
+   rather than a second icon swapped in, so the change animates. The words
+   sit before the chevron, so the round button becomes a pill cut like the layout switch's (.statistics-ranking, .gallery-layout-control):
+   28px tall, 999px ends, the helper size, and a 16px icon after a 6px gap. */
+.library-row-action.shelf-more {
+  width: auto;
+  gap: 6px;
+  grid-auto-flow: column;
+  padding-inline: 12px;
+  border-radius: 999px;
+  font-size: var(--font-size-helper);
+}
+.library-row-action.shelf-more .icon { width: 16px; height: 16px; }
+.shelf-more .icon { transition: transform .2s ease; }
+.shelf-more[aria-expanded="true"] .icon { transform: rotate(-180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .shelf-more .icon { transition: none; }
+}
+.shelf-more[hidden] { display: none; }
+.creator-shelf-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+  padding: 14px 0 11px;
+}
+.creator-shelf-card {
+  --card-accent: var(--color-accent);
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 15px 10px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  /* A gradient lightening towards the top, with depth from shadow and no
+     lit edge, like the flat buttons. */
+  background: linear-gradient(
+    color-mix(in srgb, var(--card-accent) 18%, var(--color-surface-raised)),
+    color-mix(in srgb, var(--card-accent) 8%, var(--color-surface)));
+  box-shadow: 0 4px 14px #0006;
+  color: var(--shell-fg);
+  font: inherit;
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+.creator-shelf-card:hover, .creator-shelf-card:focus-within {
+  background: linear-gradient(
+    color-mix(in srgb, var(--card-accent) 30%, var(--color-surface-raised)),
+    color-mix(in srgb, var(--card-accent) 14%, var(--color-surface)));
+  box-shadow: 0 8px 22px #0007;
+}
+/* Selected and favourite creators use warmer material and an accent glow. */
+.creator-shelf-card:has(> .creator-card-open[aria-pressed="true"]),
+.creator-shelf-card[data-favourite="true"] {
+  background: linear-gradient(
+    color-mix(in srgb, var(--card-accent) 26%, var(--color-surface-raised)),
+    color-mix(in srgb, var(--card-accent) 12%, var(--color-surface)));
+  box-shadow: 0 4px 14px #0006, 0 0 22px color-mix(in srgb, var(--card-accent) 18%, transparent);
+}
+/* The portrait is sized before its picture arrives, so a shelf of creators
+   whose pictures land one by one never reflows underneath the pointer. */
+.creator-card-portrait {
+  display: block;
+  width: 68px;
+  height: 68px;
+  overflow: hidden;
+  border: 1px solid var(--shell-line);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--shell-line) 65%, transparent);
+}
+/* Favourite and selected creators glow in their own accent, portrait too. */
+.creator-shelf-card:is([data-favourite="true"], :has(> .creator-card-open[aria-pressed="true"])):is(:hover, :focus-within) {
+  background: linear-gradient(
+    color-mix(in srgb, var(--card-accent) 38%, var(--color-surface-raised)),
+    color-mix(in srgb, var(--card-accent) 20%, var(--color-surface)));
+  box-shadow: 0 8px 22px #0007, 0 0 28px color-mix(in srgb, var(--card-accent) 25%, transparent);
+}
+.creator-shelf-card:has(> .creator-card-open[aria-pressed="true"]) .creator-card-portrait,
+.creator-shelf-card[data-favourite="true"] .creator-card-portrait {
+  /* The ring is a shadow spread rather than a wider border, so the picture
+     inside the fixed-size portrait keeps its size when a creator becomes a
+     favourite. */
+  border-color: color-mix(in srgb, var(--card-accent) 58%, var(--shell-line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-accent) 58%, var(--shell-line)),
+              0 0 20px color-mix(in srgb, var(--card-accent) 62%, transparent);
+}
+.creator-card-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.creator-card-portrait img[hidden] { display: none; }
+.creator-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.creator-card-count {
+  margin-top: -4px;
+  color: oklch(from var(--card-accent) .85 calc(c * .65) h);
+  font-size: var(--font-size-label);
+}
+
+@media (max-width: 640px) {
+  .creator-shelf-track { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+}
+
+.archive-summary[hidden] { display: none; }

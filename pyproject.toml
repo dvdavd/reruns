@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reruns"
+dynamic = ["version"]
+description = "A browser front end for a yt-dlp archive"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["av>=18,<20", "Pillow>=12,<13", "authlib>=1.8,<2", "joserfc>=1.1,<3", "requests>=2.32,<3", "curl-cffi>=0.11,<0.17"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+browser = ["playwright>=1.40"]
+downloads = ["yt-dlp[default,curl-cffi]"]
+
+[project.scripts]
+reruns = "reruns.server:main"
+
+[tool.setuptools]
+packages = ["reruns"]
+
+[tool.setuptools.dynamic]
+version = {attr = "reruns.version.APP_VERSION"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# A thread that dies after its test has finished means the test let real work
+# escape; it only ever surfaces as a warning in whichever test is running then.
+filterwarnings = ["error::pytest.PytestUnhandledThreadExceptionWarning"]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["test-archive", "ui/vendor"]
+
+[tool.ruff.lint]
+# Correctness and modernisation only. Line length, import order and style
+# are left alone: the code has never been formatted to a tool, and a rule
+# that flags hundreds of lines teaches people to ignore the output.
+select = ["E4", "E7", "E9", "F", "B", "UP"]
+ignore = [
+    "E731",  # short lambdas assigned to names are used on purpose
+    "B905",  # zip() lengths are known to match where it is used
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "B017",  # the signature tests only care that any failure is raised
+    "B003",  # entrypoint tests replace a mocked os module's environ
+]

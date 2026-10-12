@@ -1,0 +1,126 @@
+/* Shared design tokens. Shared so sibling apps inherit one palette,
+   spacing scale and type scale rather than re-deriving them. */
+:root {
+  color-scheme: dark;
+  background: #181818;
+  /*
+   * Design-system vocabulary
+   * ------------------------
+   * Tokens: --color-*, --space-*, --font-*, --radius-*, --shadow-*, --motion-*.
+   * Components: buttons/.btn, form controls, panel/dialog surfaces, menus,
+   * segmented controls, loading-overlay/loading-spinner, progress-bar,
+   * status-badge, feedback-*, and empty-state-panel.
+   *
+   * Feature styles should configure component custom properties (for example
+   * --button-bg or --panel-border) before replacing a component declaration.
+   * One-off layout dimensions and data-visualisation colours remain local.
+   */
+  --color-bg: #181818;
+  --color-surface: #1b1b1b;
+  --color-surface-raised: #202020;
+  --color-surface-control: #303030;
+  --color-border: #303030;
+  --color-text: #d0d0d0;
+  --color-text-strong: #fff;
+  --color-text-muted: #555555;
+  --color-danger: #e05252;
+  --color-danger-text: #ffb3b3;
+  --color-danger-border: #713f3f;
+  --color-danger-bg: #342020;
+  --color-success: #4caf7d;
+  --color-success-text: #b9dfc0;
+  --color-success-border: #42664b;
+  --color-success-bg: #203126;
+  --color-warning: #efb16f;
+  --color-warning-text: #ffd58c;
+  --color-warning-border: #6b5a34;
+  --color-warning-bg: #302817;
+  --color-accent: #75598a;
+  --color-accent-strong: #5c456e;
+  /* Derived from the accent so one override recolours the whole chrome. The
+     lighter pair keep the accent's chroma and hue instead of washing towards
+     white the way a mix with white would. */
+  --color-accent-light: oklch(from var(--color-accent) calc(l + .09) c h);
+  --color-accent-bright: oklch(from var(--color-accent) calc(l + .22) c h);
+  --color-accent-deep: color-mix(in srgb, var(--color-accent) 58%, #000);
+  --color-control-border: rgba(255,255,255,.14);
+  --color-control-bg: rgba(255,255,255,.055);
+  --color-control-border-hover: rgba(255,255,255,.26);
+  --color-control-bg-hover: rgba(255,255,255,.13);
+  --color-control-bg-active: rgba(255,255,255,.2);
+  --color-field-bg: #151515;
+  --color-field-border: #454545;
+  --color-field-text: #ededed;
+  --color-field-placeholder: #777;
+  --color-button-bg: #353535;
+  --color-button-border: #4b4b4b;
+  --color-button-bg-hover: color-mix(in srgb, var(--color-accent) 28%, #353535);
+  --color-button-border-hover: color-mix(in srgb, var(--color-accent) 70%, #4b4b4b);
+  --color-menu-bg: #171717;
+  --color-menu-border: rgba(255,255,255,.12);
+  /* Dialogs sit a step off the page rather than being ringed: lighter in dark. */
+  --color-dialog-bg: #262626;
+  --color-menu-item-hover: color-mix(in srgb, var(--color-accent) 30%, transparent);
+
+  /* The page gutter: the inline padding the topbar carries, and so the line
+     every page's own content aligns to. Consumers should lay out against this
+     rather than repeating the number, since a page whose gutter differs from
+     the topbar's leaves the content out of line with the brand title. */
+  --page-gutter: 14px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --font-size-label: 12px;
+  --font-size-helper: 12px;
+  --font-size-control: 12px;
+  --font-size-body: 13px;
+  --font-size-panel-title: 15px;
+  --font-size-section-title: 17px;
+  --font-size-dialog-title: 18px;
+  --font-size-page-title: 24px;
+  --font-weight-medium: 650;
+  --font-weight-strong: 700;
+  --tracking-label: .1em;
+  --line-height-tight: 1.2;
+  --line-height-copy: 1.5;
+
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-pill: 999px;
+
+  /* Rows that list videos (downloads, browse, subscriptions, the playlist
+     editor, the watch queue) share these so they read as one family. */
+  --row-divider: rgba(255,255,255,.045);
+  --row-thumb-radius: var(--radius-sm);
+  --row-thumb-bg: color-mix(in srgb, var(--color-border) 70%, transparent);
+  --row-thumb-width: 64px;
+
+  --shadow-panel: 0 20px 52px rgba(0,0,0,.58);
+  --shadow-dialog: 0 24px 80px rgba(0,0,0,.7);
+  --shadow-menu: 0 14px 34px rgba(0,0,0,.55);
+  --color-overlay: rgba(0,0,0,.78);
+  --motion-fast: 140ms ease;
+
+  /* Compatibility aliases for the established component styles. */
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --border: var(--color-border);
+  --text: var(--color-text);
+  --muted: var(--color-text-muted);
+  --danger: var(--color-danger);
+  --font:    "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono:    "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+
+/* Narrow viewports tighten the gutter; the topbar follows the same token, so
+   content stays aligned with it at every width. */
+@media (max-width: 600px) {
+  :root { --page-gutter: 10px; }
+}

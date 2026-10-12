@@ -1,0 +1,58 @@
+/* The sign-in page borrows the app's sheets, so it has the app's font, colours
+   and light theme; this adds only the card. */
+.auth-page { display: grid; min-height: 100dvh; place-items: center; padding: 16px; }
+.auth-card {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 22rem);
+  padding: 28px 24px 24px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-dialog-bg);
+  box-shadow: var(--shadow-menu);
+}
+.auth-logo { width: 90px; height: 54px; margin-bottom: 14px; }
+.auth-card h1 { margin: 0; font-size: var(--font-size-dialog-title); }
+.auth-card #auth-intro { margin: 4px 0 18px; color: var(--shell-muted); text-align: center; }
+.auth-card form { display: grid; gap: 12px; width: 100%; }
+/* The hidden attribute loses to the display above, which is how the setup
+   token showed after the first admin existed. */
+.auth-card [hidden] { display: none; }
+.auth-card label { display: grid; gap: 4px; }
+.auth-card label > span { color: var(--shell-muted); font-size: var(--font-size-control); }
+.auth-card input {
+  --field-bg: #ffffff12;
+  --field-border: #ffffff24;
+  width: 100%;
+  min-height: 36px;
+}
+.auth-card .profile-save { margin-top: 4px; }
+/* The tints above are white-on-dark, so in light they vanished into the card:
+   no rim and no fill. These are the download drawer's light fields. */
+:root[data-theme="light"] .auth-card input {
+  --field-bg: #fff;
+  --field-border: #cbd0db;
+}
+/* The sign-in button's twin: a link that looks like it, under it. */
+.auth-or { display: flex; align-items: center; gap: 12px; width: 100%; margin: 22px 0 18px; color: var(--shell-muted); font-size: var(--font-size-control); }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--color-menu-border); }
+.auth-card .auth-or[hidden] { display: none; }
+.auth-card .auth-oidc { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 36px; text-decoration: none; }
+.auth-card .auth-oidc[hidden] { display: none; }
+#auth-message:empty { display: none; }
+#auth-message { margin: 12px 0 0; color: var(--color-danger-text); font-size: var(--font-size-control); text-align: center; }
+/* Asides on the setup form: where the token comes from and a
+   folder that cannot be written. */
+.auth-card .auth-note { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); line-height: 1.4; }
+.auth-card label > .auth-note { font-size: calc(var(--font-size-control) - 1px); }
+/* After .auth-note, whose muted colour would otherwise win. */
+.auth-card .auth-note.info-callout { color: color-mix(in srgb, var(--color-accent) 30%, var(--color-text-strong)); }
+.auth-card .auth-note code { font-size: .95em; }
+.auth-card .auth-warning {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-danger-text);
+  border-radius: 8px;
+  color: var(--color-danger-text);
+}
+.auth-card .auth-note[hidden] { display: none; }
