@@ -8,6 +8,7 @@
 // the markup index.html carries.
 
 import {codecNameOf} from './item-adapter.js';
+import {showModalOverPage} from './drawer.js';
 import {plural, t} from './i18n.js';
 
 /** The one file a video that was only downloaded once is made of. */
@@ -209,7 +210,7 @@ export function createDeleteDialog(dialog, {format = {}} = {}) {
       totalNode.hidden = true;
       allButton.textContent = t('delete.all');
       allButton.hidden = single;
-      dialog.showModal();
+      showModalOverPage(dialog);
       cancelButton.focus();
       return new Promise(resolve => { settle = resolve; });
     },
@@ -232,7 +233,7 @@ export function createDeleteDialog(dialog, {format = {}} = {}) {
       selectedButton.textContent = t('delete.playlistKeep');
       allButton.hidden = false;
       drawPlaylistTotals();
-      dialog.showModal();
+      showModalOverPage(dialog);
       cancelButton.focus();
       return new Promise(resolve => { settle = resolve; });
     },

@@ -3,6 +3,18 @@
 // open through the CSS transition before actually calling .close().
 import {t, translateMarkup} from './i18n.js';
 
+/* A modal locks the window's scroll (popups.css), and the body is padded by
+   the scrollbar that goes so the gallery does not reflow. Measured here,
+   before the lock. Only the first modal measures: with one already open the
+   scrollbar has gone and would read as none. */
+export function showModalOverPage(dialog) {
+  const root = document.documentElement;
+  if (!document.querySelector('dialog:modal')) {
+    root.style.setProperty('--page-scrollbar', `${Math.max(0, innerWidth - root.clientWidth)}px`);
+  }
+  dialog.showModal();
+}
+
 /* `dismiss` is what a click on the dimmed page does, for a drawer that leaves
    more than itself behind when it goes. */
 export function createDrawerControls(drawer, {beforeClose = () => true, dismiss = null} = {}) {
@@ -11,7 +23,7 @@ export function createDrawerControls(drawer, {beforeClose = () => true, dismiss 
     clearTimeout(closeTimer);
     drawer.classList.remove('is-closing');
     if (drawer.open) return;
-    if (drawer.showModal) drawer.showModal(); else drawer.setAttribute('open', '');
+    if (drawer.showModal) showModalOverPage(drawer); else drawer.setAttribute('open', '');
   }
   function close() {
     if (!drawer.open || drawer.classList.contains('is-closing')) return;

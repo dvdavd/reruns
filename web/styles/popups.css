@@ -1063,8 +1063,21 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
   /* Keep a wheel or touch scroll that reaches the end of the drawer from
      chaining on to the gallery behind it. */
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  /* No stable gutter: Chrome keeps the reserved space empty when nothing
+     scrolls, which left a notch beside the heading at the window edge. Rows
+     shift by a scrollbar's width when a drawer starts scrolling, as the
+     gallery's do. */
 }
+/* The page behind a modal is inert, but its scrollbar was not: Firefox draws
+   the window's overlay scrollbar over a drawer at the right edge, where the
+   drawer's own would be, and dragging it scrolled the gallery. Locking the
+   window while a modal is open leaves the drawer's the only one. The body
+   takes the width of the classic scrollbar that goes, measured in drawer.js,
+   so the gallery does not reflow. scrollbar-gutter: stable would hold it
+   too, but Chrome clips the top layer at a reserved gutter, which left a
+   blank strip there and cut off the drawer's own scrollbar. */
+:root:has(dialog:modal) { overflow: hidden; }
+:root:has(dialog:modal) body { padding-inline-end: var(--page-scrollbar, 0px); }
 .download-drawer[open] { transform: translateX(0); }
 .download-drawer.is-closing { transform: translateX(100%); }
 @starting-style {
@@ -1102,6 +1115,11 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
   top: 0;
   z-index: 2;
 }
+/* An open editor is part of the heading block, so while it stuck the wheel
+   scrolled the list beneath it first, blurred and out of sight, and the
+   editor only moved once the list ran out. It scrolls with the drawer while
+   it is open. */
+.drawer-heading-block:has(> .drawer-editor:not([hidden])) { position: relative; }
 .drawer-heading-block > .download-drawer-head {
   position: static;
   background: transparent;

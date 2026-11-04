@@ -1,6 +1,6 @@
 import {html, render} from 'media-ui';
 import {post, request} from './api.js';
-import {createDrawerControls} from './drawer.js';
+import {createDrawerControls, showModalOverPage} from './drawer.js';
 import {plural, t} from './i18n.js';
 import {icon} from './icon.js';
 
@@ -130,7 +130,7 @@ export function createOrphansUI({drawer, drawerClose, summary, list, fetchAll, c
       confirm.addEventListener('close', () => resolve(
         {all: plan.all, first: plan.first}[confirm.returnValue] || null), {once: true});
       confirm.returnValue = 'cancel';
-      confirm.showModal();
+      showModalOverPage(confirm);
     });
   }
 

@@ -1,4 +1,5 @@
 import {post} from './api.js';
+import {showModalOverPage} from './drawer.js';
 import {t} from './i18n.js';
 
 /** Where someone changes their own password. The server asks for the current
@@ -24,5 +25,5 @@ export function createPasswordDialog({dialog, form, message, cancel, report}) {
       fail(error.message || String(error));
     }
   });
-  return {open() { fail(''); dialog.showModal(); form.elements.current.focus(); }};
+  return {open() { fail(''); showModalOverPage(dialog); form.elements.current.focus(); }};
 }

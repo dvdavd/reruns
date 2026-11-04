@@ -7,6 +7,7 @@ import {createStatisticsUI} from './statistics-ui.js';
 import {createOrphansUI} from './orphans-ui.js';
 import {createAccountsUI} from './accounts-ui.js';
 import {createActivityUI} from './activity-ui.js';
+import {showModalOverPage} from './drawer.js';
 import {post, request} from './api.js';
 import {chosenLanguage, createCustomisationUI} from './customisation.js';
 import {t, translateMarkup, useLocale} from './i18n.js';
@@ -458,5 +459,5 @@ if (account.role === 'admin' && settings?.libraries.length === 0) {
     message.hidden = !failure;
     if (!failure) welcome.close();
   });
-  welcome.showModal();
+  showModalOverPage(welcome);
 }
