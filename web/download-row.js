@@ -4,7 +4,7 @@ import {t} from './i18n.js';
 import {formatDuration, stateLabel} from './download-model.js';
 
 function rowActions(row, onAction) {
-  const {pause, resume, retry, stopSave, discard, remaining} = row.actions;
+  const {pause, resume, retry, stopSave, discard, cancelAll, remaining} = row.actions;
   const many = remaining > 1;
   const batch = {count: remaining};
   const word = (one, all) => t(many ? all : one, batch);
@@ -22,6 +22,9 @@ function rowActions(row, onAction) {
     ${stopSave ? html`<button type="button" class="download-row-action"
       title=${t('downloads.stopSave')} aria-label=${t('downloads.stopSave')}
       onClick=${() => onAction(row.jobId, 'stop_save')}>${icon('download')}</button>` : null}
+    ${cancelAll ? html`<button type="button" class="download-row-action danger"
+      title=${t('downloads.cancelAll', batch)} aria-label=${t('downloads.cancelAll', batch)}
+      onClick=${() => onAction(row.jobId, 'cancel')}>${icon('cancel')}</button>` : null}
     ${!retry ? html`<button type="button" class="download-row-action danger"
       title=${discard ? t('downloads.discard') : word('downloads.cancel', 'downloads.cancelAll')}
       aria-label=${discard ? t('downloads.discard') : word('downloads.cancel', 'downloads.cancelAll')}

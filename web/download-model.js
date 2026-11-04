@@ -29,20 +29,29 @@ export function partitionJobs(jobs) {
   };
 }
 
+function remainingIn(job) {
+  return (job.items || []).filter(item =>
+    ACTIVE_STATES.has(item.state) || item.state === 'paused').length;
+}
+
 /* What a batch's controls offer. yt-dlp runs a batch as one process, so pause
    and cancel act on the whole batch and sit on its current video only. */
-function batchActions(job, live = false) {
-  const remaining = (job.items || []).filter(item =>
-    ACTIVE_STATES.has(item.state) || item.state === 'paused').length;
-  if (ACTIVE_STATES.has(job.state)) {
-    if (live) return job.state === 'running'
-      ? {pause: false, resume: false, stopSave: true, discard: true, remaining} : null;
-    return {pause: true, resume: false, remaining};
-  }
+function batchActions(job) {
+  const remaining = remainingIn(job);
+  if (ACTIVE_STATES.has(job.state)) return {pause: true, resume: false, remaining};
   if (job.state === 'failed' && job.kind !== 'refresh') return {retry: true, remaining};
   if (job.state === 'paused') return {pause: false, resume: true, remaining};
   return null;
 }
+
+/* A live recording is stopped rather than paused: saved or thrown away, with
+   the rest of its batch carrying on. Cancel all is how to stop the batch. */
+function recordingActions(job) {
+  const remaining = remainingIn(job);
+  return {pause: false, resume: false, stopSave: true, discard: true,
+    cancelAll: remaining > 1, remaining};
+}
+const ENDING_STATES = new Set(['saving', 'discarding']);
 
 /* One download is one video, so that is one row. A job that has not been
    inspected yet has no videos, and stands in for itself until it does. */
@@ -57,9 +66,13 @@ export function flattenDownloads(jobs) {
     for (const item of job.items) {
       const pending = ACTIVE_STATES.has(item.state) || item.state === 'paused'
         || (job.state === 'failed' && item.state === 'failed');
-      const itemActions = item.live ? batchActions(job, true) : actions;
+      const ending = ENDING_STATES.has(item.state);
+      const itemActions = item.live && item.state === 'running' && ACTIVE_STATES.has(job.state)
+        ? recordingActions(job) : ending ? null : actions;
       rows.push({...itemRow(item, job), actions: itemActions && pending ? itemActions : null});
-      if (pending) actions = null;
+      // A recording being saved has no controls left, and the batch's own
+      // pass to whatever it goes on to next.
+      if (pending && !ending) actions = null;
     }
   }
   return rows.sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state));

@@ -233,6 +233,37 @@ class BrowserSmokeTests(unittest.TestCase):
                          {'id': 'failed-job', 'action': 'resume'})
         self.assertEqual(self.failures, [])
 
+    def test_a_recording_in_a_batch_can_cancel_the_whole_batch(self):
+        page = self.open_page()
+        page.evaluate("""async () => {
+            const {render} = await import('media-ui');
+            const {downloadRow} = await import('/download-row.js');
+            const {flattenDownloads} = await import('/download-model.js');
+            const host = document.createElement('div');
+            host.id = 'batch-preview';
+            document.body.append(host);
+            const item = (id, state, live = false) => ({id, title: id, state, live,
+                files: [], error: '', transfers: []});
+            const [row] = flattenDownloads([{id: 'batch-job', state: 'running',
+                kind: 'download', url: 'https://example.test/streams',
+                items: [item('live', 'running', true), item('next', 'queued')]}]);
+            render(downloadRow(row, {onAction: (id, action) => {
+                window.batchAction = {id, action};
+            }}), host);
+        }""")
+        preview = page.locator('#batch-preview')
+        self.assertEqual(preview.locator('.download-row-action').evaluate_all(
+            'buttons => buttons.map(button => button.getAttribute("aria-label"))'),
+            ['Stop and save recording', 'Cancel all 2', 'Discard recording'])
+        button = preview.get_by_role('button', name='Cancel all 2', exact=True)
+        # A glyph that resolved draws something; a wrong sprite href draws nothing.
+        self.assertGreater(button.locator('svg').evaluate('svg => svg.getBBox().width'), 0)
+        button.scroll_into_view_if_needed()
+        button.click()
+        self.assertEqual(page.evaluate('window.batchAction'),
+                         {'id': 'batch-job', 'action': 'cancel'})
+        self.assertEqual(self.failures, [])
+
 
 if __name__ == "__main__":
     unittest.main()

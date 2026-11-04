@@ -9,9 +9,15 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
-from reruns.downloads import (DEFAULT_OPTIONS, _Rate, _format_eta, _format_rate, _single_youtube_video, canonical_url, describe_format, final_extension,
+from reruns.downloads import (DEFAULT_OPTIONS, _Rate, _end_process, _format_eta, _format_rate, _single_youtube_video, canonical_url, describe_format, final_extension,
                        Downloader, Job, VideoItem, folder_fields,
                        split_arguments, validate_options)
+
+
+def _fake_remux(command, **_):
+    """ffmpeg's remux of a live recording, writing the file it was asked for."""
+    Path(command[-1]).write_bytes(b'playable mp4')
+    return mock.Mock(returncode=0)
 
 
 class DownloadOptionsTests(unittest.TestCase):
@@ -630,6 +636,27 @@ class GroupedProgressTests(unittest.TestCase):
 
         self.assertTrue(item.as_dict()['live'])
 
+    def test_a_live_capture_after_the_metadata_rewrite_stays_stoppable(self):
+        """yt-dlp's metadata rewrite reports as a postprocessor before the
+        download, and an FFmpeg live capture sends no progress after it."""
+        downloader = Downloader(Path('/tmp/archive'))
+        job = Job('https://www.twitch.tv/rose', dict(DEFAULT_OPTIONS))
+        job.state = 'running'
+        head = 'TwitchStream\t318232949219\tNA\tRose (live)'
+        lines = [f'@@X@@{head}\tstarted\n', f'@@X@@{head}\tfinished\n',
+                 f'@@V@@{head}\tTrue\thttps://x.test/y.jpg\tRose\tNA\trose\thttps://www.twitch.tv/rose'
+                 '\t/videos/Rose/Rose (live).mp4\n']
+        process = mock.Mock(stdout=iter(lines))
+        process.wait.return_value = 0
+        states = []
+        process.wait.side_effect = lambda: states.append(job.state) or 0
+        with mock.patch('reruns.downloads.subprocess.Popen', return_value=process):
+            downloader._stream(job)
+
+        self.assertEqual(states, ['running'])
+        self.assertTrue(job.items[0].live)
+        self.assertEqual(job.items[0].destination, Path('/videos/Rose/Rose (live).mp4'))
+
     def test_unknown_length_progress_is_indeterminate_without_live_metadata(self):
         downloader = Downloader(Path('/tmp/archive'))
         job = Job('https://example.test/stream', dict(DEFAULT_OPTIONS))
@@ -1064,30 +1091,119 @@ class PauseResumeTests(unittest.TestCase):
             downloader = Downloader(root)
             job = Job('https://example.test/live', dict(DEFAULT_OPTIONS))
             item = VideoItem('Twitch:live', video_id='live')
-            item.live, item.destination = True, root / 'Live.mp4'
+            item.live, item.destination = True, root / 'Live 20_07.mp4'
+            item.state, job.state = 'saving', 'saving'
             job.items = [item]
-            partial = root / 'Live.mp4.part'
+            partial = root / 'Live 20_07.mp4.part'
             partial.write_bytes(b'transport stream')
 
-            def remux(command, **_):
-                Path(command[-1]).write_bytes(b'playable mp4')
-                return mock.Mock(returncode=0)
-
-            with mock.patch('reruns.downloads.subprocess.run', side_effect=remux):
-                downloader._save_live_recording(job)
+            with mock.patch('reruns.downloads.subprocess.run', side_effect=_fake_remux):
+                downloader._end_recordings(job)
             self.assertEqual((job.state, item.state), ('done', 'done'))
-            self.assertEqual((root / 'Live.mp4').read_bytes(), b'playable mp4')
+            self.assertEqual((root / 'Live 20_07.mp4').read_bytes(), b'playable mp4')
             self.assertFalse(partial.exists())
 
             item.state, job.state = 'discarding', 'discarding'
             partial.write_bytes(b'partial')
-            (root / 'Live.info.json').write_text('{}')
-            (root / 'Live.mp4.part-Frag1').write_bytes(b'fragment')
-            downloader._discard_live_recording(job)
+            (root / 'Live 20_07.info.json').write_text('{}')
+            (root / 'Live 20_07.jpg').write_bytes(b'thumbnail')
+            (root / 'Live 20_07.mp4.part-Frag1').write_bytes(b'fragment')
+            (root / 'Live 20_10.mp4').write_bytes(b'another recording')
+            downloader._end_recordings(job)
             self.assertEqual((job.state, item.state), ('cancelled', 'cancelled'))
-            self.assertFalse(partial.exists())
-            self.assertFalse((root / 'Live.mp4.part-Frag1').exists())
-            self.assertFalse((root / 'Live.info.json').exists())
+            self.assertEqual([path.name for path in root.iterdir()], ['Live 20_10.mp4'])
+
+    def test_stopping_a_recording_in_a_batch_leaves_the_batch_running(self):
+        downloader = Downloader(Path('/tmp/archive'))
+        job = Job('https://example.test/streams', dict(DEFAULT_OPTIONS))
+        live = VideoItem('Youtube:live', video_id='live')
+        live.live, live.state = True, 'running'
+        later = VideoItem('Youtube:later', video_id='later')
+        job.items, job.state = [live, later], 'running'
+        process = mock.Mock()
+        process.poll.return_value = None
+        job.process = process
+        downloader._jobs[job.id] = job
+
+        self.assertTrue(downloader.stop_save(job.id))
+        process.send_signal.assert_called_once_with(signal.SIGINT)
+        self.assertEqual((job.state, live.state, later.state), ('running', 'saving', 'queued'))
+        self.assertFalse(downloader.discard(job.id))
+
+    def test_a_discarded_recording_yt_dlp_finishes_itself_is_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            downloader = Downloader(root)
+            job = Job('https://example.test/streams', dict(DEFAULT_OPTIONS))
+            live = VideoItem('Youtube:live:', video_id='live', extractor='Youtube', title='Live')
+            live.live, live.state, live.destination = True, 'discarding', root / 'Live 20_07.mp4'
+            job.items, job.state = [live], 'running'
+            (root / 'Live 20_07.mp4').write_bytes(b'finished by yt-dlp')
+            (root / 'Live 20_07.info.json').write_text('{}')
+            head = 'Youtube\tlive\tNA\tLive'
+            lines = [f'@@X@@{head}\tstarted\n', f'@@D@@{head}\n',
+                     '@@V@@Youtube\tnext\tNA\tNext\tFalse\t\t\t\t\t\n']
+            process = mock.Mock(stdout=iter(lines))
+            process.wait.return_value = 0
+            with mock.patch('reruns.downloads.subprocess.Popen', return_value=process):
+                downloader._stream(job)
+
+            self.assertEqual(live.state, 'cancelled')
+            self.assertEqual(list(root.iterdir()), [])
+            self.assertEqual(job.state, 'done')
+
+    def test_a_restart_saves_the_recording_it_cut_off_and_records_on(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            downloader = Downloader(root)
+            job = Job('https://www.twitch.tv/rose', dict(DEFAULT_OPTIONS))
+            item = VideoItem('TwitchStream:1:', video_id='1', extractor='TwitchStream')
+            item.live, item.state, item.destination = True, 'running', root / 'Rose 20_07.mp4'
+            job.items, job.state = [item], 'running'
+            (root / 'Rose 20_07.mp4.part').write_bytes(b'transport stream')
+            (root / 'Rose 20_07.info.json').write_text('{}')
+
+            with mock.patch('reruns.downloads.subprocess.run', side_effect=_fake_remux):
+                downloader._recover_recordings(job)
+
+            # Moved aside, so a new recording started in the same minute does
+            # not find its name taken.
+            self.assertEqual(sorted(path.name for path in root.iterdir()),
+                             ['Rose 20_07 (interrupted).info.json', 'Rose 20_07 (interrupted).mp4'])
+            self.assertEqual((root / 'Rose 20_07 (interrupted).mp4').read_bytes(), b'playable mp4')
+            self.assertEqual((item.files, item.destination), (['Rose 20_07 (interrupted).mp4'], None))
+
+            # By the time it runs again the stream may have ended.
+            item.state, item.error = 'failed', 'The channel is not currently live'
+            job.state, job.error = 'failed', item.error
+            downloader._forgive_ended_stream(job)
+            self.assertEqual((job.state, item.state, item.error), ('done', 'done', ''))
+
+    def test_cancel_all_keeps_what_a_recording_has_so_far(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            downloader = Downloader(root)
+            job = Job('https://example.test/streams', dict(DEFAULT_OPTIONS))
+            item = VideoItem('Youtube:live', video_id='live')
+            item.live, item.state, item.destination = True, 'cancelled', root / 'Live 20_07.mp4'
+            job.items, job.state = [item], 'cancelled'
+            (root / 'Live 20_07.mp4.part').write_bytes(b'transport stream')
+
+            with mock.patch('reruns.downloads.subprocess.run', side_effect=_fake_remux):
+                downloader._end_recordings(job)
+
+            self.assertEqual((job.state, item.state), ('cancelled', 'done'))
+            self.assertTrue((root / 'Live 20_07.mp4').is_file())
+
+    def test_stopping_a_job_stops_the_ffmpeg_it_started_too(self):
+        process = mock.Mock(pid=4321)
+        with mock.patch('reruns.downloads.os.killpg') as killpg:
+            _end_process(process)
+            _end_process(process, kill=True)
+        process.terminate.assert_called_once()
+        process.kill.assert_called_once()
+        self.assertEqual(killpg.call_args_list,
+                         [mock.call(4321, signal.SIGTERM), mock.call(4321, signal.SIGKILL)])
 
 
 def test_queue_survives_restart_and_clear(tmp_path):

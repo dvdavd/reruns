@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 import shlex
 import shutil
@@ -29,9 +30,12 @@ POST_SENTINEL = "@@X@@"
 FORMAT_SENTINEL = "@@C@@"
 PROGRESS_FIELDS = "%(info.extractor_key)s\t%(info.id)s\t%(info.playlist_index)s\t%(info.title)s"
 PRINT_FIELDS = "%(extractor_key)s\t%(id)s\t%(playlist_index)s\t%(title)s"
+# The filename is where a live recording is written: --print makes yt-dlp
+# quiet, so its "Destination:" line never comes, and saving or recovering a
+# recording needs to know the file.
 VIDEO_PRINT_FIELDS = (f"{PRINT_FIELDS}\t%(is_live)s\t%(thumbnail)s\t"
                       "%(channel,uploader)s\t%(duration)s\t%(channel_id,uploader_id)s\t"
-                      "%(webpage_url)s")
+                      "%(webpage_url)s\t%(filename)s")
 PROGRESS_TEMPLATE = (
     f"download:{SENTINEL}{PROGRESS_FIELDS}\t%(info.format_id)s\t%(info.vcodec)s\t"
     "%(info.acodec)s\t%(progress._percent_str)s\t%(progress.downloaded_bytes)s\t"
@@ -659,6 +663,21 @@ class Job:
         log.log(level, message, extra={"source": source or self.kind, "detail": detail})
 
 
+def _end_process(process: subprocess.Popen, *, kill: bool = False) -> None:
+    """Stop yt-dlp and whatever it started. FFmpeg recording a live stream
+    outlives a terminated yt-dlp and records on until the stream ends, so the
+    whole process group goes with it."""
+    (process.kill if kill else process.terminate)()
+    try:
+        os.killpg(process.pid, signal.SIGKILL if kill else signal.SIGTERM)
+    except (TypeError, OSError):
+        pass
+
+
+# Where a live item stands once Stop & save or Discard has been asked for.
+ENDING_STATES = {"saving", "discarding"}
+
+
 class Downloader:
     """A small fixed-concurrency pool of yt-dlp subprocesses."""
     def __init__(self, root: Path, *, binary: str = "yt-dlp",
@@ -706,12 +725,12 @@ class Downloader:
             processes = [job.process for job in interrupted if job.process is not None]
         for process in processes:
             if process.poll() is None:
-                process.terminate()
+                _end_process(process)
         for process in processes:
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                process.kill()
+                _end_process(process, kill=True)
         for worker in self._threads:
             worker.join(timeout=5)
         with self._lock:
@@ -976,7 +995,7 @@ class Downloader:
             self._save()
         job.log(f"{state.capitalize()} {job.label()}")
         if process is not None and process.poll() is None:
-            process.terminate()
+            _end_process(process)
         if idle and job.on_finish is not None:
             job.finished_at = time.time()
             job.on_finish(job)
@@ -985,49 +1004,49 @@ class Downloader:
     def _stop_live(self, job_id: str, state: str) -> bool:
         with self._lock:
             job = self._jobs.get(job_id)
-            live_items = [item for item in (job.items if job else [])
-                          if item.live and item.state in ACTIVE_STATES]
-            # One yt-dlp process backs a batch. Saving just one live item from
-            # a mixed batch would silently abandon the rest, so do it only for
-            # the single-stream jobs the Twitch/channel extractors create.
-            if job is None or job.state not in ACTIVE_STATES or len(live_items) != 1:
+            # yt-dlp records one stream at a time, so at most one item is live
+            # and running.
+            recording = next((item for item in (job.items if job else [])
+                              if item.live and item.state == "running"), None)
+            if job is None or job.state not in ACTIVE_STATES or recording is None:
                 return False
-            job.state = state
-            live_items[0].state = state
+            recording.state = state
+            # yt-dlp takes Ctrl-C during a live capture as the end of that
+            # video and goes on to the rest of a batch, so the job ends here
+            # only when nothing else in it is waiting.
+            if not any(item is not recording and item.state in ACTIVE_STATES | {"paused"}
+                       for item in job.items):
+                job.state = state
             process = job.process
             self._save()
-        job.log(f"Stopping the recording of {job.label()} to "
+        job.log(f"Stopping the recording of “{recording.title}” to "
                 f"{'save' if state == 'saving' else 'discard'} it")
         if process is not None and process.poll() is None:
             # yt-dlp translates Ctrl-C into "q" for FFmpeg, which lets a live
             # recording close its current transport-stream segment cleanly.
+            # Only yt-dlp is sent it: FFmpeg hears it from yt-dlp.
             process.send_signal(signal.SIGINT)
         return True
 
-    def _recording_paths(self, job: Job) -> tuple[VideoItem, Path, Path] | None:
-        item = next((item for item in job.items if item.live and item.destination), None)
-        if item is None or item.destination is None:
-            return None
+    @staticmethod
+    def _remux_recording(item: VideoItem) -> str:
+        """Turn a live item's FFmpeg transport stream into the playable file
+        it was meant to become. Returns what went wrong, or nothing."""
         target = item.destination
+        if target is None:
+            return "Could not find the live recording"
         partial = target.with_name(target.name + ".part")
-        return item, partial, target
-
-    def _save_live_recording(self, job: Job) -> None:
-        recording = self._recording_paths(job)
-        if recording is None:
-            job.state, job.error = "failed", "Could not find the live recording"
-            return
-        item, partial, target = recording
         if not partial.is_file():
-            item.state, item.error = "failed", "The live recording was not saved"
-            job.state, job.error = "failed", item.error
-            return
+            # yt-dlp finished it itself.
+            return "" if target.is_file() else "The live recording was not saved"
         temporary = target.with_name(f".{target.stem}.finalizing{target.suffix}")
         try:
+            # A copy, not an encode, but hours of stream are still gigabytes
+            # to read and write.
             result = subprocess.run(
                 ["ffmpeg", "-y", "-i", str(partial), "-c", "copy", "-movflags", "+faststart",
                  str(temporary)],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True, text=True, timeout=3600,
             )
             if result.returncode:
                 raise RuntimeError(result.stderr.strip().splitlines()[-1] if result.stderr.strip()
@@ -1036,27 +1055,70 @@ class Downloader:
             partial.unlink()
         except (OSError, subprocess.SubprocessError, RuntimeError) as error:
             temporary.unlink(missing_ok=True)
-            item.state, item.error = "failed", f"Could not save live recording: {error}"
-            job.state, job.error = "failed", item.error
-            return
+            return f"Could not save live recording: {error}"
         if target.name not in item.files:
             item.files.append(target.name)
-        item.state, job.state = "done", "done"
+        return ""
 
-    def _discard_live_recording(self, job: Job) -> None:
-        recording = self._recording_paths(job)
-        if recording is not None:
-            _, partial, target = recording
-            for path in partial.parent.glob(f"{partial.name}*"):
-                if path.is_file():
+    def _save_live_recording(self, item: VideoItem) -> None:
+        error = self._remux_recording(item)
+        item.state, item.error = ("failed", error) if error else ("done", "")
+
+    @staticmethod
+    def _remove_recording(item: VideoItem) -> None:
+        """Delete a live item's recording and everything saved beside it. The
+        start time in a live title keeps the name to this one recording."""
+        if item.destination is not None:
+            stem = item.destination.name.removesuffix(item.destination.suffix)
+            folder = item.destination.parent
+            for path in folder.iterdir() if folder.is_dir() else ():
+                if path.is_file() and path.name.startswith((f"{stem}.", f".{stem}.")):
                     path.unlink(missing_ok=True)
-            target.with_suffix(".info.json").unlink(missing_ok=True)
-            target.with_name(target.name + ".ytdl").unlink(missing_ok=True)
-        job.log(f"Discarded the recording of {job.label()}")
+        item.files, item.state = [], "cancelled"
+
+    def _end_recordings(self, job: Job) -> None:
+        """Once yt-dlp has exited: finish what it left of any recording asked
+        to be saved or discarded, or cut short by Cancel all."""
         for item in job.items:
-            if item.state == "discarding":
-                item.state = "cancelled"
-        job.state = "cancelled"
+            if item.state == "saving":
+                self._save_live_recording(item)
+            elif item.state == "discarding":
+                self._remove_recording(item)
+                job.log(f"Discarded the recording of “{item.title}”")
+            elif (job.state == "cancelled" and item.live and item.destination is not None
+                  and item.destination.with_name(item.destination.name + ".part").is_file()):
+                # Cancel all stops the batch, not the hours already recorded.
+                self._save_live_recording(item)
+        if job.state in ENDING_STATES:
+            failed = next((item for item in job.items if item.state == "failed"), None)
+            if failed is not None:
+                job.state, job.error = "failed", failed.error
+            else:
+                job.state = "done" if job.state == "saving" else "cancelled"
+
+    def _recover_recordings(self, job: Job) -> None:
+        """Save what a live job recorded before a restart or pause cut it off.
+        Running again records into a new file, named for the new start time,
+        so the old one would otherwise stay a .part nothing finishes."""
+        for item in job.items:
+            if not (item.live and item.destination is not None and
+                    item.destination.with_name(item.destination.name + ".part").is_file()):
+                continue
+            job.log(f"Saving the recording of “{item.title}” that was cut off")
+            if error := self._remux_recording(item):
+                job.log(f"“{item.title}”: {error}", logging.WARNING)
+                continue
+            # A live title carries the minute it started, so running again
+            # within that minute names the new recording the same, and yt-dlp
+            # would skip it as already downloaded. The saved part and the
+            # files beside it move aside, keeping their shared name.
+            stem = item.destination.name.removesuffix(item.destination.suffix)
+            for path in item.destination.parent.iterdir():
+                if path.is_file() and path.name.startswith(f"{stem}."):
+                    moved = path.with_name(f"{stem} (interrupted){path.name[len(stem):]}")
+                    path.rename(moved)
+                    item.files = [moved.name if name == path.name else name for name in item.files]
+            item.destination = None
 
     def clear_finished(self) -> int:
         with self._lock:
@@ -1278,7 +1340,9 @@ class Downloader:
                 self._name_for_format_if_held(job)
                 # A held copy with nothing extra asked for is already done.
                 if job.state == "running":
+                    self._recover_recordings(job)
                     self._stream(job)
+                    self._forgive_ended_stream(job)
                 self._keep_extras(job)
             except (OSError, subprocess.SubprocessError, json.JSONDecodeError, ValueError) as error:
                 if job.state not in STOPPED_STATES:
@@ -1305,6 +1369,18 @@ class Downloader:
                 finally:
                     with self._lock:
                         self._save()
+
+    @staticmethod
+    def _forgive_ended_stream(job: Job) -> None:
+        """A live job run again after a restart fails if the stream has ended
+        meanwhile, but what it recorded before is saved: that is a finish."""
+        if job.state != "failed":
+            return
+        for item in job.items:
+            if item.state == "failed" and item.live and item.files:
+                item.state, item.error = "done", ""
+        if not any(item.state == "failed" for item in job.items):
+            job.state, job.error = "done", ""
 
     def _name_for_format_if_held(self, job: Job) -> None:
         """Give a download of a video the library already holds its own name.
@@ -1693,8 +1769,10 @@ class Downloader:
         with self._lock:
             if self._closing or job.state in STOPPED_STATES:
                 return
+            # Its own session, so stopping it can reach the FFmpeg it starts.
             process = subprocess.Popen([command[0], *job.cookies, *command[1:]], stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, text=True, bufsize=1)
+                                       stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                       start_new_session=True)
             job.process = process
         tail = job.tail = []
         job.error_logged = False
@@ -1710,11 +1788,14 @@ class Downloader:
                 # it says after the escape may mark a video done.
                 continue
             if line.startswith(VIDEO_SENTINEL):
-                item, fields = self._event_item(job, line[len(VIDEO_SENTINEL):], 6, current)
+                item, fields = self._event_item(job, line[len(VIDEO_SENTINEL):], 7, current)
                 if item is not None:
                     current = item
                     current.live = bool(fields and _clean(fields[0]).lower() == "true")
-                    thumbnail, channel, duration, channel_id, webpage_url = map(_clean, fields[1:6])
+                    thumbnail, channel, duration, channel_id, webpage_url, filename = map(
+                        _clean, fields[1:7])
+                    if filename:
+                        current.destination = Path(filename)
                     if thumbnail.startswith(("http://", "https://")):
                         current.thumbnail = thumbnail
                     if channel:
@@ -1730,7 +1811,11 @@ class Downloader:
                     if current.state != "running":
                         job.log(f"{'Recording' if current.live else 'Downloading'} “{current.title}”"
                                 + (" live" if current.live else ""))
-                    current.state = "running"
+                    # The metadata rewrite runs as a postprocessor before the
+                    # download and leaves the job "postprocessing". A live
+                    # capture through FFmpeg sends no progress to undo that,
+                    # and the page offers Stop & save only to a running job.
+                    current.state, job.state = "running", "running"
             elif line.startswith(FORMAT_SENTINEL):
                 item, fields = self._event_item(job, line[len(FORMAT_SENTINEL):], 7, current)
                 if item is not None:
@@ -1743,9 +1828,13 @@ class Downloader:
                 item, _ = self._event_item(job, line[len(POST_SENTINEL):], 1, current)
                 # Some postprocessors still report after after_video; a video
                 # already done must not read as unfinished if a later one fails.
-                if item is not None and item.state != "done":
+                # A recording being saved or discarded keeps saying so while
+                # yt-dlp finishes its file.
+                if item is not None and item.state not in {"done", "cancelled"} | ENDING_STATES:
                     current = item
-                    current.state, job.state = "postprocessing", "postprocessing"
+                    current.state = "postprocessing"
+                    if job.state not in ENDING_STATES:
+                        job.state = "postprocessing"
             elif line.startswith(FILE_SENTINEL):
                 item, rest = self._event_item(job, line[len(FILE_SENTINEL):], 1, current)
                 if (rest and rest[0] and job.command is None and job.root is not None
@@ -1757,7 +1846,7 @@ class Downloader:
                     escaped = f"yt-dlp saved a file outside the library: {rest[0]}"
                     job.log(escaped, logging.ERROR, detail=rest[0])
                     job.error_logged = True
-                    process.terminate()
+                    _end_process(process)
                     continue
                 if item is not None:
                     current = item
@@ -1771,7 +1860,13 @@ class Downloader:
                 if item is not None:
                     current = item
                     finished.add(item.key)
-                    current.state = "done"
+                    if current.state == "discarding":
+                        # yt-dlp took the stop as the end of the stream and
+                        # finished the file; discarding means it goes anyway.
+                        self._remove_recording(current)
+                        job.log(f"Discarded the recording of “{current.title}”")
+                    else:
+                        current.state = "done"
                     for transfer in current.transfers.values():
                         transfer.update(state="done", percent=100.0, speed="", eta="")
             elif match := VIDEO_ERROR.match(line):
@@ -1807,13 +1902,9 @@ class Downloader:
                 tail.append(line)
                 del tail[:-12]
         code = process.wait()
-        if job.state == "saving":
-            self._save_live_recording(job)
-            return
-        if job.state == "discarding":
-            self._discard_live_recording(job)
-            return
-        if job.state in STOPPED_STATES:
+        ending = job.state in ENDING_STATES
+        self._end_recordings(job)
+        if ending or job.state in STOPPED_STATES:
             return
         if escaped:
             job.state, job.error = "failed", escaped
@@ -1853,6 +1944,13 @@ class Downloader:
                     item.state, item.error = "failed", (job.error if len(job.items) == 1
                                                            else "Not downloaded")
 
+    @staticmethod
+    def _mark_running(job: Job, item: VideoItem) -> None:
+        if item.state not in ENDING_STATES:
+            item.state = "running"
+        if job.state not in ENDING_STATES:
+            job.state = "running"
+
     def _apply_progress(self, job: Job, payload: str,
                         current: VideoItem | None = None) -> VideoItem | None:
         fields = _parts(payload, 12)
@@ -1878,7 +1976,7 @@ class Downloader:
         # another transfer makes the video's percentage fall when media starts.
         if not format_id and vcodec in {"", "none"} and acodec in {"", "none"} and Path(filename).suffix.lower() in {
                 ".vtt", ".srt", ".ass", ".ssa", ".ttml", ".json3", ".srv1", ".srv2", ".srv3"}:
-            item.state, job.state = "running", "running"
+            self._mark_running(job, item)
             return item
         kind = "video" if vcodec and vcodec != "none" else "audio" if acodec else "media"
         transfer_id = format_id or filename or kind
@@ -1899,5 +1997,5 @@ class Downloader:
         transfer.update(state="running", live=is_live.lower() == "true",
                         indeterminate=is_live.lower() == "true" or size is None,
                         speed=_format_rate(speed), eta=_format_eta(left))
-        item.state, job.state = "running", "running"
+        self._mark_running(job, item)
         return item

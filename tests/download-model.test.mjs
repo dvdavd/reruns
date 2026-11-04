@@ -140,7 +140,32 @@ test('a live recording offers save or discard instead of pause and resume', () =
     {id: 'live', title: 'Live now', state: 'running', live: true, files: [], error: '', transfers: []},
   ]}]);
 
-  assert.deepEqual(row.actions, {pause: false, resume: false, stopSave: true, discard: true, remaining: 1});
+  assert.deepEqual(row.actions,
+    {pause: false, resume: false, stopSave: true, discard: true, cancelAll: false, remaining: 1});
+});
+
+test('a recording in a batch can be stopped alone, or the whole batch cancelled', () => {
+  const rows = flattenDownloads([{id: 'j1', url: 'u', state: 'postprocessing', items: [
+    {id: 'live', title: 'Live now', state: 'running', live: true, files: [], error: '', transfers: []},
+    {id: 'next', title: 'Next', state: 'queued', files: [], error: '', transfers: []},
+  ]}]);
+  const live = rows.find(row => row.key === 'j1:live');
+  const next = rows.find(row => row.key === 'j1:next');
+
+  assert.deepEqual(live.actions,
+    {pause: false, resume: false, stopSave: true, discard: true, cancelAll: true, remaining: 2});
+  assert.equal(next.actions, null);
+});
+
+test('a recording being saved has no controls, and the batch\'s pass to the next video', () => {
+  const rows = flattenDownloads([{id: 'j1', url: 'u', state: 'running', items: [
+    {id: 'live', title: 'Live now', state: 'saving', live: true, files: [], error: '', transfers: []},
+    {id: 'next', title: 'Next', state: 'queued', files: [], error: '', transfers: []},
+  ]}]);
+
+  assert.equal(rows.find(row => row.key === 'j1:live').actions, null);
+  assert.deepEqual(rows.find(row => row.key === 'j1:next').actions,
+    {pause: true, resume: false, remaining: 2});
 });
 
 test('post-processing is indeterminate instead of appearing stuck at 100 percent', () => {
