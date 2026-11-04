@@ -224,8 +224,11 @@
    sets from the file's own dimensions; 16:9 until it knows. The frame stays
    height-led whatever that shape - as tall as the viewport leaves room for,
    with the width following - so a 4:3 video is exactly as tall as a 16:9 one
-   and simply narrower, rather than pillarboxed inside a 16:9 box, and a
-   wider-than-16:9 film keeps its width and loses height instead.
+   and simply narrower, rather than pillarboxed inside a 16:9 box. A
+   wider-than-16:9 film grows wider than the column, out to the page's
+   gutters, and only loses height once the window runs out of width: held to
+   the column, a 2.39:1 film came out a quarter shorter than the window had
+   room for, and immersion could not make up the difference.
 
    Only the stage takes the video's shape. The column under it is the 16:9
    width regardless, or a portrait video would squeeze the title and the
@@ -235,7 +238,23 @@
    window's edges sets border-radius itself, so it still wins over these. */
 body[data-player-rounding="small"] { --player-rounding: 12px; }
 body[data-player-rounding="off"] { --player-rounding: 0px; }
-.archive-watch { --watch-aspect: 16 / 9; --watch-stage-height: calc(100dvh - 8rem - 56px); }
+.archive-watch {
+  --watch-aspect: 16 / 9;
+  --watch-stage-height: calc(100dvh - 8rem - 56px);
+}
+/* The room a wide stage may take is the page's, not the column's. A container
+   unit resolves against the nearest container to the element using it, which
+   for the stage is the column, so the page's width is taken where the column
+   itself reads it, and registered as a length so it is passed down as pixels
+   rather than as `100cqw` to be read again on the stage. The stage's width
+   is worked out there too, since a var() is filled in where it is declared.
+   The corner window sets its own width, so it needs no container. */
+@property --watch-page-width { syntax: '<length>'; inherits: true; initial-value: 100vw; }
+.archive-watch:not(.is-mini) { container: watch-page / inline-size; }
+.archive-watch-main {
+  --watch-page-width: 100cqw;
+  --watch-stage-width: min(calc(var(--watch-stage-height) * (var(--watch-aspect))), var(--watch-page-width));
+}
 /* A phone on its side has no room for the header and title as well as the
    picture: leaving them in the sum gave the video a third of the height and a
    control bar several times its width. The picture takes what is under the
@@ -261,8 +280,9 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  max-width: calc(var(--watch-stage-height) * (var(--watch-aspect)));
-  margin-inline: auto;
+  /* Centred on the column, and through its edges when wider than it. */
+  width: var(--watch-stage-width);
+  margin-inline: calc((100% - var(--watch-stage-width)) / 2);
   /* The control bar is a 48px pill (24px corners) inset 10px, so the player's
      corners are that plus the inset: the gap stays 10px around the curve. */
   border-radius: var(--player-rounding, 34px);
@@ -274,7 +294,8 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
      snapping between them. The zoom from a card is the exception: there the
      stage is covered, and the thumbnail over it does the moving. */
   transition: aspect-ratio 300ms cubic-bezier(.22,.8,.25,1),
-              max-width 300ms cubic-bezier(.22,.8,.25,1);
+              width 300ms cubic-bezier(.22,.8,.25,1),
+              margin 300ms cubic-bezier(.22,.8,.25,1);
 }
 @media (prefers-reduced-motion: reduce) {
   .archive-watch-stage { transition: none; }

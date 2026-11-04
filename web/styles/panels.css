@@ -251,7 +251,7 @@
 .topbar-directory .icon { flex: none; width: 18px; height: 18px; }
 .topbar-directory > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-directory[data-filtered="true"] { color: var(--shell-fg); }
-.topbar-directory:is(:hover, :focus-visible), .topbar-directory[aria-expanded="true"] { border-color: transparent; background: rgba(255,255,255,.1); color: var(--shell-fg); }
+.topbar-directory:is(:hover, :focus-visible), .topbar-directory[aria-expanded="true"] { border-color: transparent; background: rgba(255,255,255,.16); color: var(--shell-fg); }
 @media (max-width: 700px) {
   .topbar-directory { margin-right: 6px; padding: 0 9px; }
   .topbar-directory > span, .topbar-directory-chevron { display: none; }
@@ -456,7 +456,7 @@ body[data-popup-player-size="large"] { --popup-player-width: 720px; }
 .archive-watch.is-mini .archive-watch-main { max-width: none; }
 .archive-watch.is-mini .archive-watch-main > :not(.archive-watch-stage) { display: none; }
 .archive-watch.is-mini .archive-watch-stage {
-  max-width: none;
+  width: auto;
   /* The phone layout pulls the stage out through the page gutter, and the
      corner window has no gutter: left alone the picture ran wider than the
      window and its buttons, which are laid out against the window. */
@@ -704,7 +704,7 @@ body.watch-open .archive-ambient-glow > canvas { transition: filter 180ms ease; 
 body.watch-open .archive-watch-stage {
   transform-origin: center bottom;
   transition: transform 180ms cubic-bezier(.22,.8,.25,1),
-              aspect-ratio 300ms ease, max-width 300ms ease;
+              aspect-ratio 300ms ease, width 300ms ease, margin 300ms ease;
 }
 body.watch-open.is-player-immersive .immersive-chrome {
   opacity: 0;
@@ -743,11 +743,11 @@ body.watch-open { overflow-x: clip; }
 body.watch-open.is-player-immersive .archive-watch-stage {
   transform: translateY(var(--immersive-drop, 0px)) scale(var(--immersive-scale, 1));
   transition: transform 900ms cubic-bezier(.22,.8,.25,1) 350ms,
-              aspect-ratio 300ms ease, max-width 300ms ease;
+              aspect-ratio 300ms ease, width 300ms ease, margin 300ms ease;
 }
 body.watch-open.is-player-immersive .archive-watch-head {
   opacity: .45;
-  margin-top: 32px;
+  margin-top: calc(32px + var(--immersive-centring, 0px));
   transition: opacity 800ms ease, margin-top 900ms cubic-bezier(.22,.8,.25,1) 350ms;
 }
 body.watch-open.is-player-immersive .archive-watch-actions {

@@ -47,11 +47,18 @@ const GLOW_HEIGHT = 36;
 // for: every third frame at 30fps, every sixth at 60, not every fourth.
 const REALTIME_SAMPLE_MS = 90;
 // A copy from a large frame can be slow, and on a machine decoding in software
-// that time comes straight out of the video's. Past this the light is sampled
-// less often, and it returns to the usual rate once copies are quick again.
+// that time comes straight out of the video's. So the light is sampled less
+// often while the video drops frames and copies are not trivial, and returns
+// to the usual rate once it stops. Dropped frames are the harm itself: Firefox
+// takes ~6 ms to copy every 1080p frame without dropping one, and a limit on
+// copy time alone held its light at four times the usual gap for nothing.
+// Where a browser cannot count dropped frames the copy time decides, judged on
+// the median of the last few: a small video's copies took ~0.5 ms with the odd
+// ~6 ms stall among them, and reacting to each held the light back too.
 const SLOW_COPY_MS = 4;
 const FAST_COPY_MS = 2;
 const REALTIME_SAMPLE_MAX_MS = 360;
+const COPY_WINDOW = 5;
 // The seek-sheet light moves with timeupdate, about four times a second.
 const FADE_MIN_MS = 80;
 const FADE_MAX_MS = 400;
@@ -88,12 +95,26 @@ export function lightGlowPixels(pixels) {
   return pixels;
 }
 
-/** The gap to leave before the next realtime copy, given how long the last one
- *  took. Between the two thresholds it holds, so it does not hunt. */
-export function nextSampleInterval(interval, copyMs) {
-  if (copyMs > SLOW_COPY_MS) return Math.min(REALTIME_SAMPLE_MAX_MS, interval * 1.5);
-  if (copyMs < FAST_COPY_MS) return Math.max(REALTIME_SAMPLE_MS, interval * .9);
+/** The gap to leave before the next realtime copy, given how long the recent
+ *  ones took, newest last, and how many frames the video dropped since the
+ *  last copy (undefined where the browser cannot say). Frames dropped while
+ *  copies are quick are not the copies' doing, so they do not slow it. Judged
+ *  on copy time alone it holds between the two thresholds, so it does not
+ *  hunt. */
+export function nextSampleInterval(interval, copies, dropped) {
+  const sorted = [...copies].sort((a, b) => a - b);
+  const copyMs = sorted[sorted.length >> 1];
+  const slower = () => Math.min(REALTIME_SAMPLE_MAX_MS, interval * 1.5);
+  const faster = () => Math.max(REALTIME_SAMPLE_MS, interval * .9);
+  if (dropped !== undefined) return dropped > 0 && copyMs > FAST_COPY_MS ? slower() : faster();
+  if (copyMs > SLOW_COPY_MS) return slower();
+  if (copyMs < FAST_COPY_MS) return faster();
   return interval;
+}
+
+/** Frames the video has dropped in all, or undefined where it cannot say. */
+function droppedFrames(video) {
+  return video.getVideoPlaybackQuality?.().droppedVideoFrames;
 }
 
 /** Watches frame gaps and says when the page has been struggling for long
@@ -180,6 +201,8 @@ export function initialiseAmbientGlow(player, stage) {
   let visible = true;
   let front = 0;
   let sampleInterval = REALTIME_SAMPLE_MS;
+  const copies = [];
+  let droppedBefore;
   const jank = createJankMonitor();
   let suspended = glowSuspended();
   let watching = false;
@@ -335,9 +358,20 @@ export function initialiseAmbientGlow(player, stage) {
       const layer = nextLayer();
       try {
         layer.context.clearRect(0, 0, GLOW_WIDTH, GLOW_HEIGHT);
+        // Only the copy is timed: it is what a large frame makes slow, and
+        // the fades finished and the light theme's filter are not.
+        const copyStart = performance.now();
         layer.context.drawImage(player.video, 0, 0, GLOW_WIDTH, GLOW_HEIGHT);
+        copies.push(performance.now() - copyStart);
+        if (copies.length > COPY_WINDOW) copies.shift();
         filterLightSample(layer.context);
-        sampleInterval = nextSampleInterval(sampleInterval, performance.now() - now);
+        // The count runs from when the video was loaded, so it falls when a
+        // new one starts; that is no frames dropped, not frames regained.
+        const droppedNow = droppedFrames(player.video);
+        const dropped = droppedNow === undefined ? undefined
+          : Math.max(0, droppedNow - (droppedBefore ?? droppedNow));
+        droppedBefore = droppedNow;
+        sampleInterval = nextSampleInterval(sampleInterval, copies, dropped);
         token = player.loadToken;
         lastTime = player.video.currentTime;
         present(layer, now);
@@ -419,6 +453,8 @@ export function initialiseAmbientGlow(player, stage) {
     }
     hide();
     sampleInterval = REALTIME_SAMPLE_MS;
+    copies.length = 0;
+    droppedBefore = undefined;
     token = undefined;
     sheet = undefined;
     image = null;

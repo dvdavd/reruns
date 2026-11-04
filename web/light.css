@@ -312,8 +312,10 @@
 /* The search field is tinted like the topbar's buttons, so the bar's glass
    shows through all of it; typing into it, it turns solid white. It has no
    rim until then, as in dark. */
-:root[data-theme="light"] .topbar .topbar-search input { border-color: transparent; background: rgb(32 35 59 / .04); }
-:root[data-theme="light"] .topbar .topbar-search input:hover { background: rgb(32 35 59 / .07); }
+:root[data-theme="light"] .topbar .topbar-search input { border-color: transparent; background: rgb(32 35 59 / .055); }
+:root[data-theme="light"] .topbar .topbar-search input:hover { background: rgb(32 35 59 / .1); }
+:root[data-theme="light"] .topbar .topbar-search input:placeholder-shown { color: var(--color-field-placeholder); }
+:root[data-theme="light"] .topbar .topbar-search input:placeholder-shown:hover:not(:focus) { color: var(--shell-fg); }
 :root[data-theme="light"] .topbar .topbar-search input:focus {
   border-color: transparent;
   background: linear-gradient(#fff, #fff) padding-box,
@@ -495,10 +497,10 @@
 
 
 /* The folder picker is tinted like the search field beside it. */
-:root[data-theme="light"] .topbar-directory { background: rgb(32 35 59 / .04); color: #555b6a; }
+:root[data-theme="light"] .topbar-directory { background: rgb(32 35 59 / .055); color: #555b6a; }
 :root[data-theme="light"] .topbar-directory:is(:hover, :focus-visible),
 :root[data-theme="light"] .topbar-directory[aria-expanded="true"],
-:root[data-theme="light"] .topbar-directory[data-filtered="true"] { border-color: transparent; background: rgb(32 35 59 / .07); color: #252936; }
+:root[data-theme="light"] .topbar-directory[data-filtered="true"] { border-color: transparent; background: rgb(32 35 59 / .1); color: #252936; }
 
 /* On a phone the bar leaves the picture and sits on the page's own light
    ambient glow (see the 700px block in web/styles, the width this must match),

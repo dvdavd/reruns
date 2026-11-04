@@ -41,12 +41,43 @@ test('light glow preserves source transparency', () => {
 
 test('realtime sampling slows after slow copies, caps, and recovers', () => {
   let interval = 90;
-  interval = nextSampleInterval(interval, 8);
+  interval = nextSampleInterval(interval, [8]);
   assert.equal(interval, 135);
-  for (let i = 0; i < 10; i++) interval = nextSampleInterval(interval, 8);
+  for (let i = 0; i < 10; i++) interval = nextSampleInterval(interval, [8, 8, 8, 8, 8]);
   assert.equal(interval, 360);
-  assert.equal(nextSampleInterval(150, 3), 150);
-  for (let i = 0; i < 40; i++) interval = nextSampleInterval(interval, 1);
+  assert.equal(nextSampleInterval(150, [3, 3, 3]), 150);
+  for (let i = 0; i < 40; i++) interval = nextSampleInterval(interval, [1, 1, 1, 1, 1]);
+  assert.equal(interval, 90);
+});
+
+test('realtime sampling follows dropped frames where the browser counts them', () => {
+  // Firefox at 1080p: every copy ~6 ms, no frames dropped. Full speed.
+  let interval = 90;
+  for (let i = 0; i < 10; i++) interval = nextSampleInterval(interval, [6, 6, 6, 6, 6], 0);
+  assert.equal(interval, 90);
+  // Slow copies with frames dropping: back off, as far as the cap.
+  interval = nextSampleInterval(interval, [6, 6, 6, 6, 6], 1);
+  assert.equal(interval, 135);
+  for (let i = 0; i < 10; i++) interval = nextSampleInterval(interval, [6, 6, 6, 6, 6], 2);
+  assert.equal(interval, 360);
+  // Drops stop: recover even though copies are still slow.
+  for (let i = 0; i < 40; i++) interval = nextSampleInterval(interval, [6, 6, 6, 6, 6], 0);
+  assert.equal(interval, 90);
+  // Drops while copies are quick are not the glow's doing.
+  assert.equal(nextSampleInterval(90, [0.5, 0.5, 0.5], 3), 90);
+});
+
+test('realtime sampling ignores the odd slow copy among quick ones', () => {
+  // The pattern seen on a 320x240 clip: ~0.5 ms copies with a ~6 ms stall
+  // every few, which used to hold the gap at two to four times its usual.
+  const pattern = [0.5, 0.4, 6, 0.5, 0.3, 6.2, 0.5];
+  const copies = [];
+  let interval = 90;
+  for (const copy of [...pattern, ...pattern, ...pattern]) {
+    copies.push(copy);
+    if (copies.length > 5) copies.shift();
+    interval = nextSampleInterval(interval, copies);
+  }
   assert.equal(interval, 90);
 });
 

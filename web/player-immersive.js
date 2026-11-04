@@ -99,18 +99,31 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
     // the picture in the viewport. The text below keeps its layout position.
     const landscape = matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
     const below = landscape ? 0 : 18;
-    const extra = Math.max(0, Math.min(rect.top + below - 20,
-      rect.height * ((window.innerWidth - 24) / rect.width - 1), landscape ? Infinity : 96));
+    const widthRoom = rect.height * ((window.innerWidth - 24) / rect.width - 1);
+    const heightRoom = Math.min(rect.top + below - 20, landscape ? Infinity : 96);
+    const extra = Math.max(0, Math.min(heightRoom, widthRoom));
     const scale = 1 + extra / rect.height;
-    const drop = Math.min(below, extra);
+    // A film wider than the window's shape runs out of width before height,
+    // and grown from its foot it sat at the top with a band of empty page
+    // under the title. Such a picture comes down to the middle of the window
+    // instead, the title following it, so long as the title stays in view.
+    let centring = 0;
+    const desktop = !landscape && !matchMedia('(max-width: 700px)').matches;
+    const head = page.querySelector('.archive-watch-head');
+    if (desktop && widthRoom < heightRoom && head) {
+      const top = rect.top - extra + Math.min(below, extra);
+      const room = window.innerHeight - 16 - (head.getBoundingClientRect().bottom + below);
+      centring = Math.max(0, Math.min((window.innerHeight - rect.height - extra) / 2 - top, room));
+    }
+    const drop = Math.min(below, extra) + centring;
     stage.style.setProperty('--immersive-scale', String(scale));
     stage.style.setProperty('--immersive-drop', `${drop}px`);
+    head?.style.setProperty('--immersive-centring', `${centring}px`);
     const offset = landscape
       ? (window.innerHeight - rect.height - extra) / 2 - (rect.top - extra)
       : 0;
     stage.style.setProperty('--immersive-landscape-offset', `${offset}px`);
     const logo = header?.querySelector('.topbar-brand');
-    const desktop = !landscape && !matchMedia('(max-width: 700px)').matches;
     if (desktop && logo && immersiveOverlapsLogo(rect, logo.getBoundingClientRect(), scale, drop)) {
       body.classList.add('is-immersive-logo-overlapped');
     }

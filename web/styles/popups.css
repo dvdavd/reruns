@@ -837,7 +837,7 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
      back out through the gutter the column around it keeps. */
   .archive-watch-main { max-width: none; }
   .archive-watch-stage {
-    max-width: none;
+    width: auto;
     margin-inline: calc(var(--page-gutter) * -1);
     border-radius: 0;
   }
@@ -851,8 +851,8 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
   .archive-watch:not(.is-mini) .archive-watch-main { max-width: calc(var(--watch-stage-height) * (16 / 9)); }
   .archive-watch:not(.is-mini) .archive-watch-stage {
-    max-width: calc(var(--watch-stage-height) * (var(--watch-aspect)));
-    margin-inline: auto;
+    width: var(--watch-stage-width);
+    margin-inline: calc((100% - var(--watch-stage-width)) / 2);
   }
 }
 
