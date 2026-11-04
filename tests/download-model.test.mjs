@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {ACTIVE_STATES, createJobFailureTracker, flattenDownloads, formatDuration, partitionJobs, queueStatus} from '../web/download-model.js';
+import {ACTIVE_STATES, createJobFailureTracker, flattenDownloads, formatDuration, formatLine, formatNotes,
+  partitionJobs, queueStatus} from '../web/download-model.js';
 
 test('job failures notify once, including fast jobs and failures after resuming', () => {
   const failures = createJobFailureTracker();
@@ -204,4 +205,19 @@ test('failed batches offer retry once on the first failed video', () => {
   ]}]);
   assert.equal(rows.filter(row => row.actions?.retry).length, 1);
   assert.equal(rows.find(row => row.actions?.retry).title, 'Failed');
+});
+
+test('a row says which format was fetched, and where it fell short', () => {
+  const format = {id: '18', vcodec: 'avc1.42001E', acodec: 'mp4a.40.2', height: 360, fps: 30,
+    warnings: [{level: 'warning', code: 'smaller', got: 360, available: 1080},
+      {level: 'note', code: 'codecLimit', wanted: 'H.264', got: 1080, available: 2160}]};
+  const [row] = flattenDownloads([{id: 'j', url: 'u', state: 'running', items: [
+    {id: 'i', title: 'Clip', state: 'running', transfers: [], format}]}]);
+  assert.equal(row.format, '360p · H.264 · AAC');
+  assert.deepEqual(row.formatNotes.map(note => note.level), ['warning', 'note']);
+  assert.match(row.formatNotes[0].text, /360p.*1080p/);
+  assert.equal(formatLine({height: 1080, fps: 60, vcodec: 'vp09.00.40.08', acodec: 'opus'}), '1080p60 · VP9 · Opus');
+  assert.equal(formatLine({vcodec: '', acodec: 'mp4a.40.2'}), 'AAC');
+  assert.equal(formatLine(null), '');
+  assert.deepEqual(formatNotes(undefined), []);
 });

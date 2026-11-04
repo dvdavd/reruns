@@ -190,7 +190,8 @@ class DownloadRoutes:
         job = self.downloader.start_refresh(
             url, root=root, scratch=scratch, title=title, thumbnail=thumbnail,
             languages=[] if only_comments else self.archive.refresh_languages(key),
-            comments=only_comments or payload.get("comments") is True, on_finish=finish,
+            comments=only_comments or payload.get("comments") is True,
+            comments_only=only_comments, on_finish=finish,
             owner=self.account["id"] if self.auth else None,
         )
         if self.auth:

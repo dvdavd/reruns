@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
-from reruns.downloads import (DEFAULT_OPTIONS, _Rate, _format_eta, _format_rate, _single_youtube_video, canonical_url,
+from reruns.downloads import (DEFAULT_OPTIONS, _Rate, _format_eta, _format_rate, _single_youtube_video, canonical_url, describe_format, final_extension,
                        Downloader, Job, VideoItem, folder_fields,
                        split_arguments, validate_options)
 
@@ -58,6 +58,18 @@ class DownloadOptionsTests(unittest.TestCase):
                          'en.*,pt-BR,-live_chat')
         self.assertEqual(job.items[0].thumbnail, '/thumb/clip')
         self.assertEqual(job.as_dict()['kind'], 'subtitles')
+
+    def test_a_comments_only_refresh_says_so_to_the_page(self):
+        root = Path(self.directory.name)
+        with mock.patch('reruns.downloads.threading.Thread'):
+            comments = self.downloader.start_refresh(
+                'https://example.test/watch', root=root, scratch=root,
+                comments=True, comments_only=True)
+            full = self.downloader.start_refresh(
+                'https://example.test/watch', root=root, scratch=root, comments=True)
+        self.assertIn('--write-comments', comments.command)
+        self.assertTrue(comments.as_dict()['commentsOnly'])
+        self.assertFalse(full.as_dict()['commentsOnly'])
 
     def test_folder_fields_are_the_string_fields_before_the_file_name(self):
         self.assertEqual(folder_fields('%(uploader,channel,extractor_key|Unknown)s/'
@@ -238,6 +250,78 @@ class DownloadOptionsTests(unittest.TestCase):
         self.downloader._name_for_format_if_held(checked)
         self.assertFalse(checked.alongside)
 
+    def _held_check(self, options, *, chosen='299+258', ext='mp4', copies=None,
+                    held_root='/tmp/archive'):
+        """A single YouTube video the fake library holds as 299+258 .mp4,
+        checked against what a faked yt-dlp says it would choose."""
+        downloader = Downloader(Path('/tmp/archive'))
+        downloader.is_held = lambda source: source == 'youtube abc123DEF45'
+        library = mock.Mock()
+        library.held_copies.return_value = copies if copies is not None else [
+            {'key': 'Chan/Clip [abc123DEF45].info.json', 'format_id': '299+258', 'ext': 'mp4',
+             'languages': ['en'], 'chat': False}]
+        library.subtitle_target.return_value = (
+            Path(held_root), 'Chan/Clip [abc123DEF45]', 'https://www.youtube.com/watch?v=abc123DEF45',
+            'Clip', '/thumb/x')
+        library.apply_refresh.return_value = True
+        downloader.library = library
+        job = Job('https://www.youtube.com/watch?v=abc123DEF45', validate_options(options))
+        job.state = 'running'
+        printed = (f'{ext}\tYoutube\tabc123DEF45\tNA\tClip\t{chosen}\tavc1.64002A\tmp4a.40.2'
+                   '\t1920\t1080\t30\t[]\n')
+        process = mock.Mock(returncode=0)
+        process.communicate.return_value = (printed, '')
+        with mock.patch('reruns.downloads.subprocess.Popen', return_value=process) as popen:
+            downloader._name_for_format_if_held(job)
+        return downloader, job, library, popen
+
+    def test_a_held_video_in_the_same_format_is_not_fetched_again(self):
+        downloader, job, library, popen = self._held_check({'codec': 'h264'})
+        check = popen.call_args.args[0]
+        self.assertIn('vcodec:h264,res,acodec:aac', check)
+        self.assertEqual(check[-2:], ['--', job.url])
+        self.assertEqual((job.state, job.alongside, job.command), ('done', False, None))
+        self.assertEqual(job.items[0].format['warnings'][-1], {'level': 'note', 'code': 'heldAlready'})
+
+    def test_a_held_video_fetches_only_the_extras_asked_for(self):
+        downloader, job, library, _ = self._held_check(
+            {'subtitles': 'manual_auto', 'subtitle_languages': 'en.*', 'comments': 'on', 'chat': 'on'})
+        command = job.command
+        self.assertFalse(job.alongside)
+        self.assertIn('--skip-download', command)
+        self.assertEqual(command[command.index('--sub-langs') + 1], 'en.*,-en,live_chat')
+        self.assertIn('--write-auto-subs', command)
+        self.assertEqual(command[command.index('--paths') + 1], '/tmp/archive')
+        self.assertIn('Chan/Clip [abc123DEF45].%(ext)s', command)
+        self.assertIn('--write-comments', command)
+        scratch = Path(job.extras['scratch'])
+        self.assertIn(f'infojson:{scratch}/refresh.%(ext)s', command)
+        self.assertEqual(command[-2:], ['--', 'https://www.youtube.com/watch?v=abc123DEF45'])
+        self.assertEqual(job.items[0].format['warnings'][-1]['code'], 'heldExtras')
+        # Once it has run, the comments go into the held sidecar and the
+        # scratch folder goes.
+        job.state = 'done'
+        downloader._keep_extras(job)
+        library.apply_refresh.assert_called_once_with(
+            'Chan/Clip [abc123DEF45].info.json', scratch, ('comments',))
+        library.scan.assert_called_once()
+        self.assertFalse(scratch.exists())
+
+    def test_a_held_video_in_another_format_or_place_is_still_a_new_copy(self):
+        for check in ({'chosen': '137+140'}, {'ext': 'mkv'}, {'copies': []},
+                      {'held_root': '/elsewhere'}):
+            with self.subTest(**check):
+                _, job, _, _ = self._held_check({}, **check)
+                self.assertTrue(job.alongside)
+                self.assertIsNone(job.command)
+                self.assertEqual(job.state, 'running')
+
+    def test_the_final_extension_follows_container_and_extraction(self):
+        self.assertEqual(final_extension(validate_options({}), 'webm', 'opus'), 'webm')
+        self.assertEqual(final_extension(validate_options({'container': 'mkv'}), 'webm', 'opus'), 'mkv')
+        self.assertEqual(final_extension(validate_options({'media': 'audio'}), 'webm', 'opus'), 'opus')
+        self.assertEqual(final_extension(validate_options({'media': 'audio'}), 'm4a', 'mp4a.40.2'), 'm4a')
+
     def test_restricted_download_ignores_an_escaping_server_template(self):
         self.downloader.template = '/outside/%(title)s.%(ext)s'
         options = validate_options({'organization': 'server', 'subdirectory': 'Music'})
@@ -253,8 +337,13 @@ class DownloadOptionsTests(unittest.TestCase):
         command = self.downloader._command('https://example.test/v', validate_options({'codec': 'vp9'}))
         self.assertEqual(command[command.index('--format-sort') + 1], 'vcodec:vp9')
         self.assertIn('bv*+ba/b', command)
+        # AAC behind resolution: ahead of it, YouTube's 360p format 18, the one
+        # H.264 picture with AAC sound in it, outranked every larger picture.
         command = self.downloader._command('https://example.test/v', validate_options({'codec': 'h264'}))
-        self.assertEqual(command[command.index('--format-sort') + 1], 'vcodec:h264,acodec:aac')
+        self.assertEqual(command[command.index('--format-sort') + 1], 'vcodec:h264,res,acodec:aac')
+        command = self.downloader._command('https://example.test/v',
+                                           validate_options({'codec': 'h264', 'quality': '720'}))
+        self.assertEqual(command[command.index('--format-sort') + 1], 'vcodec:h264,res:720,acodec:aac')
         # The codec still leads when a quality is chosen too.
         command = self.downloader._command('https://example.test/v',
                                            validate_options({'codec': 'vp9', 'quality': '720'}))
@@ -705,6 +794,60 @@ class StreamOutcomeTests(unittest.TestCase):
         self.assertEqual(job.items[0].duration, 125)
         self.assertEqual(job.items[0].channel_id, 'UCabc')
         self.assertEqual(job.items[0].webpage_url, 'https://www.youtube.com/watch?v=abc')
+
+    def test_the_chosen_format_is_reported_with_what_it_passed_over(self):
+        downloader = Downloader(Path('/tmp/archive'))
+        job = Job('https://www.youtube.com/watch?v=abc', validate_options({'codec': 'h264'}))
+        offered = json.dumps([{'vcodec': 'none'}, {'vcodec': 'avc1.42001E', 'width': 640, 'height': 360},
+                              {'vcodec': 'avc1.64002A', 'width': 1920, 'height': 1080},
+                              {'vcodec': 'vp9', 'width': 3840, 'height': 2160}])
+
+        class Process:
+            stdout = iter([
+                f'@@C@@Youtube\tabc\tNA\tClip\t18\tavc1.42001E\tmp4a.40.2\t640\t360\t30\t{offered}\n',
+                '@@D@@Youtube\tabc\tNA\tClip\n',
+            ])
+            def wait(self):
+                return 0
+
+        with mock.patch('reruns.downloads.subprocess.Popen', return_value=Process()):
+            downloader._stream(job)
+        chosen = job.items[0].as_dict()['format']
+        self.assertEqual((chosen['id'], chosen['height'], chosen['acodec']), ('18', 360, 'mp4a.40.2'))
+        self.assertEqual(chosen['warnings'], [
+            {'level': 'warning', 'code': 'smaller', 'got': 360, 'available': 1080}])
+
+    def test_format_warnings_follow_what_was_asked_for(self):
+        offered = [{'vcodec': 'avc1', 'width': 1920, 'height': 1080},
+                   {'vcodec': 'vp9', 'width': 3840, 'height': 2160},
+                   {'vcodec': 'vp9', 'width': 1280, 'height': 720}]
+
+        def describe(options, vcodec, width, height, listed=offered):
+            return describe_format(validate_options(options),
+                                   ['1', vcodec, 'mp4a', str(width), str(height), '30', json.dumps(listed)])
+
+        # The best H.264 there is: only a note that other codecs go larger.
+        self.assertEqual(describe({'codec': 'h264'}, 'avc1', 1920, 1080)['warnings'], [
+            {'level': 'note', 'code': 'codecLimit', 'wanted': 'H.264', 'got': 1080, 'available': 2160}])
+        self.assertEqual(describe({}, 'vp9', 3840, 2160)['warnings'], [])
+        # A cap is met by the nearest size under it, and a portrait video is
+        # measured by its narrow side.
+        self.assertEqual(describe({'quality': '720'}, 'vp9', 1280, 720)['warnings'], [])
+        self.assertEqual(describe({}, 'vp9', 1080, 1920, [{'vcodec': 'vp9', 'width': 1080, 'height': 1920}]
+                                  )['warnings'], [])
+        self.assertEqual(describe({}, 'vp9', 1280, 720)['warnings'], [
+            {'level': 'warning', 'code': 'smaller', 'got': 720, 'available': 2160}])
+        # A codec the site never offered, and one it offered but was not chosen.
+        self.assertEqual(describe({'codec': 'h264'}, 'vp9', 3840, 2160, offered[1:])['warnings'], [
+            {'level': 'warning', 'code': 'codecUnavailable', 'wanted': 'H.264', 'got': 'VP9'}])
+        self.assertEqual(describe({'codec': 'h264'}, 'vp9', 3840, 2160)['warnings'][0]['code'],
+                         'codecPassedOver')
+        # A site that names no codecs at all cannot be judged on codec.
+        self.assertEqual(describe({'codec': 'h264'}, 'NA', 1280, 720,
+                                  [{'width': 1280, 'height': 720}])['warnings'], [])
+        # Audio says only what it is.
+        audio = describe({'media': 'audio'}, 'none', 'NA', 'NA')
+        self.assertEqual((audio['height'], audio['vcodec'], audio['warnings']), (None, '', []))
 
     def test_subtitle_warning_does_not_fail_a_downloaded_video(self):
         downloader = Downloader(Path('/tmp/archive'))

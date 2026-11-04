@@ -55,12 +55,20 @@ export function createLibraryLoader({
           // to its best format: the rebuilt item keeps whichever copy the
           // viewer chose, as long as that copy is still on disk.
           selectFormat(item, old.archive.formatId);
+          // Accents are sampled from thumbnails once and kept on the item, and
+          // a card already sampled is not sampled again, so a rebuilt item
+          // without them drew its cards uncoloured until the page reloaded
+          // (fetching comments rescans under the related row). They hold for
+          // as long as the thumbnail they came from.
+          const sameThumbnail = (a, b) => Boolean(a?.thumbnail?.url) && a.thumbnail.url === b?.thumbnail?.url;
+          if (old.accent && sameThumbnail(item.parts?.[0], old.parts?.[0])) item.accent ??= old.accent;
           const oldParts = new Map((old.parts || []).map(part => [part.id, part]));
           for (const part of item.parts || []) {
             const oldPart = oldParts.get(part.id);
             if (oldPart) {
               part.watch = oldPart.watch;
               part.session = oldPart.session;
+              if (oldPart.accent && sameThumbnail(part, oldPart)) part.accent ??= oldPart.accent;
             }
           }
         }

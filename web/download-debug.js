@@ -34,6 +34,8 @@ export function debugJobs() {
     job('dbgsingle', 'A single video', 'running', [
       item('dbgsingle', 'Building a tiny cabin in the woods, start to finish', 'running', {
         duration: 2710,
+        format: {id: '299+258', vcodec: 'avc1.64002A', acodec: 'mp4a.40.2', height: 1080, fps: 60,
+          warnings: [{level: 'note', code: 'codecLimit', wanted: 'H.264', got: 1080, available: 2160}]},
         transfers: [transfer(video, '4.2MiB/s', `00:${String(Math.round((100 - video) / 2.5)).padStart(2, '0')}`),
           transfer(audio, '', '', audio >= 100 ? 'done' : 'running')],
       }),
@@ -65,6 +67,8 @@ export function debugJobs() {
     job('dbgdone', 'Finished video', 'done', [
       item('dbgdone', 'Already downloaded and in the archive', 'done', {
         files: ['Example Channel/Already downloaded and in the archive.mkv'],
+        format: {id: '18', vcodec: 'avc1.42001E', acodec: 'mp4a.40.2', height: 360, fps: 30,
+          warnings: [{level: 'warning', code: 'smaller', got: 360, available: 1080}]},
       }),
     ]),
   ];

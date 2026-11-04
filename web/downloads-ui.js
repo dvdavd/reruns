@@ -530,7 +530,11 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
       const settledBrowse = onJobs?.(jobs) || false;
       if (DEBUG_DOWNLOADS) { pollTimer = setTimeout(poll, 1000); return; }
       const active = jobs.some(job => ACTIVE_STATES.has(job.state));
-      const completed = jobs.reduce((total, job) => total + (job.counts?.completed || 0), 0);
+      // A comments-only refresh is left out: the comments card reads its own
+      // result, and reading the library again for it redrew every card and
+      // showed the scanning toast for nothing the gallery lists.
+      const completed = jobs.reduce((total, job) =>
+        total + (job.commentsOnly ? 0 : job.counts?.completed || 0), 0);
       const arrived = completedBefore !== null && completed > completedBefore;
       completedBefore = completed;
       if (active) {

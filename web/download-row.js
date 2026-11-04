@@ -50,6 +50,9 @@ export function downloadRow(row, {onAction, entry = null, key = row.key, local =
       ${row.settings ? html`<p class="download-pending-settings">${row.settings}</p>` : null}
     ` : null}
     ${channel ? html`<p class="media-row-meta"><span>${channel}</span></p>` : null}
+    ${row.format ? html`<p class="download-row-format">${row.format}</p>` : null}
+    ${(row.formatNotes || []).map(note => html`<p class="download-row-format-note"
+      data-level=${note.level}>${note.text}</p>`)}
     <div class="download-row-foot">
       <div class="download-row-status">
         <p class="download-row-detail" data-error=${String(row.error)}>${row.detail}</p>

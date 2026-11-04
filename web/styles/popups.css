@@ -1168,6 +1168,13 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
    download is doing is a separate thought, so it gets the air. */
 .download-row-detail { margin-top: 7px; }
 .download-row-detail[data-error="true"] { color: #f5a39c; }
+.download-row-format, .download-row-format-note {
+  margin: 3px 0 0;
+  color: var(--shell-muted);
+  font-size: var(--font-size-control);
+  overflow-wrap: anywhere;
+}
+.download-row-format-note[data-level="warning"] { color: var(--color-warning-text); }
 .download-track {
   height: 3px;
   margin-top: 2px;

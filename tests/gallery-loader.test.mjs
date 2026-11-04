@@ -64,3 +64,26 @@ test('overlapping requests queue one follow-up scan instead of racing replacemen
   assert.equal(scans, 2);
   assert.equal(replacements.length, 2);
 });
+
+test('rescan keeps sampled accents while the thumbnail is the same', async t => {
+  const pictured = copies.map(copy => ({...copy, _thumb_url: '/thumb/clip.jpg'}));
+  let served = pictured;
+  const {store, loader} = harness(t, async path =>
+    response(path === '/api/items' ? served : path === '/api/settings' ? {} : []));
+  const [old] = groupFormats(pictured.map(toMediaItem));
+  old.accent = 'rgb(1, 2, 3)';
+  old.parts[0].accent = 'rgb(1, 2, 3)';
+  store.setItems([old]);
+  await loader.load();
+  let item = store.allItems()[0];
+  assert.notEqual(item, old);
+  assert.equal(item.accent, 'rgb(1, 2, 3)');
+  assert.equal(item.parts[0].accent, 'rgb(1, 2, 3)');
+
+  // A new thumbnail is sampled afresh rather than wearing the old colour.
+  served = copies.map(copy => ({...copy, _thumb_url: '/thumb/clip.webp'}));
+  await loader.load();
+  item = store.allItems()[0];
+  assert.equal(item.accent, undefined);
+  assert.equal(item.parts[0].accent, undefined);
+});

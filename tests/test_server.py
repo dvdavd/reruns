@@ -216,6 +216,26 @@ class ArchiveStateTests(unittest.TestCase):
                 archive.delete_item("clip.info.json")
             self.assertTrue((root / "clip-long.mp4").exists())
 
+    def test_every_held_copy_of_a_video_is_listed_with_its_format(self):
+        # A copy fetched again in another format sits beside the first under
+        # a name of its own, and both count when deciding whether to fetch.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for stem, format_id, ext in (("Clip [abc]", "18", "mp4"),
+                                         ("Clip [abc] [303+251]", "303+251", "webm")):
+                (root / f"{stem}.info.json").write_text(json.dumps({
+                    "title": "Clip", "id": "abc", "extractor_key": "Youtube",
+                    "format_id": format_id, "duration": 3}), encoding="utf-8")
+                (root / f"{stem}.{ext}").write_bytes(b"video")
+            (root / "Clip [abc].en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+            copies = sorted(Archive(root).held_copies("youtube abc"), key=lambda copy: copy["key"])
+            self.assertEqual(copies, [
+                {"key": "Clip [abc] [303+251].info.json", "format_id": "303+251", "ext": "webm",
+                 "languages": [], "chat": False},
+                {"key": "Clip [abc].info.json", "format_id": "18", "ext": "mp4",
+                 "languages": ["en"], "chat": False}])
+            self.assertEqual(Archive(root).held_copies("youtube other"), [])
+
     def test_favourite_survives_rescan_and_restart(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -42,7 +42,7 @@ LEGACY_STATE_FILE = ".ytdlp-frontend.json"
 
 SIDECAR_FIELDS = frozenset({
     "id", "title", "description", "duration", "filesize", "filesize_approx",
-    "width", "height", "fps", "format_note", "vcodec", "acodec", "ext",
+    "width", "height", "fps", "format_id", "format_note", "vcodec", "acodec", "ext",
     "uploader", "uploader_id", "uploader_url", "creator", "channel",
     "channel_id", "channel_url", "webpage_url", "webpage_url_domain",
     "extractor", "extractor_key", "epoch",
@@ -423,6 +423,7 @@ class Archive:
         # the download queue can show the saved picture of a finished video.
         self._thumbs_by_source: dict[str, str] = {}
         self._held_sources: dict[str, str] = {}
+        self._held_copies: dict[str, list[dict]] = {}
         self._fetch_lock = threading.Lock()
         self._playlists: dict[str, dict] = {}
         self._playlist_sidecars: list[tuple[Path, dict]] = []
@@ -880,6 +881,7 @@ class Archive:
         frame_sources: dict[str, tuple[Path, float, Path, str]] = {}
         thumbs_by_source: dict[str, str] = {}
         held_sources: dict[str, str] = {}
+        held_copies: dict[str, list[dict]] = {}
         channels: dict[str, dict] = {}
         channel_thumbs: dict[str, str] = {}
         youtube_ids: dict[str, str] = {}
@@ -985,6 +987,12 @@ class Archive:
             chat = _chat_file(info_path, root, self._listing) if media_path else None
             if chat:
                 chats[key] = chat
+            if media_path and extractor and raw.get("id"):
+                held_copies.setdefault(f"{extractor} {raw['id']}", []).append({
+                    "key": key, "format_id": str(raw.get("format_id") or ""),
+                    "ext": media_path.suffix[1:].lower(), "languages": sorted(tracks),
+                    "chat": chat is not None,
+                })
             raw["_chat_held"] = chat is not None
             raw["_chat_url"] = f"/api/chat/{href}" if chat else ""
             raw["_favourite"] = relative in favourites[root]
@@ -1042,6 +1050,7 @@ class Archive:
             self._frame_sources = frame_sources
             self._thumbs_by_source = thumbs_by_source
             self._held_sources = held_sources
+            self._held_copies = held_copies
             self._playlists = playlists
             self._playlist_sidecars = playlist_sidecars
             self._channels = channels
@@ -1083,6 +1092,15 @@ class Archive:
             self.scan()
         with self._lock:
             return self._held_sources
+
+    def held_copies(self, source: str) -> list[dict]:
+        """Every playable copy of one "extractor id" from the last scan, with
+        the format each was fetched in, its extension and the subtitle
+        languages and chat beside it. held_sources names only one copy, but a
+        video fetched again in another format has several."""
+        self.held_sources()
+        with self._lock:
+            return [dict(copy) for copy in self._held_copies.get(source, [])]
 
     def details(self, key: str) -> dict | None:
         """The fields /api/items leaves out, for one video. None when the key

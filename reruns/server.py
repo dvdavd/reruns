@@ -689,6 +689,7 @@ def main() -> None:
                             state_path=config_dir / "downloads.json")
     downloader.on_listing = settings.playlists.record_listing
     downloader.is_held = lambda source: source in archive.held_sources()
+    downloader.library = archive
     yt_dlp_version = downloader.version()
     settings.on_change(lambda changed: setattr(downloader, "root", changed.download_root()))
     channels = ChannelImages(args.channel_cache.expanduser().resolve(),

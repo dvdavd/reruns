@@ -55,3 +55,17 @@ test('a successful job completed before the next poll refreshes the archive once
   await vm.runInContext('poll()', context);
   assert.equal(scans, 1);
 });
+
+test('a comments-only refresh does not read the library again', async () => {
+  let scans = 0;
+  const context = vm.createContext({
+    DEBUG_DOWNLOADS: false, t,
+    request: async () => [{id: 'talk', kind: 'refresh', commentsOnly: true, state: 'done', counts: {completed: 1}}],
+    draw() {}, newFailures: createJobFailureTracker(), onJobs: () => false,
+    ACTIVE_STATES, completedBefore: 0, pollFailures: 0, pollTimer: null,
+    POLL_FAILURES_BEFORE_REPORT: 3, setTimeout: () => 1, clearTimeout() {},
+    report() {}, onSettled: async () => { scans++; },
+  });
+  await vm.runInContext(`${poll}\npoll()`, context);
+  assert.equal(scans, 0);
+});

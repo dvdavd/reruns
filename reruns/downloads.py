@@ -26,6 +26,7 @@ VIDEO_SENTINEL = "@@V@@"
 DONE_SENTINEL = "@@D@@"
 FILE_SENTINEL = "@@F@@"
 POST_SENTINEL = "@@X@@"
+FORMAT_SENTINEL = "@@C@@"
 PROGRESS_FIELDS = "%(info.extractor_key)s\t%(info.id)s\t%(info.playlist_index)s\t%(info.title)s"
 PRINT_FIELDS = "%(extractor_key)s\t%(id)s\t%(playlist_index)s\t%(title)s"
 VIDEO_PRINT_FIELDS = (f"{PRINT_FIELDS}\t%(is_live)s\t%(thumbnail)s\t"
@@ -36,6 +37,13 @@ PROGRESS_TEMPLATE = (
     "%(info.acodec)s\t%(progress._percent_str)s\t%(progress.downloaded_bytes)s\t"
     "%(progress.total_bytes,progress.total_bytes_estimate)s\t%(progress.filename)s\t%(info.is_live)s"
 )
+# The format yt-dlp chose for a video and, as one JSON list, the size and
+# codec of every format it was offered: the panel says what was fetched, and
+# warns when a better match for the request was passed over. One object per
+# format, because separate lists of each field leave out the formats missing it
+# and no longer line up.
+FORMAT_PRINT_FIELDS = (f"{PRINT_FIELDS}\t%(format_id)s\t%(vcodec)s\t%(acodec)s\t"
+                       "%(width)s\t%(height)s\t%(fps)s\t%(formats.:.{vcodec,width,height})j")
 POST_TEMPLATE = f"postprocess:{POST_SENTINEL}{PROGRESS_FIELDS}\t%(progress.status)s"
 DESTINATION = re.compile(r'^\[(?:download|Merger)\].*?(?:Destination:|Merging formats into)\s+"?(.+?)"?$')
 PERCENT = re.compile(r"([\d.]+)%")
@@ -74,8 +82,12 @@ OPTION_VALUES = {
 # still downloads. The codec leads the sort, ahead of resolution: that is what
 # preferring it means, and it is why H.264, which YouTube stops at 1080p, can
 # fetch a smaller picture than Best would. H.264 also asks for AAC, since with
-# YouTube's Opus it would merge into MKV, which no browser plays.
-CODEC_SORTS = {"vp9": "vcodec:vp9", "h264": "vcodec:h264,acodec:aac"}
+# YouTube's Opus it would merge into MKV, which no browser plays. The audio
+# codec must come after resolution: bv* may pick a format with sound already in
+# it, and with AAC ahead of resolution YouTube's 360p H.264+AAC format 18
+# outranked every larger H.264 picture, which has no sound of its own.
+VIDEO_CODEC_SORTS = {"vp9": "vcodec:vp9", "h264": "vcodec:h264"}
+AUDIO_CODEC_SORTS = {"h264": "acodec:aac"}
 # yt-dlp's youtube:max_comments is total,parents,replies,replies-per-thread. An
 # uncapped popular video is thousands of comments, seconds of extra fetching and
 # hundreds of kilobytes in the sidecar, so the most any download keeps is the
@@ -444,6 +456,101 @@ def _thumbnail_of(info: dict) -> str:
     return ""
 
 
+def codec_family(vcodec: str) -> str:
+    """The codec a format string names, in the terms a profile offers."""
+    name = vcodec.lower()
+    for prefix, family in (("avc", "h264"), ("h264", "h264"), ("vp09", "vp9"), ("vp9", "vp9"),
+                           ("av01", "av1"), ("hvc1", "h265"), ("hev1", "h265"), ("h265", "h265")):
+        if name.startswith(prefix):
+            return family
+    return ""
+
+
+def _resolution(width, height) -> int | None:
+    """The smaller side, as yt-dlp's res sort and a profile's quality mean it."""
+    sides = [side for side in (width, height) if isinstance(side, (int, float)) and side > 0]
+    return int(min(sides)) if sides else None
+
+
+def _nearest(sizes: list[int], cap: int | None) -> int | None:
+    """What a res sort should land on: the largest at or under the cap, or the
+    smallest above it when nothing is under."""
+    if not sizes:
+        return None
+    under = [size for size in sizes if cap is None or size <= cap]
+    return max(under) if under else min(sizes)
+
+
+FORMAT_WARNING_LOG = {
+    "codecUnavailable": "{wanted} was not offered, so it was fetched in {got}",
+    "codecPassedOver": "{wanted} was offered but {got} was chosen",
+    "smaller": "fetched at {got}p though {available}p was offered",
+    "codecLimit": "{wanted} goes up to {got}p; {available}p is offered in other codecs",
+}
+
+
+def describe_format(options: dict[str, str], fields: list[str]) -> dict:
+    """What was chosen, and where it falls short of what the options asked
+    for given what the site offered. A warning is a request yt-dlp could have
+    met better; a note explains a shortfall the request itself caused."""
+    format_id, vcodec, acodec, width, height, fps = map(_clean, fields[:6])
+    vcodec = "" if vcodec == "none" else vcodec
+    acodec = "" if acodec == "none" else acodec
+    chosen = {"id": format_id, "vcodec": vcodec, "acodec": acodec,
+              "height": _resolution(_number(width) if width else None,
+                                    _number(height) if height else None),
+              "fps": round(_number(fps) or 0) or None, "warnings": []}
+    if options.get("media") == "audio":
+        chosen["height"] = chosen["fps"] = None
+        chosen["vcodec"] = ""
+        return chosen
+    try:
+        listed = json.loads("\t".join(fields[6:]) or "[]")
+    except json.JSONDecodeError:
+        listed = []
+    offered = [(codec_family(str(entry.get("vcodec") or "")),
+                _resolution(entry.get("width"), entry.get("height")))
+               for entry in (listed if isinstance(listed, list) else [])
+               if isinstance(entry, dict) and entry.get("vcodec") != "none"]
+    offered = [(family, size) for family, size in offered if size]
+    family, size = codec_family(vcodec), chosen["height"]
+    wanted = options.get("codec", "any")
+    wanted = "" if wanted == "any" else wanted
+    names = {"h264": "H.264", "vp9": "VP9", "av1": "AV1", "h265": "H.265"}
+    warn = chosen["warnings"].append
+    families = {name for name, _ in offered}
+    if wanted and family != wanted and (family or families - {""}):
+        warn({"level": "warning", "code": "codecPassedOver" if wanted in families else "codecUnavailable",
+              "wanted": names[wanted], "got": names.get(family, vcodec or "?")})
+    if size is None or not offered:
+        return chosen
+    cap = None if options.get("quality", "best") == "best" else int(options["quality"])
+    same = [each for name, each in offered if name == family] if wanted and family == wanted else []
+    expected = _nearest(same or [each for _, each in offered], cap)
+    if expected and size < expected:
+        warn({"level": "warning", "code": "smaller", "got": size, "available": expected})
+    elif same and (anywhere := _nearest([each for _, each in offered], cap)) and size < anywhere:
+        warn({"level": "note", "code": "codecLimit", "wanted": names[wanted],
+              "got": size, "available": anywhere})
+    return chosen
+
+
+# What --extract-audio names a file it copies the stream into as it is.
+AUDIO_EXTENSIONS = (("mp4a", "m4a"), ("aac", "m4a"), ("opus", "opus"), ("vorbis", "ogg"),
+                    ("mp3", "mp3"), ("flac", "flac"))
+
+
+def final_extension(options: dict[str, str], ext: str, acodec: str) -> str:
+    """The extension a download ends with: a chosen container is remuxed or
+    converted into, and extracted audio is named for its codec."""
+    if options.get("container", "auto") != "auto":
+        return options["container"]
+    if options.get("media") == "audio":
+        return next((extension for prefix, extension in AUDIO_EXTENSIONS
+                     if acodec.lower().startswith(prefix)), ext)
+    return ext
+
+
 class VideoItem:
     def __init__(self, key: str, *, video_id: str = "", extractor: str = "",
                  title: str = "", index: int | None = None,
@@ -460,6 +567,8 @@ class VideoItem:
         self.destination: Path | None = None
         self.files: list[str] = []
         self.transfers: dict[str, dict] = {}
+        # What yt-dlp chose to fetch, with any warnings; see describe_format.
+        self.format: dict | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -470,7 +579,7 @@ class VideoItem:
             "live": self.live,
             "channel": self.channel, "channelId": self.channel_id,
             "thumbnail": self.thumbnail, "duration": self.duration,
-            "error": self.error, "files": self.files,
+            "error": self.error, "files": self.files, "format": self.format,
             "transfers": list(self.transfers.values()),
         }
 
@@ -508,6 +617,9 @@ class Job:
         self.root: Path | None = None
         self.safe_template = False
         self.state, self.error = "queued", ""
+        # A refresh for the comments alone changes nothing the gallery lists,
+        # so the page need not read the library again when it finishes.
+        self.comments_only = False
         self.items: list[VideoItem] = []
         self.title = self.channel = self.thumbnail = self.playlist_id = ""
         self.created_at, self.finished_at = time.time(), None
@@ -516,6 +628,10 @@ class Job:
         self.command: list[str] | None = None
         # Only while the job runs: they name a copy removed when it stops.
         self.cookies: list[str] = []
+        # Set when the library held this video in the format asked for, so
+        # only subtitles, chat or comments are fetched: the held copy's key,
+        # and the scratch folder its fresh comments arrive in.
+        self.extras: dict | None = None
 
     def as_dict(self) -> dict:
         completed = sum(item.state == "done" for item in self.items)
@@ -523,6 +639,7 @@ class Job:
         return {
             "id": self.id, "url": self.url, "state": self.state,
             "subscriptionId": self.subscription_id, "kind": self.kind,
+            "commentsOnly": self.comments_only,
             "error": self.error, "options": self.options,
             "title": self.title, "channel": self.channel, "thumbnail": self.thumbnail,
             "createdAt": self.created_at, "finishedAt": self.finished_at,
@@ -556,6 +673,10 @@ class Downloader:
         # Whether the library already holds "extractor id", lowercased like the
         # archive's own keys; without it every download is taken to be new.
         self.is_held = None
+        # The archive, for a video already held: its copies, where they live,
+        # and folding fetched comments into one. Without it a download of a
+        # held video is always a new copy.
+        self.library = None
         self.on_resume = None
         self._slots, self._lock = threading.Semaphore(concurrency), threading.Lock()
         self._jobs: dict[str, Job] = {}
@@ -752,7 +873,8 @@ class Downloader:
 
     def start_refresh(self, url: str, *, root: Path, scratch: Path,
                       languages: list[str] | None = None, title: str = "",
-                      thumbnail: str = "", comments: bool = False, on_finish=None, owner=None) -> Job:
+                      thumbnail: str = "", comments: bool = False, comments_only: bool = False,
+                      on_finish=None, owner=None) -> Job:
         """Fetch a fresh .info.json (and the subtitles already held) for one
         existing entry into a scratch folder. Nothing in the library is written
         here: ``on_finish`` decides what of it to keep, so a failed or partial
@@ -761,6 +883,7 @@ class Downloader:
         job = Job(canonical_url(url), options)
         job.root, job.title, job.thumbnail = root, title or "Metadata", thumbnail
         job.kind = "refresh"
+        job.comments_only = comments_only
         job.owner = owner
         job.on_finish = on_finish
         job.items = [VideoItem(
@@ -986,6 +1109,36 @@ class Downloader:
                    for count in range(len(languages), 0, -1)]
         return "/".join(choices + ["bv*+ba/b"])
 
+    def _selection_arguments(self, options: dict[str, str]) -> list[str]:
+        """The flags that decide which format yt-dlp fetches, shared by the
+        download and by the check of whether a held copy already matches."""
+        # A filter with the plain selection behind it, not a sort: yt-dlp's
+        # "lang" sort field only ranks by the extractor's own preference and
+        # cannot be given a language. A video with no track in the language
+        # still downloads, with whichever track yt-dlp would have chosen.
+        languages = options["audio_languages"].split(",") if options["audio_languages"] else []
+        if options["media"] == "audio":
+            return ["--format", f"ba[language^={languages[0]}]/ba/b" if languages else "ba/b"]
+        command = ["--format", self._video_format(languages)]
+        if len(languages) > 1:
+            command.append("--audio-multistreams")
+        codec = options["codec"]
+        sort = [VIDEO_CODEC_SORTS[codec]] if codec != "any" else []
+        if options["quality"] != "best":
+            # A preference in the same sort, behind the codec, rather than
+            # a filter on height: a filter fails outright on a video with
+            # nothing at or below it, and height is the long side of a
+            # portrait Short, so a 1080 cap fetched one at 608x1080. res is
+            # the smaller side, and falls back to the nearest size above.
+            sort.append(f"res:{options['quality']}")
+        elif codec in AUDIO_CODEC_SORTS:
+            sort.append("res")
+        if codec in AUDIO_CODEC_SORTS:
+            sort.append(AUDIO_CODEC_SORTS[codec])
+        if sort:
+            command += ["--format-sort", ",".join(sort)]
+        return command
+
     def _command(self, url: str, options: dict[str, str],
                  archive_file: Path | None = None, root: Path | None = None,
                  alongside: bool = False, check: list[str] | None = None,
@@ -996,6 +1149,7 @@ class Downloader:
             "--progress-delta", "0.5", "--progress-template", PROGRESS_TEMPLATE,
             "--progress-template", POST_TEMPLATE,
             "--print", f"before_dl:{VIDEO_SENTINEL}{VIDEO_PRINT_FIELDS}",
+            "--print", f"before_dl:{FORMAT_SENTINEL}{FORMAT_PRINT_FIELDS}",
             "--print", f"after_video:{DONE_SENTINEL}{PRINT_FIELDS}",
             "--print", f"after_move:{FILE_SENTINEL}{PRINT_FIELDS}\t%(filepath)s",
             # Keep metadata and media as one truthful pair on repeat downloads.
@@ -1008,32 +1162,14 @@ class Downloader:
             # "_" rather than "..", so no field can climb out of --paths; see
             # folder_fields. _stream checks where each file landed as well.
             command += ["--replace-in-metadata", ",".join(fields), r"^\.\.$", "_"]
-        # A filter with the plain selection behind it, not a sort: yt-dlp's
-        # "lang" sort field only ranks by the extractor's own preference and
-        # cannot be given a language. A video with no track in the language
-        # still downloads, with whichever track yt-dlp would have chosen.
-        languages = options["audio_languages"].split(",") if options["audio_languages"] else []
+        command += self._selection_arguments(options)
         if options["media"] == "audio":
-            command += ["--format", f"ba[language^={languages[0]}]/ba/b" if languages else "ba/b",
-                        "--extract-audio"]
+            command.append("--extract-audio")
             if options["container"] != "auto":
                 # Converting otherwise encodes at yt-dlp's default quality 5,
                 # about 130 kbps for MP3. Auto copies the stream as it is.
                 command += ["--audio-format", options["container"], "--audio-quality", "0"]
         else:
-            command += ["--format", self._video_format(languages)]
-            if len(languages) > 1:
-                command.append("--audio-multistreams")
-            sort = [CODEC_SORTS[options["codec"]]] if options["codec"] != "any" else []
-            if options["quality"] != "best":
-                # A preference in the same sort, behind the codec, rather than
-                # a filter on height: a filter fails outright on a video with
-                # nothing at or below it, and height is the long side of a
-                # portrait Short, so a 1080 cap fetched one at 608x1080. res is
-                # the smaller side, and falls back to the nearest size above.
-                sort.append(f"res:{options['quality']}")
-            if sort:
-                command += ["--format-sort", ",".join(sort)]
             if options["container"] != "auto":
                 command += ["--merge-output-format", options["container"],
                             "--remux-video", options["container"]]
@@ -1140,7 +1276,10 @@ class Downloader:
                     job.state = "running"
                     self._save()
                 self._name_for_format_if_held(job)
-                self._stream(job)
+                # A held copy with nothing extra asked for is already done.
+                if job.state == "running":
+                    self._stream(job)
+                self._keep_extras(job)
             except (OSError, subprocess.SubprocessError, json.JSONDecodeError, ValueError) as error:
                 if job.state not in STOPPED_STATES:
                     detail = (error.stderr or "") if isinstance(error, subprocess.CalledProcessError) else ""
@@ -1191,8 +1330,142 @@ class Downloader:
         else:
             return
         if any(self.is_held(source) for source in sources):
+            if len(sources) == 1 and self._use_held_copy(job, next(iter(sources))):
+                return
+            if job.state in STOPPED_STATES:
+                return
             job.alongside = True
             job.log("The library already holds this video, so the new copy is named for its format")
+
+    def _check_command(self, job: Job) -> list[str]:
+        """Ask yt-dlp, without fetching anything, which format the download
+        would choose. --print alone implies --simulate."""
+        return ([self.binary, *job.cookies, "--no-playlist", "--no-warnings",
+                 *self._selection_arguments(job.options),
+                 "--print", f"%(ext)s\t{FORMAT_PRINT_FIELDS}"]
+                + split_arguments(job.options.get("arguments", "")) + ["--", job.url])
+
+    def _use_held_copy(self, job: Job, source: str) -> bool:
+        """Whether the library already holds this video in the format the
+        download would choose. If so the media is not fetched again: only the
+        subtitles, chat or comments asked for are, beside the held copy, and
+        the job is set up to do that. Two copies of one file are no use, and
+        the second would only differ by the format in its name.
+
+        A copy outside the folder this download writes to is left alone,
+        since the person downloading may have no right to write beside it;
+        that case, and any failure to ask, fall back to a copy of their own."""
+        if self.library is None:
+            return False
+        copies = self.library.held_copies(source)
+        if not copies:
+            return False
+        with self._lock:
+            if self._closing or job.state in STOPPED_STATES:
+                return False
+            process = subprocess.Popen(self._check_command(job), stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, text=True)
+            job.process = process
+        stdout, stderr = process.communicate()
+        if job.state in STOPPED_STATES:
+            return False
+        line = next((line for line in reversed(stdout.splitlines()) if "\t" in line), "")
+        if process.returncode or not line:
+            job.log(f"Could not tell which format {job.label()} would be fetched in",
+                    logging.WARNING, detail=stderr.strip())
+            return False
+        ext, payload = line.split("\t", 1)
+        fields = _parts(payload, 11)
+        chosen = describe_format(job.options, fields[4:])
+        final = final_extension(job.options, _clean(ext), chosen["acodec"])
+        match = next((copy for copy in copies if copy["format_id"] == chosen["id"]
+                      and copy["ext"] == final), None)
+        if match is None:
+            return False
+        try:
+            root, output, url, title, thumbnail = self.library.subtitle_target(match["key"])
+        except (KeyError, ValueError):
+            return False
+        if not (Path(root) / output).resolve().is_relative_to(Path(job.root or self.root).resolve()):
+            return False
+        extractor, video_id = source.split(" ", 1)
+        item = VideoItem(f"{extractor}:{video_id}:", video_id=video_id, extractor=extractor,
+                         title=title, webpage_url=url, thumbnail=thumbnail)
+        item.format = chosen
+        job.items = [item]
+        command, wanted = self._extras_command(job.options, match, root, output, url)
+        if command is None:
+            chosen["warnings"].append({"level": "note", "code": "heldAlready"})
+            item.state = job.state = "done"
+            job.log(f"The library already holds {job.label()} in this format, so nothing was fetched")
+            return True
+        chosen["warnings"].append({"level": "note", "code": "heldExtras"})
+        item.state = "running"
+        job.extras = {"key": match["key"], "comments": job.options["comments"] == "on",
+                      "scratch": None}
+        if job.extras["comments"]:
+            job.extras["scratch"] = tempfile.mkdtemp(prefix="reruns-extras-")
+            command[-2:-2] = ["--write-info-json", "--output",
+                              f"infojson:{Path(job.extras['scratch']) / 'refresh.%(ext)s'}"]
+        job.command = command
+        job.log(f"The library already holds {job.label()} in this format, "
+                f"so only the {' and '.join(wanted)} are fetched")
+        return True
+
+    def _extras_command(self, options: dict[str, str], held: dict, root, output: str,
+                        url: str) -> tuple[list[str] | None, list[str]]:
+        """yt-dlp fetching only what a download would have added beside a
+        copy the library holds already, or None when that is nothing.
+        Subtitle languages already held are left out, so they are not
+        fetched again; they are not embedded in the held file, but the
+        player reads them from beside it either way."""
+        wanted, languages = [], []
+        # An audio download keeps neither, as in _command.
+        video = options["media"] != "audio"
+        if video and options["subtitles"] != "none":
+            languages = [options["subtitle_languages"] or "all"]
+            languages += [f"-{re.escape(language)}" for language in held.get("languages", [])]
+        chat = video and options["chat"] == "on" and not held.get("chat")
+        command = [self.binary, "--newline", "--color", "no_color", "--skip-download",
+                   "--no-playlist", "--paths", str(root),
+                   # A literal percent in a filename must not become a template field.
+                   "--output", output.replace("%", "%%") + ".%(ext)s"]
+        if languages or chat:
+            if languages:
+                wanted.append("subtitles")
+            if chat:
+                wanted.append("chat")
+            command +=["--write-subs", "--sub-format", "vtt/best", "--sleep-subtitles", "1",
+                        "--sub-langs", ",".join(languages + ["live_chat" if chat else "-live_chat"]),
+                        "--ignore-errors"]
+            if options["subtitles"] == "manual_auto":
+                command.append("--write-auto-subs")
+        if options["comments"] == "on":
+            wanted.append("comments")
+            command += ["--write-comments", "--extractor-args", COMMENT_EXTRACTOR_ARGS]
+        if not wanted:
+            return None, []
+        return command + ["--", url], wanted
+
+    def _keep_extras(self, job: Job) -> None:
+        """Fold the comments an extras-only job fetched into the held copy's
+        sidecar, the way the comments button does, and have the library see
+        the subtitles it saved."""
+        extras = job.extras
+        if not extras or self.library is None or job.state == "paused":
+            return
+        scratch = Path(extras["scratch"]) if extras.get("scratch") else None
+        try:
+            if job.state == "done" and scratch is not None and not self.library.apply_refresh(
+                    extras["key"], scratch, ("comments",)):
+                job.log(f"No comments came back for {job.label()}", logging.WARNING)
+        except OSError as error:
+            job.log(f"Could not save the comments for {job.label()}: {error}", logging.WARNING)
+        finally:
+            if scratch is not None:
+                shutil.rmtree(scratch, ignore_errors=True)
+            if job.state == "done":
+                self.library.scan()
 
     def _log_outcome(self, job: Job) -> None:
         """One line for how a job ended. Stopping one is logged when it is
@@ -1398,6 +1671,18 @@ class Downloader:
         extractor, video_id, index, title = map(_clean, fields[:4])
         return self._find_item(job, extractor, video_id, index, title, current), fields[4:]
 
+    @staticmethod
+    def _log_format(job: Job, item: VideoItem) -> None:
+        chosen = item.format or {}
+        size = f"{chosen['height']}p " if chosen.get("height") else ""
+        codecs = " + ".join(codec for codec in (chosen.get("vcodec"), chosen.get("acodec")) if codec)
+        job.log(f"Fetching “{item.title}” as format {chosen.get('id') or '?'}"
+                + (f" ({size}{codecs})" if size or codecs else ""))
+        for warning in chosen.get("warnings", []):
+            if warning["level"] == "warning":
+                job.log(f"“{item.title}”: {FORMAT_WARNING_LOG[warning['code']].format(**warning)}",
+                        logging.WARNING)
+
     def _stream(self, job: Job) -> None:
         command = job.command or self._command(
             job.url, job.options, job.archive_file, job.root, job.alongside,
@@ -1446,6 +1731,12 @@ class Downloader:
                         job.log(f"{'Recording' if current.live else 'Downloading'} “{current.title}”"
                                 + (" live" if current.live else ""))
                     current.state = "running"
+            elif line.startswith(FORMAT_SENTINEL):
+                item, fields = self._event_item(job, line[len(FORMAT_SENTINEL):], 7, current)
+                if item is not None:
+                    current = item
+                    item.format = describe_format(job.options, fields)
+                    self._log_format(job, item)
             elif line.startswith(SENTINEL):
                 current = self._apply_progress(job, line[len(SENTINEL):], current) or current
             elif line.startswith(POST_SENTINEL):
