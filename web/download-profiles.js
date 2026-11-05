@@ -4,7 +4,7 @@
 import {plural, t} from './i18n.js';
 
 export const PROFILE_OPTIONS = {
-  media: 'video', quality: 'best', container: 'auto', codec: 'any', subtitles: 'none',
+  media: 'video', quality: 'best', container: 'auto', codec: 'any', audio_codec: 'auto', subtitles: 'none',
   subtitle_languages: 'en.*', audio_languages: '', comments: 'off', chat: 'off', playlist: 'all', organization: 'server',
   subdirectory: '', arguments: '',
 };
@@ -28,6 +28,12 @@ export const BLANK_PROFILE = {id: '', name: '', library: '', options: {...PROFIL
 export const codecChoices = () => [['any', t('profiles.codec.any')], ['vp9', t('profiles.codec.vp9')],
   ['h264', t('profiles.codec.h264')]];
 const CODEC_LABELS = {vp9: 'VP9', h264: 'H.264'};
+
+/* Which audio codec to prefer, for video and audio alike. Automatic keeps
+   yt-dlp's choice, or AAC with H.264; either way a sort, so nothing is refused. */
+export const audioCodecChoices = () => [['auto', t('profiles.audioCodec.auto')],
+  ['opus', t('profiles.audioCodec.opus')], ['aac', t('profiles.audioCodec.aac')]];
+const AUDIO_CODEC_LABELS = {opus: 'Opus', aac: 'AAC'};
 // What each preference fetches from YouTube, to ask a browser about.
 const CODEC_PROBES = {
   vp9: 'video/webm; codecs="vp09.00.40.08"',
@@ -65,6 +71,7 @@ export function profileLabel(profile, libraries = []) {
     options.quality === 'best' ? t('profiles.bestQuality') : `${options.quality}p`,
     options.container === 'auto' ? '' : options.container.toUpperCase(),
     CODEC_LABELS[options.codec] || '',
+    AUDIO_CODEC_LABELS[options.audio_codec] || '',
     // The languages are worth a word only when there is something to fetch,
     // and only when they are not simply every language there is.
     options.subtitles === 'none' ? ''

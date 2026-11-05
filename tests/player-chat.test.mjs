@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {WINDOW_MS, between, formatOffset, newestUpTo, windowOf} from '../web/player-chat.js';
+import {WINDOW_MS, between, chosenPosition, formatOffset, newestUpTo, placement, windowOf} from '../web/player-chat.js';
 
 const say = t => ({t, author: 'a', kind: 'text', role: '', amount: '', text: String(t)});
 // Two windows, and the third not yet arrived.
@@ -33,4 +33,39 @@ test('a seek shows the newest messages before the new time, oldest first', () =>
   assert.deepEqual(newestUpTo(windows, WINDOW_MS + 100, 3).map(m => m.t), [1000, WINDOW_MS - 1, WINDOW_MS]);
   assert.deepEqual(newestUpTo(windows, 500, 5).map(m => m.t), [0]);
   assert.deepEqual(newestUpTo(windows, 0, 5).map(m => m.t), [0]);
+});
+
+test('the chat goes beside the player only where the window has room for it', () => {
+  const wide = {beside: true, automatic: true};
+  const middling = {beside: true, automatic: false};
+  const narrow = {beside: false, automatic: false};
+  assert.equal(placement('automatic', wide), 'beside');
+  // Automatic asks for more room than choosing Beside does.
+  assert.equal(placement('automatic', middling), 'below');
+  assert.equal(placement('beside', middling), 'beside');
+  assert.equal(placement('beside', narrow), 'below');
+  assert.equal(placement('below', wide), 'below');
+});
+
+test('an upright phone pins the chat under the picture unless it was put under the details', () => {
+  const phone = {beside: false, automatic: false, pinned: true};
+  assert.equal(placement('automatic', phone), 'pinned');
+  assert.equal(placement('beside', phone), 'pinned');
+  assert.equal(placement('below', phone), 'below');
+  assert.equal(placement('overlay', phone), 'overlay');
+  assert.equal(placement('automatic', {...phone, fullscreen: true}), 'overlay');
+});
+
+test('an unknown or missing choice of chat position is Automatic', () => {
+  assert.equal(chosenPosition(null), 'automatic');
+  assert.equal(chosenPosition('sideways'), 'automatic');
+  assert.equal(chosenPosition('below'), 'below');
+});
+
+test('fullscreen puts the chat over the picture whatever was chosen, as does choosing it', () => {
+  for (const choice of ['automatic', 'beside', 'below', 'overlay']) {
+    assert.equal(placement(choice, {beside: true, automatic: true, fullscreen: true}), 'overlay');
+  }
+  assert.equal(placement('overlay', {beside: false, automatic: false}), 'overlay');
+  assert.equal(chosenPosition('overlay'), 'overlay');
 });

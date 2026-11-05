@@ -305,7 +305,7 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
         path = unquote(self.path.split("?", 1)[0])
         if self.auth and not self._is_admin():
             item_prefixes = ("/api/seek-preview/", "/api/item-details/", "/api/comments/", "/api/comment-avatar/",
-                             "/api/chat/", "/api/sponsorblock/",
+                             "/api/chat/", "/api/chat-avatar/", "/api/sponsorblock/",
                              "/api/playback/", "/stream/", "/media/", "/thumb/")
             key = next((path[len(prefix):] for prefix in item_prefixes if path.startswith(prefix)), None)
             if path.startswith("/subtitles/"):
@@ -430,10 +430,16 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
                 self.send_error(HTTPStatus.NOT_FOUND, "No such video")
             else:
                 self._send_json(chat, head_only=head_only, revalidate=True)
-        elif path.startswith("/api/comment-avatar/") and self.comment_avatars:
-            source = self.archive.comment_avatar_source(
-                path[len("/api/comment-avatar/"):],
-                parse_qs(self.path.partition("?")[2]).get("c", [""])[0])
+        elif path.startswith(("/api/comment-avatar/", "/api/chat-avatar/")) and self.comment_avatars:
+            # A chat author's picture shares the commenters' cache: both are
+            # keyed by channel, so someone who comments and chats is one file.
+            query = parse_qs(self.path.partition("?")[2])
+            if path.startswith("/api/chat-avatar/"):
+                source = self.archive.chat_avatar_source(
+                    path[len("/api/chat-avatar/"):], query.get("a", [""])[0])
+            else:
+                source = self.archive.comment_avatar_source(
+                    path[len("/api/comment-avatar/"):], query.get("c", [""])[0])
             picture = self.comment_avatars.path_for(*source) if source else None
             if picture is None:
                 self.send_error(HTTPStatus.NOT_FOUND)

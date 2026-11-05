@@ -1163,7 +1163,16 @@ class Archive:
             return None
         if path is None:
             return {"held": False, "messages": []}
-        return {"held": True, "messages": self._chat_replays.window(path, start, end)}
+        return {"held": True, "messages": self._chat_replays.window(path, start, end),
+                "avatars": f"/api/chat-avatar/{quote(key)}"}
+
+    def chat_avatar_source(self, key: str, channel: str) -> tuple[str, str] | None:
+        """(channel, picture address) for an author in a stream's chat replay,
+        the address from the replay itself, never from the request."""
+        with self._lock:
+            path = self._chat.get(key)
+        photo = self._chat_replays.photo(path, channel) if path and channel else ""
+        return (channel, photo) if photo else None
 
     def comment_avatar_source(self, key: str, comment_id: str) -> tuple[str, str] | None:
         """(commenter id, picture address) for one comment, from the sidecar."""

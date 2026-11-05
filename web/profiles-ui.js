@@ -2,7 +2,7 @@ import {escapeMarkup, html, render} from 'media-ui';
 import {icon} from './icon.js';
 import {post, request} from './api.js';
 import {createDrawerControls, createDrawerAddButton} from './drawer.js';
-import {BLANK_PROFILE, PROFILE_OPTIONS, chatChoices, codecChoices, commentChoices, formatChoices, organisationChoices, profileLabel, profilesSummary} from './download-profiles.js';
+import {BLANK_PROFILE, PROFILE_OPTIONS, audioCodecChoices, chatChoices, codecChoices, commentChoices, formatChoices, organisationChoices, profileLabel, profilesSummary} from './download-profiles.js';
 import {t} from './i18n.js';
 import {audioLanguagePicker, subtitleLanguagePicker} from './subtitle-languages.js';
 
@@ -160,6 +160,7 @@ export function createProfilesUI({drawer, drawerClose, resetButton, summary, lis
       ${field(t('profiles.format'), 'container', formatChoices(audio))}
       ${audio ? null : field(t('profiles.codec'), 'codec', codecChoices(),
         t('profiles.codecHint'))}
+      ${field(t('profiles.audioCodec'), 'audio_codec', audioCodecChoices(), t('profiles.audioCodecHint'))}
       ${audio ? null : field(t('profiles.subtitles'), 'subtitles', subtitleChoices())}
       ${audio || options.subtitles === 'none' ? null : html`
         <div class="profile-field profile-field-wide">

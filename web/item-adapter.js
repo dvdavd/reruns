@@ -278,6 +278,10 @@ export function toMediaItem(raw, originalOrder = 0) {
     resolution: raw.width && raw.height ? `${raw.width}x${raw.height}` : '',
     quality: qualityOf(raw),
     codec: raw.vcodec && raw.vcodec !== 'none' ? raw.vcodec : (raw.acodec || 'Unknown'),
+    // Both codecs as yt-dlp names them, to ask a browser whether it plays an
+    // MKV of them itself (see playsMatroska).
+    videoCodec: raw.vcodec && raw.vcodec !== 'none' ? String(raw.vcodec) : '',
+    audioCodec: raw.acodec && raw.acodec !== 'none' ? String(raw.acodec) : '',
     encoding: encodingOf(raw, container),
     thumbnail,
     watch: {},
@@ -513,6 +517,7 @@ function formatOf(item) {
     resolution: part.resolution,
     codec: item.codec,
     encoding: part.encoding,
+    videoCodec: part.videoCodec,
     audioCodec: item.archive.audioCodec,
     container: item.archive.container,
     fps: item.archive.fps,
@@ -617,6 +622,8 @@ export function selectFormat(item, formatId) {
   part.resolution = chosen.resolution;
   item.audioOnly = chosen.audioOnly;
   part.encoding = chosen.encoding;
+  part.videoCodec = chosen.videoCodec;
+  part.audioCodec = chosen.audioCodec;
   part.seekPreviewUrl = chosen.seekPreviewUrl;
   part.subtitleTracks = chosen.subtitleTracks;
   part.audioTrackCount = chosen.audioTrackCount;

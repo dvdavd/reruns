@@ -125,3 +125,9 @@ test('manual defaults and granted folder labels stay compact without changing de
   assert.deepEqual(JSON.parse(granted[0].value), {library: 'lib1', folder: 'Shared'});
   assert.equal(grantedLocationChoices([{library: 'lib1', folder: ''}], libraries)[0].label, 'music');
 });
+
+test('a profile names a preferred audio codec, for audio-only downloads too', () => {
+  assert.ok(profileLabel({options: {media: 'video', codec: 'vp9', audio_codec: 'aac'}}).includes('VP9 · AAC'));
+  assert.ok(profileLabel({options: {media: 'audio', audio_codec: 'opus'}}).includes('Opus'));
+  assert.ok(!/Opus|AAC/.test(profileLabel({options: {media: 'video', audio_codec: 'auto'}})));
+});

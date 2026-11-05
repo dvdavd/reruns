@@ -75,6 +75,7 @@ export function createPlayerElement({label, labels} = {}) {
       Array.from({length: 10}, () => '<span></span>').join('')}</div>
     </div>
     <div class="media-player-message" role="status" hidden></div>
+    <div class="media-player-spinner" aria-hidden="true" hidden></div>
     <div class="media-player-controls" aria-label="${s('controls')}">
       <button type="button" data-media-play aria-label="${s('play')}">${icon('play', 'media-icon-play')}${icon('pause', 'media-icon-pause')}</button>
       <button type="button" data-media-restart aria-label="${s('restart')}">${icon('skip-back')}</button>
@@ -139,6 +140,7 @@ export class MediaPlayer {
     });
     this.fullscreenButton = root.querySelector('[data-media-fullscreen]');
     this.message = root.querySelector('.media-player-message');
+    this.spinner = root.querySelector('.media-player-spinner');
     this.canvas = root.querySelector('.media-player-canvas');
     this.viewButton = root.querySelector('[data-media-view]');
     this.resetButton = root.querySelector('[data-media-reset]');
@@ -181,6 +183,12 @@ export class MediaPlayer {
     this.resetButton.addEventListener('click', () => this.resetView());
     this.video.addEventListener('loadedmetadata', () => { this.updateMediaKind(); if (this.resumeSeconds > 0) this.video.currentTime = Math.min(this.resumeSeconds, Math.max(0, this.video.duration - 1)); this.updateControls(); this.draw(); });
     this.video.addEventListener('timeupdate', () => this.updateControls());
+    // A spinner once the picture has been waiting a moment: a seek into what
+    // is not loaded yet, a stall, a stream that is slow to start. Not at
+    // once, or every seek within the loaded part would flash one.
+    for (const type of ['seeking', 'seeked', 'waiting', 'playing', 'canplay', 'play', 'pause', 'timeupdate', 'emptied', 'error', 'loadeddata']) {
+      this.video.addEventListener(type, () => this.updateSpinner());
+    }
     this.video.addEventListener('volumechange', () => this.updateVolume());
     this.video.addEventListener('play', () => { this.root.dataset.playerState = 'playing'; this.playButton.ariaLabel = say(this.labels, 'pause'); clearInterval(this.reportTimer); this.reportTimer = setInterval(() => this.report('progress'), this.reportInterval); this.startDrawing(); this.audioWaveform.start(); this.showControls(); });
     this.video.addEventListener('pause', () => { if (this.root.dataset.playerState !== 'idle') this.root.dataset.playerState = 'paused'; this.playButton.ariaLabel = say(this.labels, 'play'); clearInterval(this.reportTimer); this.audioWaveform.pause(); this.keepControlsVisible(); if (!this.stopping) this.report('pause'); });
@@ -609,6 +617,26 @@ export class MediaPlayer {
     const placement = previewPlacement({rootRect, seekRect, ratio, thumb, previewHeight: this.preview.offsetHeight});
     this.preview.style.left = `${placement.left}px`;
     this.preview.style.top = `${placement.top}px`;
+  }
+  /** Whether the picture is waiting for media: sought or playing, but with
+   *  nothing yet to show for it. */
+  isWaiting() {
+    const video = this.video;
+    return Boolean(this.source) && !video.error
+      && (video.seeking || (!video.paused && !video.ended && video.readyState < 3));
+  }
+  updateSpinner() {
+    if (!this.isWaiting()) {
+      clearTimeout(this.spinnerTimer);
+      this.spinnerTimer = null;
+      this.spinner.hidden = true;
+      return;
+    }
+    if (!this.spinner.hidden || this.spinnerTimer) return;
+    this.spinnerTimer = setTimeout(() => {
+      this.spinnerTimer = null;
+      this.spinner.hidden = !this.isWaiting();
+    }, 400);
   }
   showMessage(message) { this.message.textContent = message; this.message.hidden = false; }
   hideMessage() { this.message.hidden = true; this.message.textContent = ''; }

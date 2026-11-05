@@ -359,6 +359,22 @@ class DownloadOptionsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_options({'media': 'audio', 'codec': 'vp9'})
 
+    def test_a_preferred_audio_codec_sorts_behind_resolution(self):
+        def sort(**options):
+            command = self.downloader._command('https://example.test/v', validate_options(options))
+            return command[command.index('--format-sort') + 1] if '--format-sort' in command else None
+        self.assertEqual(sort(audio_codec='opus'), 'res,acodec:opus')
+        self.assertEqual(sort(audio_codec='aac', quality='720'), 'res:720,acodec:aac')
+        self.assertEqual(sort(codec='vp9', audio_codec='aac'), 'vcodec:vp9,res,acodec:aac')
+        # Asked for outright, it overrides the AAC that H.264 implies.
+        self.assertEqual(sort(codec='h264', audio_codec='opus'), 'vcodec:h264,res,acodec:opus')
+        # Audio only: which stream Original copies, or a conversion starts from.
+        self.assertEqual(sort(media='audio', audio_codec='aac'), 'acodec:aac')
+        self.assertEqual(sort(media='audio', audio_codec='opus', container='mp3'), 'acodec:opus')
+        self.assertIsNone(sort(media='audio'))
+        with self.assertRaises(ValueError):
+            validate_options({'audio_codec': 'mp3'})
+
     def test_rejects_unknown_or_incompatible_options(self):
         with self.assertRaises(ValueError):
             validate_options({'nonsense': 'whatever'})

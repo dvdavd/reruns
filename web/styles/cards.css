@@ -297,7 +297,54 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
               width 300ms cubic-bezier(.22,.8,.25,1),
               margin 300ms cubic-bezier(.22,.8,.25,1);
 }
+/* The chat replay beside the player (player-chat.js moves it here). The
+   column grows by the chat's width rather than the stage giving it up, so a
+   window with width to spare keeps the picture as tall as before; only when
+   the page runs out does the stage narrow, by taking the chat's width out of
+   the room it may fill. The first cell is at least as wide as the stage, so a
+   wide film never reaches across the chat. Everything below spans both. */
+.archive-watch:not(.is-mini).has-chat-beside .archive-watch-main {
+  --watch-chat-width: clamp(240px, 28cqw, 360px);
+  /* Attached: the chat is the player's other half, so they meet with no
+     gap, square where they meet and curved together at the outer corners. */
+  --watch-chat-gap: 0px;
+  --watch-page-width: calc(100cqw - var(--watch-chat-width) - var(--watch-chat-gap));
+  max-width: calc(max(var(--watch-stage-height) * (16 / 9), var(--watch-stage-width))
+    + var(--watch-chat-gap) + var(--watch-chat-width));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--watch-chat-width);
+  column-gap: var(--watch-chat-gap);
+}
+.archive-watch:not(.is-mini).has-chat-beside .archive-watch-main > .archive-watch-stage {
+  grid-area: 1 / 1;
+  /* Against the chat rather than centred in its cell, so a picture narrower
+     than 16:9 does not leave a gap between them. The pair is centred instead:
+     the stage takes half of what its cell has spare on its left, and the
+     chat steps left by the other half (below), so the room the column keeps
+     for a 16:9 picture falls either side of the two rather than all to the
+     left of a 4:3 one. The details below keep the column's full width. */
+  margin-inline: calc((100% - var(--watch-stage-width)) / 2) calc((var(--watch-stage-width) - 100%) / 2);
+  border-radius: var(--player-rounding, 34px) 0 0 var(--player-rounding, 34px);
+}
+/* The same half, worked out from the chat's side: 100cqw is the column
+   (the nearest container) and 100% the chat's own cell. Not from
+   --watch-chat-width, whose 28cqw would be read against the column here
+   rather than the page. Margins, as the stage's are, so the two move
+   together when the picture's shape is corrected. */
+.archive-watch:not(.is-mini).has-chat-beside .archive-watch-main > .archive-watch-chat {
+  --watch-pair-shift: calc(max(0px, 100cqw - 100% - var(--watch-chat-gap) - var(--watch-stage-width)) / 2);
+  margin-inline: calc(-1 * var(--watch-pair-shift)) var(--watch-pair-shift);
+  transition: margin 300ms cubic-bezier(.22,.8,.25,1);
+}
 @media (prefers-reduced-motion: reduce) {
+  .archive-watch:not(.is-mini).has-chat-beside .archive-watch-main > .archive-watch-chat { transition: none; }
+}
+.archive-watch:not(.is-mini).has-chat-beside .archive-watch-main > :not(.archive-watch-stage, .archive-watch-chat) { grid-column: 1 / -1; }
+/* Grid items' margins do not collapse, so the head's bottom margin and the
+   lower block's top one would add up and push the details down; the head's
+   alone gives the same gap as the column outside the grid. */
+.archive-watch:not(.is-mini).has-chat-beside .archive-watch-main > .archive-watch-lower { margin-top: 0; }
+
   .archive-watch-stage { transition: none; }
 }
 /* Mid-zoom the thumbnail is measured against the stage, so it must be still. */
@@ -739,6 +786,10 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
    for the translucent hover wash that every bar button shares. */
 .archive-subtitle-toggle[aria-pressed="true"] .subtitle-frame { fill: currentColor; }
 .archive-subtitle-toggle[aria-pressed="true"] .subtitle-line { stroke: #141414; }
+.media-player-controls .archive-chat-bar-toggle .icon { stroke: currentColor; fill: none; }
+.media-player-controls .archive-chat-bar-toggle[hidden] { display: none; }
+.archive-chat-bar-toggle[aria-pressed="true"] .chat-frame { fill: currentColor; }
+.archive-chat-bar-toggle[aria-pressed="true"] .chat-line { stroke: #141414; }
 /* The settings gear sits with the other player controls. */
 .media-player-controls .archive-settings-open .icon {
   stroke: currentColor;

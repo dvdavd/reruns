@@ -245,6 +245,14 @@ function rememberedAudioLanguage() {
   try { return preferences.getItem(AUDIO_LANGUAGE_KEY) || ''; } catch { return ''; }
 }
 
+/** Whether this browser says it plays an MKV of the part's codecs itself.
+ *  Only "probably" counts: "maybe" is said of containers whatever is in them. */
+export function playsMatroska(part, probe = globalThis.document?.createElement('video')) {
+  const codecs = [part.videoCodec, part.audioCodec].filter(Boolean);
+  if (!part.videoCodec || !probe?.canPlayType) return false;
+  return probe.canPlayType(`video/x-matroska; codecs="${codecs.join(', ')}"`) === 'probably';
+}
+
 export class ArchiveMediaProvider extends LocalMediaProvider {
   /**
    * Where the next load should start, when the caller knows better than the
@@ -280,10 +288,15 @@ export class ArchiveMediaProvider extends LocalMediaProvider {
     const audioIndex = this.audioOverride ?? null;
     this.audioOverride = null;
     let remux;
-    // An MKV always goes through the remux; any other file only when it holds
-    // several audio tracks, which a browser's own player cannot switch between.
-    if (globalThis.MediaSource && source.url?.startsWith('/media/')
-        && (/\.mkv$/i.test(part.filename || '') || part.audioTrackCount > 1)) {
+    // A file goes through the remux when it holds several audio tracks, which
+    // a browser's own player cannot switch between, and an MKV when the
+    // browser will not play it itself. Firefox once played MKV with frames
+    // dropping, and every MKV was remuxed; it plays them smoothly now, and the
+    // remux there costs memory for good on each seek into what is not loaded
+    // (a Firefox fault in its MediaSource), gigabytes after some skipping.
+    const remuxed = part.audioTrackCount > 1
+      || (/\.mkv$/i.test(part.filename || '') && !playsMatroska(part));
+    if (globalThis.MediaSource && source.url?.startsWith('/media/') && remuxed) {
       try {
         const key = source.url.slice('/media/'.length);
         const fetchPlan = async index => {

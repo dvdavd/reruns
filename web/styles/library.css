@@ -868,7 +868,7 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
    XYZ's Y channel measures the actual fill luminance; .179 is the crossover
    where black and white offer equal contrast (both about 4.58:1). */
 :where(.topbar-navigation .icon-button, .archive-watch-action,
-    .channel-profile-favourite, .playlist-popup-reverse,
+    .channel-profile-favourite, .playlist-popup-reverse, .archive-chat-overlay-toggle,
     .settings-speed-presets button, .customisation-choices label,
     .library-row-action, .libraries-add, .profile-add, .profile-save,
     .topbar-go button, .topbar-browse, .sponsorblock-modes button,
@@ -896,6 +896,7 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
     .archive-watch-action, .channel-profile-favourite,
     .statistics-ranking button,
     .sponsorblock-modes button, .settings-speed-presets button, .playlist-popup-reverse,
+    .archive-chat-overlay-toggle,
     .customisation-choices label, .library-row-action,
     .libraries-add, .profile-add, .profile-save, .topbar-go button, .topbar-browse,
     .settings-menu button[role^="menuitem"],

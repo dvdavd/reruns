@@ -65,7 +65,7 @@ STOPPED_STATES = {"cancelled", "paused"}
 BROKE_ON_EXISTING = 101
 
 DEFAULT_OPTIONS = {
-    "media": "video", "quality": "best", "container": "auto", "codec": "any",
+    "media": "video", "quality": "best", "container": "auto", "codec": "any", "audio_codec": "auto",
     "subtitles": "none", "subtitle_languages": "en.*", "audio_languages": "",
     "comments": "off", "chat": "off", "playlist": "all", "organization": "server",
     "subdirectory": "", "arguments": "",
@@ -75,6 +75,7 @@ OPTION_VALUES = {
     "quality": {"best", "2160", "1440", "1080", "720", "480"},
     "container": {"auto", "mp4", "mkv", "webm", "mp3", "m4a", "opus", "flac"},
     "codec": {"any", "vp9", "h264"},
+    "audio_codec": {"auto", "opus", "aac"},
     "subtitles": {"none", "manual", "manual_auto"},
     "comments": {"off", "on"},
     "chat": {"off", "on"},
@@ -92,6 +93,11 @@ OPTION_VALUES = {
 # outranked every larger H.264 picture, which has no sound of its own.
 VIDEO_CODEC_SORTS = {"vp9": "vcodec:vp9", "h264": "vcodec:h264"}
 AUDIO_CODEC_SORTS = {"h264": "acodec:aac"}
+# An audio codec asked for outright, rather than implied by H.264 as above. A
+# sort too, so a video with only the other codec still downloads. For audio
+# only it decides which stream Original copies, so AAC lands as M4A without
+# a conversion; Opus is YouTube's best, AAC the one that fits MP4 and Safari.
+AUDIO_CODEC_PREFERENCES = {"opus": "acodec:opus", "aac": "acodec:aac"}
 # yt-dlp's youtube:max_comments is total,parents,replies,replies-per-thread. An
 # uncapped popular video is thousands of comments, seconds of extra fetching and
 # hundreds of kilobytes in the sidecar, so the most any download keeps is the
@@ -1179,13 +1185,18 @@ class Downloader:
         # cannot be given a language. A video with no track in the language
         # still downloads, with whichever track yt-dlp would have chosen.
         languages = options["audio_languages"].split(",") if options["audio_languages"] else []
+        audio_sort = AUDIO_CODEC_PREFERENCES.get(options["audio_codec"])
         if options["media"] == "audio":
-            return ["--format", f"ba[language^={languages[0]}]/ba/b" if languages else "ba/b"]
+            command = ["--format", f"ba[language^={languages[0]}]/ba/b" if languages else "ba/b"]
+            return command + (["--format-sort", audio_sort] if audio_sort else [])
         command = ["--format", self._video_format(languages)]
         if len(languages) > 1:
             command.append("--audio-multistreams")
         codec = options["codec"]
         sort = [VIDEO_CODEC_SORTS[codec]] if codec != "any" else []
+        # The audio codec comes after resolution for the reason given above
+        # VIDEO_CODEC_SORTS, whether H.264 implied it or it was asked for.
+        audio_sort = audio_sort or AUDIO_CODEC_SORTS.get(codec)
         if options["quality"] != "best":
             # A preference in the same sort, behind the codec, rather than
             # a filter on height: a filter fails outright on a video with
@@ -1193,10 +1204,10 @@ class Downloader:
             # portrait Short, so a 1080 cap fetched one at 608x1080. res is
             # the smaller side, and falls back to the nearest size above.
             sort.append(f"res:{options['quality']}")
-        elif codec in AUDIO_CODEC_SORTS:
+        elif audio_sort:
             sort.append("res")
-        if codec in AUDIO_CODEC_SORTS:
-            sort.append(AUDIO_CODEC_SORTS[codec])
+        if audio_sort:
+            sort.append(audio_sort)
         if sort:
             command += ["--format-sort", ",".join(sort)]
         return command

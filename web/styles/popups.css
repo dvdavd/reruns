@@ -141,6 +141,7 @@
 .settings-popup[data-page="subtitles"] { width: 320px; }
 .settings-popup[data-page="sponsorblock"] { width: 300px; }
 .settings-popup[data-page="immersive"] { width: 236px; }
+.settings-popup[data-page="chat"] { width: 236px; }
 .settings-popup .playlist-popup-head { margin-bottom: 4px; }
 .settings-pages {
   display: grid;
@@ -161,6 +162,7 @@
 .settings-pages[data-page="speed"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="subtitles"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="immersive"] .settings-page[data-settings-page="main"],
+.settings-pages[data-page="chat"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="background"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="main"] { transform: translateX(-100%); }
 .settings-pages[data-page="speed"] .settings-page[data-settings-page="speed"] { transform: translateX(0); }
@@ -169,6 +171,7 @@
 .settings-pages[data-page="sponsorblock"] :is(.settings-page[data-settings-page="speed"], .settings-page[data-settings-page="subtitles"]) { transform: translateX(-100%); }
 .settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="sponsorblock"] { transform: translateX(0); }
 .settings-pages[data-page="immersive"] .settings-page[data-settings-page="immersive"] { transform: translateX(0); }
+.settings-pages[data-page="chat"] .settings-page[data-settings-page="chat"] { transform: translateX(0); }
 .settings-pages[data-page="background"] .settings-page[data-settings-page="background"] { transform: translateX(0); }
 /* The heading needs air under it, or the first control reads as part of the
    head rather than as the page's answer to it. */

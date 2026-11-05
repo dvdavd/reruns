@@ -189,8 +189,8 @@
 :root[data-theme="light"] .archive-watch-specs dt {
   color: oklch(from var(--watch-accent) .32 c h);
 }
-:root[data-theme="light"] :is(.archive-comment-replies summary, .archive-comment-time) { color: var(--color-accent); }
-:root[data-theme="light"] :is(.archive-watch-facts, .archive-watch-description, .archive-watch-comments) { box-shadow: var(--light-card-shadow); }
+:root[data-theme="light"] :is(.archive-comment-replies summary, .archive-comment-time, .archive-comment-more) { color: var(--color-accent); }
+:root[data-theme="light"] :is(.archive-watch-facts, .archive-watch-description, .archive-watch-comments, .archive-watch-chat:not(.is-overlay, .is-beside, .is-pinned)) { box-shadow: var(--light-card-shadow); }
 
 /* Person chips wear the same light chip as the channel's. They are rare -
    most sidecars name one person, who is the channel - so they went without,

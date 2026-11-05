@@ -275,6 +275,9 @@
       <label data-video-option data-i18n="profiles.codec">Codec
         <select name="codec" form="download-form"></select>
       </label>
+      <label data-i18n="profiles.audioCodec">Audio codec
+        <select name="audio_codec" form="download-form"></select>
+      </label>
       <label data-i18n="profiles.comments">Comments
         <select name="comments" form="download-form">
           <option value="off" data-i18n="profiles.comments.off">Don't save</option>
@@ -1404,8 +1407,17 @@
                  aria-label="Chat replay" data-i18n-attrs="aria-label:watch.chat">
           <div class="archive-watch-comments-head">
             <h2 data-i18n="watch.chat">Chat replay</h2>
-            <div class="archive-watch-comments-tabs statistics-ranking" role="group">
-              <button type="button" data-chat-toggle aria-pressed="false" data-i18n="watch.chat.show">Show</button>
+            <div class="archive-watch-comments-controls">
+              <button class="archive-comments-refresh" type="button" data-chat-move hidden
+                      title="Move beside the player" aria-label="Move beside the player"
+                      data-i18n-attrs="aria-label:watch.chat.moveBeside,title:watch.chat.moveBeside">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#layout-sidebar-right"/></svg>
+              </button>
+              <div class="archive-chat-overlay-controls" data-chat-overlay-controls role="group" hidden
+                   aria-label="Chat layout" data-i18n-attrs="aria-label:watch.chat.layout"></div>
+              <div class="archive-watch-comments-tabs statistics-ranking" role="group">
+                <button type="button" data-chat-toggle aria-pressed="false" data-i18n="watch.chat.show">Show</button>
+              </div>
             </div>
           </div>
           <p class="archive-comments-status archive-chat-status" data-chat-status hidden></p>
@@ -1495,6 +1507,10 @@
             </span>
             <span data-i18n="player.immersive">Immersive mode</span><span data-immersive-summary>20 seconds</span>
           </button>
+          <button class="settings-row settings-link" type="button" data-settings-go="chat" data-chat-settings-row hidden>
+            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"/><path d="M15 4l0 16"/></svg></span>
+            <span data-i18n="watch.chat">Chat replay</span><span data-chat-position-summary>Automatic</span>
+          </button>
           <button class="settings-row settings-link autoplay-row" type="button" role="switch"
                   aria-checked="false" aria-label="Show playback statistics" data-i18n-attrs="aria-label:stats.toggleLabel"
                   data-stats-toggle>
@@ -1554,6 +1570,15 @@
             <h2 data-i18n="player.immersive">Immersive mode</h2>
           </div>
           <div class="settings-list" data-immersive-options role="radiogroup" aria-label="Immersive mode inactivity delay" data-i18n-attrs="aria-label:player.immersiveDelay"></div>
+        </section>
+        <section class="settings-page" data-settings-page="chat" aria-label="Chat replay" data-i18n-attrs="aria-label:watch.chat">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="watch.chat">Chat replay</h2>
+          </div>
+          <div class="settings-list" data-chat-position-options role="radiogroup" aria-label="Where the chat replay goes" data-i18n-attrs="aria-label:watch.chat.position"></div>
         </section>
         <section class="settings-page" data-settings-page="background" aria-label="Background play" data-i18n-attrs="aria-label:player.background">
           <div class="playlist-popup-head settings-page-head">

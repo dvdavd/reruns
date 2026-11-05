@@ -2,6 +2,17 @@ import {request} from './api.js';
 import {commentsOf, sortComments} from './item-adapter.js';
 import {formatDate} from './watch-details.js';
 import {plural, t} from './i18n.js';
+import {preferences} from './preferences.js';
+
+const MODE_KEY = 'archive-comments-mode';
+const MODES = new Set(['none', 'top', 'newest']);
+
+function rememberedMode() {
+  try {
+    const saved = preferences.getItem(MODE_KEY);
+    return MODES.has(saved) ? saved : 'none';
+  } catch { return 'none'; }
+}
 
 const THUMB_UP = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11v8a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-7a1 1 0 0 1 1 -1h3a4 4 0 0 0 4 -4v-1a2 2 0 0 1 4 0v5h3a2 2 0 0 1 2 2l-1 5a2 3 0 0 1 -2 2h-7a3 3 0 0 1 -3 -3"/></svg>';
 const REPLIES_CHEVRON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>';
@@ -77,10 +88,22 @@ function drawComment(comment, context, {reply = false} = {}) {
   }
 
   const text = document.createElement('p');
-  text.className = 'archive-comment-text';
+  text.className = 'archive-comment-text is-clamped';
   text.append(...textNodes(comment.text, context.duration, context.seek));
+  // Hidden until measure() finds the clamp is cutting something off.
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'archive-comment-more';
+  more.hidden = true;
+  more.textContent = t('watch.showMore');
+  more.setAttribute('aria-expanded', 'false');
+  more.addEventListener('click', () => {
+    const expanded = !text.classList.toggle('is-clamped');
+    more.setAttribute('aria-expanded', String(expanded));
+    more.textContent = t(expanded ? 'watch.showLess' : 'watch.showMore');
+  });
 
-  body.append(head, text);
+  body.append(head, text, more);
   if (comment.likes || comment.hearted) {
     const line = document.createElement('div');
     line.className = 'archive-comment-foot';
@@ -116,10 +139,33 @@ function drawComment(comment, context, {reply = false} = {}) {
     summary.append(label);
     summary.insertAdjacentHTML('beforeend', REPLIES_CHEVRON);
     replies.append(summary, ...comment.replies.map(item => drawComment(item, context, {reply: true})));
+    // A closed reply has no layout to measure, so it is judged as it opens.
+    replies.addEventListener('toggle', () => { if (replies.open) measure(replies); });
     body.append(replies);
   }
   node.append(avatar, body);
   return node;
+}
+
+const CLAMP_LINES = 4;
+
+/** Clamps each comment that runs past four lines, with Show more under it,
+ *  unless the clamp would hide just one line: a toggle to reveal a single line
+ *  takes the room it saves. Only a laid-out paragraph can say how many lines
+ *  it has, so this runs once the comments are in the page and again when their
+ *  width changes. One the viewer has opened is left open, with its toggle. */
+function measure(root) {
+  for (const text of root.querySelectorAll('.archive-comment-text')) {
+    const more = text.nextElementSibling;
+    if (more.getAttribute('aria-expanded') === 'true') continue;
+    // Clamped while measured: its scrollHeight is still the whole text's.
+    text.classList.add('is-clamped');
+    if (!text.clientHeight) continue;
+    const line = text.clientHeight / CLAMP_LINES;
+    const worth = text.scrollHeight > text.clientHeight + line + 1;
+    text.classList.toggle('is-clamped', worth);
+    more.hidden = !worth;
+  }
 }
 
 const JOB_POLL_MS = 1000;
@@ -145,7 +191,9 @@ async function finished(job) {
 /**
  * The comments card. One group chooses what to show: None (Hide, once there are
  * some), Top or Newest. Choosing Top or Newest for a video that holds none
- * fetches them first, once; the detached icon fetches them again. The card
+ * fetches them first, once; the detached icon fetches them again. The choice is
+ * remembered and reapplied to the next video that holds comments; one that
+ * holds none opens on None, so moving through a playlist never fetches unasked. The card
  * exists only for a YouTube video, and for an account that may fetch or one
  * that has comments to read.
  *
@@ -163,12 +211,25 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
   let mode = 'none';
   let fetching = false;
   let problem = '';
+  // Whether this video has had its opening mode chosen. The count of comments
+  // held comes with the video's details, a moment after it opens, so the
+  // remembered choice waits for it rather than settling on None.
+  let opened = false;
   // Videos whose fetch has been tried this visit, so a result of none is
   // reported rather than asked for again each time Top is pressed.
   const attempted = new Set();
   // A quick step through a playlist can land one video's comments after the
   // next has opened.
   let token = 0;
+
+  // A narrower card wraps more lines, so a comment that fitted may not now.
+  let width = 0;
+  new ResizeObserver(([entry]) => {
+    const next = Math.round(entry.contentRect.width);
+    if (next === width) return;
+    width = next;
+    measure(list);
+  }).observe(list);
 
   const holds = () => (threads ? threads.length > 0 : item?.archive.commentCount > 0);
 
@@ -204,6 +265,7 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     else {
       const context = {seek, duration: duration()};
       list.replaceChildren(...sortComments(threads, mode).map(comment => drawComment(comment, context)));
+      measure(list);
     }
   }
 
@@ -236,7 +298,10 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     if (mine === token) draw();
   }
 
-  async function ensure() {
+  /** `asked` is a press of Top or Newest. Without one (the remembered choice
+   *  opening a video), a count that turns out stale falls back to None rather
+   *  than fetching. */
+  async function ensure({asked = true} = {}) {
     const mine = token;
     if (!threads) {
       try {
@@ -245,8 +310,10 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
         if (mine === token) { problem = t('watch.comments.failed'); draw(); }
         return;
       }
+      if (!asked && !threads.length) mode = 'none';
       draw();
     }
+    if (!asked) return;
     if (!threads.length && canFetch() && !attempted.has(item.id) && !fetching) await fetchFresh();
   }
 
@@ -254,6 +321,8 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     button.addEventListener('click', () => {
       // Hide is None while there is something to hide; either way it closes.
       mode = button.dataset.commentsMode;
+      opened = true;
+      try { preferences.setItem(MODE_KEY, mode); } catch {}
       problem = '';
       draw();
       if (mode !== 'none') ensure();
@@ -262,24 +331,40 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
   refresh.addEventListener('click', () => {
     if (fetching || !canFetch()) return;
     if (mode === 'none') mode = 'top';
+    opened = true;
     fetchFresh();
   });
 
+  function open() {
+    if (opened || !holds()) return;
+    opened = true;
+    mode = rememberedMode();
+    if (mode !== 'none') ensure({asked: false});
+  }
+
   return {
-    /** Called each time the watch page draws a video. Starts closed. */
+    /** Called each time the watch page draws a video. Opens on the remembered
+     *  choice if the video holds comments, else on None. */
     show(next) {
       const same = item?.id === next?.id;
       item = next;
       const offered = Boolean(next?.archive?.commentsUrl);
       node.hidden = !offered || !(next.archive.commentCount > 0 || canFetch());
-      if (same) { draw(); return; }
+      if (same) {
+        if (!node.hidden) open();
+        draw();
+        return;
+      }
       token++;
       threads = null;
-      mode = 'none';
       fetching = false;
       problem = '';
+      mode = 'none';
+      opened = false;
       list.replaceChildren();
-      if (!node.hidden) draw();
+      if (node.hidden) return;
+      open();
+      draw();
     },
   };
 }

@@ -1157,23 +1157,300 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
 }
 .archive-watch-chat[hidden], .archive-chat-list[hidden], .archive-chat-status[hidden] { display: none; }
 .archive-chat-status { margin-top: 12px; }
+/* The rows reach 4px past the text either side for their hover wash; the
+   list's padding holds them, and its margin puts the text back in line. */
 .archive-chat-list {
-  margin-top: 12px; max-height: min(420px, 60vh); overflow-y: auto; overscroll-behavior: contain;
+  margin: 12px -4px 0; padding-inline: 4px;
+  max-height: min(420px, 60vh); overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: 6px;
   font-size: 14px; line-height: 1.4; color: var(--color-text);
 }
-.archive-chat-message { overflow-wrap: anywhere; }
-.archive-chat-time { font-size: 12px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-.archive-chat-author { font-weight: 600; color: color-mix(in srgb, var(--color-text) 75%, transparent); }
+/* Beside the player the card is exactly the picture's height. Size
+   containment keeps three hundred messages from making the row taller than
+   the stage; the row's height then comes from the stage alone, and the card
+   stretches to it with the list taking what the head leaves. */
+.archive-watch:not(.is-mini) .archive-watch-main > .archive-watch-chat.is-beside:not([hidden]) {
+  grid-area: 1 / 2;
+  contain: size;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 0 var(--player-rounding, 34px) var(--player-rounding, 34px) 0;
+  /* See-through, a shade lighter than the cards below, so the picture's glow
+     spilling past the stage lights the card's near edge rather than being
+     cut off by it. */
+  background: color-mix(in srgb, color-mix(in srgb, var(--color-surface-raised) 85%, #fff) 22%, transparent);
+}
+/* On the light page a see-through white is the page's own colour, so the card
+   is near solid there, as the cards below it are; the glow is faint on light
+   anyway. */
+:root[data-theme="light"] .archive-watch:not(.is-mini) .archive-watch-main > .archive-watch-chat.is-beside:not([hidden]) {
+  background: color-mix(in srgb, var(--color-surface-raised) 85%, transparent);
+}
+.archive-watch-chat.is-beside .archive-chat-list:not([hidden]) { flex: 1; min-height: 0; max-height: none; }
+/* Pinned under the picture on an upright phone (player-chat.js). The stage
+   sticks under the topbar and the chat fills the screen below it, so the
+   page opens on the two together; scrolling the page carries the chat up
+   under the stage to the title and details. The heights are measured by the
+   script. The control strip is see-through on a phone, to show the glow, so
+   it is given the page's colour here, or the chat would scroll past behind
+   the buttons. A tall picture is held to a little over half the screen,
+   leaving the chat room to be read, and the player fits it within: the
+   stage keeps the full width, as a max-height alone would have narrowed it
+   to the picture's shape and left it against the left edge. */
+.archive-watch.has-chat-pinned:not(.is-mini) .archive-watch-main > .archive-watch-stage {
+  position: sticky;
+  top: var(--chat-pin-top, 0px);
+  z-index: 3;
+  aspect-ratio: auto;
+  height: min(calc(100vw / (var(--watch-aspect))), 55dvh);
+  transition: height 300ms cubic-bezier(.22,.8,.25,1);
+  /* A layer over the strip alone, leaving each theme its own colour behind
+     the picture. */
+  background-image: linear-gradient(var(--shell-bg), var(--shell-bg));
+  background-size: 100% var(--bar-strip, 48px);
+  background-position: bottom;
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-clip: border-box;
+}
+/* Still mid-zoom, as the stage is anywhere else (see cards.css). */
+.archive-watch.has-chat-pinned.is-thumbnail-transitioning:not(.is-mini) .archive-watch-main > .archive-watch-stage { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .archive-watch.has-chat-pinned:not(.is-mini) .archive-watch-main > .archive-watch-stage { transition: none; }
+}
+.archive-watch:not(.is-mini) .archive-watch-main > .archive-watch-chat.is-pinned:not([hidden]) {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* Never so short there is nothing to read, if the screen is short too. */
+  height: max(220px, calc(100dvh - var(--chat-pin-top, 0px) - var(--chat-pin-stage, 0px)));
+  margin-inline: calc(var(--page-gutter) * -1);
+  padding: 10px var(--page-gutter) 0;
+  border-radius: 0;
+}
+/* The topbar turns to glass as the picture comes up under it, but a pinned
+   picture never does: it stops at the topbar's foot, and what passes under
+   the topbar is the chat and the page, showing through a glass left clear.
+   Solid, it is what it looks like at the top of the page. (:root outweighs
+   the light theme's own rule for the watch page's topbar.) */
+:root body.watch-open:has(.archive-watch.has-chat-pinned:not(.is-mini, [hidden])) .topbar-shell:has(> .topbar) {
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Held at the newest line, a swipe up carries on into the page, which is the
+   way to the details from here; the list fills the screen, so there is
+   little else to swipe on. */
+.archive-watch-chat.is-pinned .archive-chat-list:not([hidden]) {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin-top: 8px;
+  padding-bottom: 10px;
+  overscroll-behavior: auto;
+}
+/* Over the picture (inside the player, so fullscreen keeps it), the chat is
+   a panel in the settings popup's glass and curve, newest message at its foot.
+   Its head - title, layout toggles, a close - is part of the panel, not
+   a bar on it, and comes and goes with the controls, being one of them: it
+   folds away, and the list, held to its foot, shows older lines in the room
+   rather than moving the newest. A line plays from when it was said, and
+   clicks between the lines reach the picture. The head is what is held to
+   drag the panel (player-chat-overlay.js). It keeps clear of the bar while
+   the bar shows. Shut, all that is left is the bar's chat button, beside the
+   gear. */
+.media-player {
+  --chat-overlay-width: clamp(240px, 26%, 380px);
+  --chat-overlay-bottom: 70px;
+}
+.media-player[data-player-state="playing"].is-controls-hidden { --chat-overlay-bottom: 12px; }
+.media-player > .archive-watch-chat.is-overlay:not([hidden]) {
+  --color-text: #fff;
+  --color-text-strong: #fff;
+  position: absolute;
+  top: 12px;
+  bottom: var(--chat-overlay-bottom);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: var(--chat-overlay-width);
+  padding: 12px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: linear-gradient(#222b, #121212c2);
+  color: #fff;
+  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+  transition: top 180ms ease, bottom 180ms ease, padding 180ms ease;
+}
+.archive-watch-chat.is-overlay.on-right { right: 12px; }
+.archive-watch-chat.is-overlay.on-left { left: 12px; }
+/* Docked, the chat fills the column of black the picture left it, edge to
+   edge: square, with the panel's colour (over black, the glass is the same
+   grey) but no blur or shadow, having nothing to lift off. */
+.media-player > .archive-watch-chat.is-overlay.is-docked:has(> .archive-chat-list:not([hidden])) {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--chat-overlay-width) + 24px);
+  padding-bottom: calc(var(--chat-overlay-bottom) + 12px);
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Half height stands at the top, middle or foot of its side. The middle is
+   centred on the room the bar leaves, so it moves with the bar like the rest.
+   Each names the player as well, to outweigh the open panel's own top and
+   foot above. */
+.media-player > .archive-watch-chat.is-overlay:is(.at-top, .at-middle, .at-bottom):not([hidden]) {
+  height: calc((100% - 12px - var(--chat-overlay-bottom)) / 2);
+}
+.media-player > .archive-watch-chat.is-overlay.at-top { bottom: auto; }
+.media-player > .archive-watch-chat.is-overlay.at-bottom { top: auto; }
+.media-player > .archive-watch-chat.is-overlay.at-middle {
+  top: calc(12px + (100% - 12px - var(--chat-overlay-bottom)) / 4);
+  bottom: auto;
+}
+.archive-watch-chat.is-overlay.is-dragging { transition: none; z-index: 6; }
+.archive-watch-chat.is-overlay .archive-watch-comments-head {
+  flex: none;
+  flex-wrap: nowrap;
+  gap: 8px;
+  max-height: 40px;
+  margin: 2px 4px 8px;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 180ms ease, max-height 180ms ease, margin 180ms ease;
+}
+.archive-watch-chat.is-overlay.is-dragging .archive-watch-comments-head { cursor: grabbing; }
+.archive-watch-chat.is-overlay.is-docked .archive-watch-comments-head { cursor: default; }
+.archive-watch-chat.is-overlay .archive-watch-comments-head h2 {
+  overflow: hidden; min-width: 0; margin: 0;
+  font-size: var(--font-size-panel-title); white-space: nowrap; text-overflow: ellipsis;
+}
+.archive-watch-chat.is-overlay .archive-watch-comments-controls { gap: 4px; }
+.media-player[data-player-state="playing"].is-controls-hidden > .archive-watch-chat.is-overlay:not(.is-dragging) .archive-watch-comments-head {
+  max-height: 0;
+  margin-block: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.media-player[data-player-state="playing"].is-controls-hidden > .archive-watch-chat.is-overlay:not(.is-dragging):has(> .archive-chat-list:not([hidden])) {
+  padding-top: 8px;
+}
+.archive-chat-overlay-controls { display: flex; gap: 4px; }
+/* Apart from the close, so a reach for Dock does not shut the chat. */
+.archive-watch-chat.is-overlay .archive-chat-overlay-controls { margin-right: 8px; }
+.archive-chat-overlay-controls[hidden], .archive-chat-overlay-toggle[hidden] { display: none; }
+/* The popup's own round buttons (the playlist's reverse), the show-or-hide
+   among them. */
+:is(.archive-chat-overlay-toggle, .archive-watch-chat.is-overlay [data-chat-toggle]):not([hidden]) {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(255,255,255,.08); box-shadow: none; color: rgba(255,255,255,.72);
+  transition: background 140ms ease, color 140ms ease;
+}
+:is(.archive-chat-overlay-toggle, .archive-watch-chat.is-overlay [data-chat-toggle]) .icon { width: 15px; height: 15px; }
+:is(.archive-chat-overlay-toggle, .archive-watch-chat.is-overlay [data-chat-toggle]):is(:hover, :focus-visible) {
+  background: rgba(255,255,255,.2); box-shadow: none; color: #fff; outline: none;
+}
+.archive-chat-overlay-toggle[aria-pressed="true"] {
+  background: var(--highlight-fill); color: var(--highlight-foreground);
+}
+.archive-watch-chat.is-overlay .archive-watch-comments-tabs { display: contents; }
+/* Shut, there is no panel: the bar's chat button brings it back. */
+.media-player > .archive-watch-chat.is-overlay:has(> .archive-chat-list[hidden]) { display: none; }
+.archive-watch-chat.is-overlay .archive-chat-status { margin: 0; padding: 0 4px; }
+.archive-watch-chat.is-overlay .archive-chat-message { pointer-events: auto; }
+.archive-watch-chat.is-overlay .archive-chat-list:not([hidden]) {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0 4px;
+  overflow: hidden;
+}
+/* The picture makes way. Over it, a picture with bars to spare is pushed
+   into them away from the chat (the alignment comes from the script); docked,
+   it is given the room left of the column, fitted whole or filling it. */
+.media-player.has-chat-overlay :is(.media-player-video, .media-player-poster) {
+  object-position: var(--chat-video-align, 50% 50%);
+}
+/* The player's own near-black would show as a lighter column beside the
+   picture's black. */
+.media-player.has-chat-docked { background: black; }
+.media-player.has-chat-docked :is(.media-player-video, .media-player-poster) {
+  width: calc(100% - var(--chat-overlay-width) - 24px);
+}
+.media-player.has-chat-zoom .media-player-video { object-fit: cover; }
+/* The corner player is too small to read over, and has no controls to bring
+   the head back with. */
+.archive-watch.is-mini .media-player:not(:fullscreen) > .archive-watch-chat { display: none; }
+.archive-watch.is-mini .media-player:not(:fullscreen) :is(.media-player-video, .media-player-poster) {
+  width: 100%;
+  object-position: 50% 50%;
+}
+.archive-watch.is-mini .media-player:not(:fullscreen) .media-player-video { object-fit: contain; }
+@media (prefers-reduced-motion: reduce) {
+  .media-player > .archive-watch-chat.is-overlay,
+  .archive-watch-chat.is-overlay .archive-watch-comments-head { transition: none; }
+}
+/* A row is the author's face, then the name and what they said, running on
+   under the name rather than under the face. A click plays from that line. */
+.archive-chat-message {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 8px;
+  margin-inline: -4px;
+  padding: 2px 4px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .archive-chat-message:not(.is-paid, .is-member):hover { background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+  :is(.archive-chat-message.is-paid, .archive-chat-message.is-member):hover { filter: brightness(1.15); }
+}
+.archive-chat-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: oklch(48% .1 var(--chat-face-hue, 280));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+.archive-chat-face > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* The face is a little taller than a line, so the line is centred on it. */
+.archive-chat-body { padding-top: 2px; }
+.archive-chat-author { font-weight: 600; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 .archive-chat-author.is-owner { padding: 0 6px; border-radius: 10px; background: color-mix(in srgb, var(--button-hue) 30%, transparent); color: var(--color-text); }
 .archive-chat-author.is-moderator { color: color-mix(in srgb, var(--color-accent) 60%, #fff); }
 .archive-chat-author.is-member { color: color-mix(in srgb, #2ba640 55%, var(--color-text)); }
-/* Paid and membership events are what the stream remembers, so they get a band. */
+.archive-chat-text { color: var(--color-text); }
+/* Paid and new-member lines are cards of their own: the amount is the
+   heading, and the message starts on its own line under it. */
 .archive-chat-message.is-paid, .archive-chat-message.is-member {
-  padding: 6px 8px; border-radius: 8px;
-  background: color-mix(in srgb, var(--button-hue) 18%, transparent);
+  padding: 8px; border-radius: 10px;
+  background: color-mix(in srgb, var(--button-hue) 22%, transparent);
 }
-.archive-chat-amount { font-weight: 600; }
+.archive-chat-message.is-member { background: color-mix(in srgb, #2ba640 20%, transparent); }
+:is(.archive-chat-message.is-paid, .archive-chat-message.is-member) .archive-chat-text { display: block; margin-top: 2px; }
+.archive-chat-amount { font-weight: 700; }
 .archive-watch-comments-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* No margin under the head: collapsed, the card is just the head, and the list
    below it brings its own gap, so the padding is even above and below. */
@@ -1181,6 +1458,9 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
 .archive-watch-comments-head { flex-wrap: wrap; }
 .archive-watch-comments-controls { display: flex; align-items: center; gap: 8px; }
 .archive-watch-comments-tabs { display: flex; gap: 4px; }
+/* With its only button hidden (the chat beside the player has no Hide), the
+   group would still take a gap at the head's end. */
+.archive-watch-comments-tabs:not(:has(> :not([hidden]))) { display: none; }
 /* Apart from the group, on its left: it fetches, where the pills only choose
    what to show. It wears the pills' colours, as a disc the pills' height. */
 .archive-comments-refresh {
@@ -1222,6 +1502,15 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
   background: color-mix(in srgb, var(--button-hue) 30%, transparent);
 }
 .archive-comment-text { margin: 2px 0 0; font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.archive-comment-text.is-clamped {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden;
+}
+.archive-comment-more {
+  all: unset; cursor: pointer; margin-top: 2px; font-size: 13px; border-radius: 3px;
+  color: color-mix(in srgb, var(--color-accent) 50%, #fff);
+}
+.archive-comment-more:is(:hover, :focus-visible) { text-decoration: underline; }
+.archive-comment-more[hidden] { display: none; }
 .archive-comment-foot { margin-top: 4px; font-size: 12px; }
 .archive-comment-likes { display: inline-flex; align-items: center; gap: 4px; }
 .archive-comment-likes .icon { width: 14px; height: 14px; }

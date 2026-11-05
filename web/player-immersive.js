@@ -72,7 +72,10 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
     // Match the edge-to-edge portrait layout; landscape still benefits from
     // reclaiming the header space. Resize restores immersion on rotation.
     const edgeToEdgePortrait = matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
-    return !edgeToEdgePortrait && idleMs > 0 && !pressed.size && window.scrollY <= 0 && body.classList.contains('watch-open') && !page.hidden
+    // The chat beside the player is being read the whole time the picture
+    // plays, and a stage grown from its centre would cover it.
+    const chatBeside = page.classList.contains('has-chat-beside');
+    return !edgeToEdgePortrait && !chatBeside && idleMs > 0 && !pressed.size && window.scrollY <= 0 && body.classList.contains('watch-open') && !page.hidden
       && !page.classList.contains('is-mini') && !player.video.paused
       && !player.video.ended && !player.root.classList.contains('is-audio-only')
       && !document.fullscreenElement && !document.hidden

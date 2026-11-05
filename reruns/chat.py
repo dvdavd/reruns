@@ -69,6 +69,17 @@ def _role(renderer: dict) -> str:
     return next((role for role in ROLES if role in found), "")
 
 
+def _photo(renderer: dict) -> str:
+    """The author's picture address, the largest the line names (YouTube lists
+    them smallest first, and the largest is still only 64 pixels)."""
+    thumbnails = (renderer.get("authorPhoto") or {}).get("thumbnails")
+    if not isinstance(thumbnails, list):
+        return ""
+    urls = [thumb.get("url") for thumb in thumbnails if isinstance(thumb, dict)]
+    urls = [url for url in urls if isinstance(url, str) and url.startswith("https://")]
+    return urls[-1] if urls else ""
+
+
 def _message(offset: int, renderer_name: str, renderer: dict) -> dict | None:
     kind = TEXT_RENDERERS[renderer_name]
     text = _runs(renderer.get("message"))
@@ -81,15 +92,30 @@ def _message(offset: int, renderer_name: str, renderer: dict) -> dict | None:
     # A sticker has no words, only an amount; anything else with neither is noise.
     if not text and not amount:
         return None
-    return {"t": offset, "author": author, "role": _role(renderer),
-            "kind": kind, "amount": amount, "text": text}
+    message = {"t": offset, "author": author, "role": _role(renderer),
+               "kind": kind, "amount": amount, "text": text}
+    # Who said it, by channel, for the portrait: the picture's address stays
+    # here, and the page asks this server for it by the channel alone.
+    channel = renderer.get("authorExternalChannelId")
+    photo = _photo(renderer)
+    if isinstance(channel, str) and channel and photo:
+        message["a"] = channel
+        message["_photo"] = photo
+    return message
 
 
 def parse(path: Path) -> list[dict]:
     """Every message in a replay, in the order they were said. A line that
     is not JSON, or not a chat event, is passed over: a file cut short by a
     stopped download is still worth showing as far as it goes."""
+    return read(path)[0]
+
+
+def read(path: Path) -> tuple[list[dict], dict[str, str]]:
+    """The messages, and each author's picture address by channel (the
+    newest the replay names, should they have changed it mid-stream)."""
     messages: list[dict] = []
+    photos: dict[str, str] = {}
     with path.open(encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -114,11 +140,14 @@ def parse(path: Path) -> list[dict]:
                     if isinstance(renderer, dict):
                         message = _message(offset, name, renderer)
                         if message:
+                            photo = message.pop("_photo", "")
+                            if photo:
+                                photos[message["a"]] = photo
                             messages.append(message)
                         break
     # Python's sort is stable, so messages sharing a moment keep their order.
     messages.sort(key=lambda message: message["t"])
-    return messages
+    return messages, photos
 
 
 class ChatReplays:
@@ -128,16 +157,28 @@ class ChatReplays:
     def __init__(self, keep: int = KEPT_REPLAYS) -> None:
         self.keep = keep
         self._lock = threading.Lock()
-        # path -> (signature, messages, offsets), least recently used first.
-        self._replays: OrderedDict[Path, tuple[tuple[int, int], list[dict], list[int]]] = OrderedDict()
+        # path -> (signature, messages, offsets, photos), least recently used first.
+        self._replays: OrderedDict[Path, tuple[tuple[int, int], list[dict], list[int], dict[str, str]]] = OrderedDict()
 
     def window(self, path: Path, start: int, end: int) -> list[dict]:
         """The messages at or after ``start`` and before ``end``, in
         milliseconds from the start of the video. Empty if the file has gone."""
+        held = self._held(path)
+        if held is None:
+            return []
+        _, messages, offsets, _ = held
+        return messages[bisect_left(offsets, start):bisect_left(offsets, end)]
+
+    def photo(self, path: Path, channel: str) -> str:
+        """The picture address the replay gives an author, or "" if none."""
+        held = self._held(path)
+        return held[3].get(channel, "") if held else ""
+
+    def _held(self, path: Path):
         try:
             stat = path.stat()
         except OSError:
-            return []
+            return None
         signature = (stat.st_mtime_ns, stat.st_size)
         with self._lock:
             held = self._replays.get(path)
@@ -147,14 +188,13 @@ class ChatReplays:
             # Outside the lock: a parse takes a second or more on a long
             # stream, and two requests racing to do it only waste work.
             try:
-                messages = parse(path)
+                messages, photos = read(path)
             except OSError:
-                return []
-            held = (signature, messages, [message["t"] for message in messages])
+                return None
+            held = (signature, messages, [message["t"] for message in messages], photos)
             with self._lock:
                 self._replays[path] = held
                 self._replays.move_to_end(path)
                 while len(self._replays) > self.keep:
                     self._replays.popitem(last=False)
-        _, messages, offsets = held
-        return messages[bisect_left(offsets, start):bisect_left(offsets, end)]
+        return held

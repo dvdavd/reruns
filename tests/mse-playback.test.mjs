@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {bufferedAt, evictionBoundary, RemuxPlayback} from '../web/mse-playback.js';
-import {ArchiveMediaProvider} from '../web/media-provider.js';
+import {ArchiveMediaProvider, playsMatroska} from '../web/media-provider.js';
 
 const ranges = entries => ({length: entries.length,
   start: index => entries[index][0], end: index => entries[index][1]});
@@ -19,6 +19,20 @@ test('seeking needs new media when the requested time is in a buffer gap', () =>
   assert.equal(bufferedAt(buffered, 20), null);
   assert.equal(bufferedAt(buffered, 35), 45);
   assert.equal(bufferedAt(buffered, 45), null);
+});
+
+test('an MKV is played as it is where the browser vouches for its codecs', () => {
+  const asked = [];
+  const probe = answer => ({canPlayType: type => { asked.push(type); return answer; }});
+  const part = {videoCodec: 'vp09.00.40.08', audioCodec: 'opus'};
+  assert.equal(playsMatroska(part, probe('probably')), true);
+  assert.deepEqual(asked, ['video/x-matroska; codecs="vp09.00.40.08, opus"']);
+  // "maybe" is a container answer, said whatever is inside.
+  assert.equal(playsMatroska(part, probe('maybe')), false);
+  assert.equal(playsMatroska(part, probe('')), false);
+  // Nothing to ask about, or nothing to ask, keeps the remux.
+  assert.equal(playsMatroska({audioCodec: 'opus'}, probe('probably')), false);
+  assert.equal(playsMatroska(part, undefined), false);
 });
 
 test('MKV resolution selects remuxing only when MSE supports the actual tracks', async () => {

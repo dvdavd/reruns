@@ -5,7 +5,7 @@ import {DEBUG_DOWNLOADS, debugJobs} from './download-debug.js';
 import {t} from './i18n.js';
 import {ACTIVE_STATES, createJobFailureTracker, flattenDownloads, isDownloadUrl, queueStatus} from './download-model.js';
 import {downloadRow} from './download-row.js';
-import {codecChoices, downloadBody, formatChoices, grantedLocationChoices, locationChoices, profileMenuItems, resolveSelection} from './download-profiles.js';
+import {audioCodecChoices, codecChoices, downloadBody, formatChoices, grantedLocationChoices, locationChoices, profileMenuItems, resolveSelection} from './download-profiles.js';
 import {createDrawerControls} from './drawer.js';
 import {animateResize, followButton} from './popover.js';
 import {audioLanguagePicker, languageName, parseLanguageTags, subtitleLanguagePicker} from './subtitle-languages.js';
@@ -13,7 +13,7 @@ import {defaultMark} from './default-mark.js';
 import {preferences as account} from './preferences.js';
 
 export const DEFAULT_PREFERENCES = {
-  media: 'video', quality: 'best', videoContainer: 'auto', audioContainer: 'auto', codec: 'any',
+  media: 'video', quality: 'best', videoContainer: 'auto', audioContainer: 'auto', codec: 'any', audio_codec: 'auto',
   subtitles: 'none', subtitleLanguages: 'en.*', audioLanguages: '', comments: 'off', chat: 'off',
   playlist: 'all', organization: 'server',
   // Which entry of the arrow's menu is picked: '' for the default, a profile
@@ -169,8 +169,12 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     if (codecSelect && !codecSelect.options.length) {
       render(codecChoices().map(([value, label]) => html`<option value=${value}>${label}</option>`), codecSelect);
     }
+    const audioCodecSelect = form.elements.audio_codec;
+    if (audioCodecSelect && !audioCodecSelect.options.length) {
+      render(audioCodecChoices().map(([value, label]) => html`<option value=${value}>${label}</option>`), audioCodecSelect);
+    }
     const values = current();
-    for (const name of ['media', 'quality', 'codec', 'comments', 'chat', 'playlist', 'organization']) {
+    for (const name of ['media', 'quality', 'codec', 'audio_codec', 'comments', 'chat', 'playlist', 'organization']) {
       if (form.elements[name]) form.elements[name].value = values[name];
     }
     render(subtitleLanguagePicker({
@@ -216,6 +220,7 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     update({
       media, quality: form.elements.quality.value,
       codec: media === 'video' ? form.elements.codec.value : current().codec,
+      audio_codec: form.elements.audio_codec.value,
       subtitles: media === 'video' ? current().subtitles : 'none',
       comments: form.elements.comments.value,
       chat: form.elements.chat.value,
@@ -227,6 +232,7 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     return {
       media, quality: values.quality,
       codec: media === 'video' ? values.codec : 'any',
+      audio_codec: values.audio_codec,
       container: values[media === 'video' ? 'videoContainer' : 'audioContainer'],
       subtitles: values.subtitles,
       subtitle_languages: values.subtitleLanguages,
