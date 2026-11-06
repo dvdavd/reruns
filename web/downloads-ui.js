@@ -594,12 +594,14 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
   });
   async function downloadSubtitles(options) {
     try {
-      await post('/api/item/subtitles', options);
+      const job = await post('/api/item/subtitles', options);
       markQueued();
       schedulePoll();
-      report(t('downloads.subtitlesQueued'));
+      // The chat card shows its own progress, as the comments card does.
+      if (options.chat !== true) report(t('downloads.subtitlesQueued'));
+      return job;
     } catch (error) {
-      report(t('error.reason', {message: t('downloads.error.subtitles'), reason: error.message || error}), {error: true});
+      if (options.chat !== true) report(t('error.reason', {message: t('downloads.error.subtitles'), reason: error.message || error}), {error: true});
       throw error;
     }
   }

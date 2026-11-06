@@ -1166,6 +1166,11 @@ class Archive:
         return {"held": True, "messages": self._chat_replays.window(path, start, end),
                 "avatars": f"/api/chat-avatar/{quote(key)}"}
 
+    def chat_held(self, key: str) -> bool:
+        """Whether the last scan found a chat replay beside this video."""
+        with self._lock:
+            return key in self._chat
+
     def chat_avatar_source(self, key: str, channel: str) -> tuple[str, str] | None:
         """(channel, picture address) for an author in a stream's chat replay,
         the address from the replay itself, never from the request."""

@@ -353,6 +353,27 @@
 
 .card-title-row--portrait .card-context-chips { flex-wrap: nowrap; align-items: center; gap: 5px; overflow: hidden; }
 .card-title-row--portrait .identity-chip { flex: 0 1 auto; min-width: 0; }
+/* Hovered with its words cut off (lib/title-reveal.js decides, and slides
+   them), the portrait fades and the title and channel take its place, so
+   more of a long title shows. The portrait leaves the flow at once and fades
+   where it stood; animating its width instead re-laid the title out every
+   frame and made it jump. The channel chip still filters by the channel.
+   The row clips sideways only while the words move, so they do not slide
+   over the menu button, and the portrait's focus ring is not cut. */
+@media (hover: hover) {
+  .card-title-row--portrait,
+  .card-title-row--portrait .card-title-copy { position: relative; }
+  .card-owner-figure { transition: opacity 120ms ease, visibility 0s; }
+  .video-card[data-title-reveal] .card-owner-figure {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition-delay: 0s, 120ms;
+  }
+  .video-card[data-title-sliding] .card-title-row--portrait { overflow-x: clip; }
+}
 .card-channel-detail { flex: 0 0 auto; color: color-mix(in srgb, var(--card-accent) 22%, var(--color-text-muted, #aaa)); font-size: var(--font-size-control); white-space: nowrap; }
 .card-channel-detail::before { content: "·"; margin-right: 5px; }
 

@@ -354,7 +354,9 @@ export function toMediaItem(raw, originalOrder = 0) {
       fps: Math.round(Number(raw.fps || 0)) || 0,
       container,
       audioCodec: raw.acodec && raw.acodec !== 'none' ? raw.acodec : '',
-      subtitleLanguages: Object.keys(raw.subtitles || {}).sort(),
+      // yt-dlp lists a stream's chat replay as a subtitle track, live_chat,
+      // which is no language anyone reads captions in.
+      subtitleLanguages: Object.keys(raw.subtitles || {}).filter(language => language !== 'live_chat').sort(),
       automaticCaptionLanguages: [],
       chapters: chaptersOf(raw),
       heatmap: heatmapOf(raw),
@@ -365,6 +367,8 @@ export function toMediaItem(raw, originalOrder = 0) {
       // The chat replay saved beside a stream, read a window at a time.
       chatHeld: Boolean(raw._chat_held),
       chatUrl: raw._chat_url || '',
+      // The site has a replay to give, so one not held can be fetched.
+      chatOffered: Object.hasOwn(raw.subtitles || {}, 'live_chat'),
       commentCount: 0,
       sponsorBlockUrl: raw._sponsorblock_url || '',
       // The position stays here rather than in facets.ordinal: the shared

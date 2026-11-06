@@ -65,6 +65,22 @@ class DownloadOptionsTests(unittest.TestCase):
         self.assertEqual(job.items[0].thumbnail, '/thumb/clip')
         self.assertEqual(job.as_dict()['kind'], 'subtitles')
 
+    def test_a_chat_only_fetch_asks_for_the_live_chat_track_and_no_captions(self):
+        root = Path(self.directory.name)
+        with mock.patch('reruns.downloads.threading.Thread'):
+            job = self.downloader.start_subtitles(
+                'https://example.test/watch', root=root, output='Creator/stream',
+                automatic=True, chat=True, title='Stream')
+        command = job.command
+        self.assertIn('--skip-download', command)
+        self.assertIn('--write-subs', command)
+        self.assertEqual(command[command.index('--sub-langs') + 1], 'live_chat')
+        # A vtt preference would not match the chat's json, and no captions
+        # are wanted alongside it.
+        self.assertNotIn('--sub-format', command)
+        self.assertNotIn('--write-auto-subs', command)
+        self.assertEqual(command[command.index('--output') + 1], 'Creator/stream.%(ext)s')
+
     def test_a_comments_only_refresh_says_so_to_the_page(self):
         root = Path(self.directory.name)
         with mock.patch('reruns.downloads.threading.Thread'):

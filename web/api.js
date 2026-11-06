@@ -27,3 +27,23 @@ export function post(path, body = {}) {
     body: JSON.stringify(body),
   });
 }
+
+const JOB_POLL_MS = 1000;
+const FINAL_STATES = new Set(['done', 'failed', 'cancelled']);
+
+/** Resolves with a job once it has finished, or rejects with its reason if it
+ *  failed or was cancelled, or `failure` once `giveUpMs` has passed. A job
+ *  that has vanished from the list was cleared after finishing. */
+export async function jobFinished(job, {failure, giveUpMs = 5 * 60 * 1000}) {
+  const started = Date.now();
+  while (Date.now() - started < giveUpMs) {
+    await new Promise(resolve => setTimeout(resolve, JOB_POLL_MS));
+    const jobs = await request('/api/jobs');
+    const current = jobs.find(entry => entry.id === job.id);
+    if (!current) return job;
+    if (!FINAL_STATES.has(current.state)) continue;
+    if (current.state !== 'done') throw new Error(serverMessage(current.error) || failure);
+    return current;
+  }
+  throw new Error(failure);
+}

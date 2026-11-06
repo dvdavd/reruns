@@ -91,6 +91,29 @@ class SubtitleCompletionTests(unittest.TestCase):
         handler.archive.scan.assert_called_once()
 
 
+    def test_a_chat_fetch_that_saved_no_replay_fails_with_a_reason(self):
+        handler = Handler.__new__(Handler)
+        handler.auth = None
+        handler.archive = mock.Mock()
+        handler.archive.subtitle_target.return_value = (
+            Path('/tmp'), 'stream', 'https://example.test/watch', 'Stream', '')
+        handler.downloader = mock.Mock()
+        handler._read_json = mock.Mock(return_value={'id': 'stream.info.json', 'chat': True})
+        handler._send_json = mock.Mock()
+        handler._download_subtitles()
+        call = handler.downloader.start_subtitles.call_args
+        self.assertTrue(call.kwargs['chat'])
+        finish = call.kwargs['on_finish']
+        handler.archive.chat_held.return_value = True
+        saved = mock.Mock(state='done', error='')
+        finish(saved)
+        self.assertEqual(saved.state, 'done')
+        handler.archive.chat_held.return_value = False
+        empty = mock.Mock(state='done', error='')
+        finish(empty)
+        self.assertEqual(empty.state, 'failed')
+        self.assertIn('no chat replay', empty.error)
+
 class DirectoryTests(unittest.TestCase):
     def test_creator_and_playlist_folders_are_not_directories_somebody_chose(self):
         raw = {"uploader": "Foo / Bar", "playlist": "Best Of"}
@@ -179,6 +202,8 @@ class ArchiveStateTests(unittest.TestCase):
             self.assertEqual(held, {"library/stream.info.json": True,
                                     "library/stream-2.info.json": True,
                                     "library/plain.info.json": False})
+            self.assertTrue(archive.chat_held("library/stream.info.json"))
+            self.assertFalse(archive.chat_held("library/plain.info.json"))
             archive.delete_item("library/stream.info.json")
             self.assertFalse((root / "stream.live_chat.json").exists())
             # "stream-2" starts with "stream" but is another video's chat.

@@ -1,4 +1,4 @@
-import {formatBytes, formatDuration, html, iconHref, render, VideoCard} from 'media-ui';
+import {formatBytes, formatDuration, html, iconHref, render, revealClippedTitles, VideoCard} from 'media-ui';
 import {accentFromImage, whenImageLoaded} from 'media-ui/accent.js';
 import {createAnchoredMenu} from './popover.js';
 import {suggestedCodec} from './download-profiles.js';
@@ -35,6 +35,7 @@ export function createWatchPage({
 }) {
   const relatedPane = page.querySelector('.archive-related');
   const relatedRoot = page.querySelector('.archive-related-list');
+  revealClippedTitles(relatedRoot);
   // The gallery's card props and the video whose related row is on screen, so
   // the row can be redrawn when the gallery's card state changes under it.
   let cardProps = item => ({item});
@@ -42,6 +43,7 @@ export function createWatchPage({
   let openDownload = null;
   let deleteVideo = null;
   let refreshMetadata = null;
+  let downloadSubtitles = null;
   const channelImages = createChannelImages();
   let channelToken = 0;
 
@@ -79,7 +81,12 @@ export function createWatchPage({
     canFetch: () => Boolean(refreshMetadata),
     fetchComments: item => refreshMetadata({id: item.archive?.formatId || item.id, commentsOnly: true}),
   });
-  const chat = createChatSection(page, {video: mediaPlayer.video});
+  const chat = createChatSection(page, {
+    video: mediaPlayer.video,
+    // Only an account that may fetch has the downloader set.
+    canFetch: () => Boolean(downloadSubtitles),
+    fetchChat: item => downloadSubtitles({id: item.archive?.formatId || item.id, chat: true}),
+  });
   /** Only the laid-out element can say whether the description is clamped, and
    *  a hidden one lays out as nothing, so the toggle is judged on each draw. */
   function drawDescriptionToggle() {
@@ -331,7 +338,7 @@ export function createWatchPage({
    * stylesheet decide instead. The marker is the page's own, not Preact's:
    * a card's attributes are left alone by the render.
    */
-  const WIDE_LOWER = 940; // the watch column's width at which the stylesheet goes three columns
+  const WIDE_LOWER = 980; // the watch column's width at which the stylesheet goes three columns
   const lowerNode = page.querySelector('.archive-watch-lower');
   const RELATED_OVERSHOOT = 48;
   const RELATED_MINIMUM = 2;
@@ -415,6 +422,7 @@ export function createWatchPage({
     setFormatDownloader(open) { openDownload = open; },
     setDeleter(remove) { deleteVideo = remove; },
     setMetadataRefresher(refresh) { refreshMetadata = refresh; },
+    setSubtitleDownloader(download) { downloadSubtitles = download; },
     setFacetLinks(link) { facetLink = link; },
     setSubscriptions(backend) {
       subscriptionsBackend = backend;

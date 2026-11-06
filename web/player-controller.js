@@ -822,7 +822,10 @@ export function createPlayerController(page, report) {
      *  the saved direction. */
     setPlaylistDirectionToggle(toggle) { togglePlaylistDirection = toggle; },
     /** Queues sidecars against the exact format currently playing. */
-    setSubtitleDownloader(download) { trackControls.setSubtitleDownloader(download); },
+    setSubtitleDownloader(download) {
+      trackControls.setSubtitleDownloader(download);
+      watchPage.setSubtitleDownloader(download);
+    },
     /** Opens the download choices for the video on screen, to fetch it again
      *  in another format beside the copy already held. */
     setFormatDownloader(...args) { watchPage.setFormatDownloader(...args); },

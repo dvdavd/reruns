@@ -17,6 +17,18 @@ export function createPlayerTransitions({
   let aspectPending = '';
   let sourceSpot = null;
   const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+  // The stage eases its width and margins so a corrected shape glides into
+  // place, but a window being dragged changes them every frame: each frame
+  // restarted the ease, so the picture trailed the layout across the chat
+  // beside it and kept the compositor busy. While the window is resizing the
+  // frame follows it directly (see .is-window-resizing in the stylesheets).
+  let resizeSettle = 0;
+  window.addEventListener('resize', () => {
+    page.classList.add('is-window-resizing');
+    clearTimeout(resizeSettle);
+    resizeSettle = setTimeout(() => page.classList.remove('is-window-resizing'), 200);
+  });
   const cardOverlays = card => card ? [
     ...card.querySelectorAll(
       '.thumbnail-frame > :not(.thumbnail-image), .thumbnail-area > :not(.thumbnail-button)',

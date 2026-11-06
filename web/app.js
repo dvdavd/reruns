@@ -1,4 +1,5 @@
 import {createMenu, createStatusToast, initTopbarScroll} from 'media-ui/chrome.js';
+import {revealClippedTitles} from 'media-ui';
 import {browseSourceFor, createBrowseUI, isSearch, searchNeedsYouTube} from './browse-ui.js';
 import {createDirectoryUI} from './directory-ui.js';
 import {createDownloadsUI} from './downloads-ui.js';
@@ -399,6 +400,10 @@ createMenu({
 
 player.setItemsProvider(gallery.items);
 player.setPlaylistEditor(gallery.addToPlaylists);
+// The gallery and shelves reveal a cut-off title only once the pointer rests
+// on a card, so sweeping across the grid does not slide every card it
+// crosses; 250ms is about where a passing pointer stops costing a repaint.
+revealClippedTitles(document.querySelector('#archive-home'), {dwell: 250});
 createHoverPreview({
   root: document.querySelector('#archive-home'),
   itemFor: card => {

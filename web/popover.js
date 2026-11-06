@@ -153,6 +153,10 @@ export function animateResize(panel, change) {
  *
  * `reflect` keeps the opener's aria-expanded honest; leave it off for a
  * button something else renders, which would fight over the attribute.
+ *
+ * `side` hangs it beside its button as a submenu of the menu that row is in.
+ * A submenu opens on hover, so the press that follows is not a second thought
+ * and must not close it again: it is opened whatever was pressed.
  */
 export function createAnchoredMenu({label, className = '', prefer = 'up', onClose = () => {}}) {
   const menu = document.createElement('div');
@@ -166,11 +170,13 @@ export function createAnchoredMenu({label, className = '', prefer = 'up', onClos
   // A card can be redrawn away while its menu is open; the last place the
   // button was is better than the corner of the page.
   let lastRect = null;
+  let side = false;
   const anchor = {getBoundingClientRect: () => {
     if (opener?.isConnected) lastRect = opener.getBoundingClientRect();
     return lastRect;
   }};
-  const follow = followButton(menu, () => (opener ? anchor : null), 6, () => 'vertical', prefer);
+  const follow = followButton(menu, () => (opener ? anchor : null), 6,
+    () => (side ? 'side' : 'vertical'), prefer);
   let pressed = null;
   document.addEventListener('pointerdown', event => {
     pressed = opener && menu.matches(':popover-open') && opener.contains(event.target) ? opener : null;
@@ -187,9 +193,14 @@ export function createAnchoredMenu({label, className = '', prefer = 'up', onClos
     element: menu,
     isOpen: () => menu.matches(':popover-open'),
     close: () => { if (menu.matches(':popover-open')) menu.hidePopover(); },
-    open(from, children, {reflect = true} = {}) {
-      if (pressed === from) { pressed = null; return false; }
+    opener: () => opener,
+    open(from, children, {reflect = true, side: beside = false} = {}) {
+      if (pressed === from && !beside) { pressed = null; return false; }
       pressed = null;
+      // Placed afresh rather than kept on the side it last took, since it may
+      // have been a submenu then and hang from the card's own button now.
+      if (menu.matches(':popover-open') && side !== beside) menu.hidePopover();
+      side = beside;
       opener = from;
       reflected = reflect;
       lastRect = from.getBoundingClientRect();

@@ -69,6 +69,20 @@ test('a card menu belongs to its surface and is cleared if its item disappears',
   assert.equal(h.actions.cardProps(h.item, 'gallery').menuOpen, false);
 });
 
+test('a related card lists its playlists in its menu, where the gallery card has a chip', t => {
+  const h = harness(t, () => []);
+  const actions = props => props.menuItems.map(entry => entry.action);
+  assert.ok(!actions(h.actions.cardProps(h.item, 'related')).includes('show-playlists'));
+  h.item.facets.collections = [{id: 'a', name: 'One'}];
+  const [single, divider] = h.actions.cardProps(h.item, 'related').menuItems;
+  assert.deepEqual([single.action, single.label, single.submenu, divider.type],
+    ['show-playlists', 'Show playlist', undefined, 'divider']);
+  h.item.facets.collections.push({id: 'b', name: 'Two'});
+  const [several] = h.actions.cardProps(h.item, 'related').menuItems;
+  assert.deepEqual([several.label, several.submenu], ['Show playlists', true]);
+  assert.ok(!actions(h.actions.cardProps(h.item, 'gallery')).includes('show-playlists'));
+});
+
 test('a refused favourite change restores the store value', async t => {
   const h = harness(t, () => []);
   const before = h.item.favourite;

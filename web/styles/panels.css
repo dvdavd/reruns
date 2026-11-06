@@ -1156,7 +1156,9 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
   background: var(--color-surface-raised);
 }
 .archive-watch-chat[hidden], .archive-chat-list[hidden], .archive-chat-status[hidden] { display: none; }
-.archive-chat-status { margin-top: 12px; }
+/* Spaced from the heading as the description's text is. Named through the
+   card, since .archive-comments-status, later on, resets the margin. */
+.archive-watch-chat .archive-chat-status { margin-top: 10px; }
 /* The rows reach 4px past the text either side for their hover wash; the
    list's padding holds them, and its margin puts the text back in line. */
 .archive-chat-list {
@@ -1215,7 +1217,8 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
   background-clip: border-box;
 }
 /* Still mid-zoom, as the stage is anywhere else (see cards.css). */
-.archive-watch.has-chat-pinned.is-thumbnail-transitioning:not(.is-mini) .archive-watch-main > .archive-watch-stage { transition: none; }
+.archive-watch.has-chat-pinned.is-thumbnail-transitioning:not(.is-mini) .archive-watch-main > .archive-watch-stage,
+.archive-watch.has-chat-pinned.is-window-resizing:not(.is-mini) .archive-watch-main > .archive-watch-stage { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .archive-watch.has-chat-pinned:not(.is-mini) .archive-watch-main > .archive-watch-stage { transition: none; }
 }

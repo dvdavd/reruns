@@ -34,7 +34,7 @@ export const TrashIcon = () => html`<svg viewBox="0 0 24 24" fill="none" stroke=
 
 export const PortraitRefreshIcon = () => html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><use href=${iconHref('portrait-refresh')} /></svg>`;
 
-const MENU_ICONS = {"edit-groups": "edit-groups", "edit": "edit", "choose-thumbnail": "choose-thumbnail", "copy": "copy", "delete": "trash", "source": "external-link", "subscribe": "bell", "save-file": "device-floppy", "download-format": "download"};
+const MENU_ICONS = {"edit-groups": "edit-groups", "edit": "edit", "choose-thumbnail": "choose-thumbnail", "copy": "copy", "delete": "trash", "source": "external-link", "subscribe": "bell", "save-file": "device-floppy", "download-format": "download", "add-playlist": "playlist-add", "show-playlists": "playlist"};
 
 export const MenuIcon = ({name}) => html`
   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

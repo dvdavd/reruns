@@ -248,13 +248,20 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
    itself reads it, and registered as a length so it is passed down as pixels
    rather than as `100cqw` to be read again on the stage. The stage's width
    is worked out there too, since a var() is filled in where it is declared.
-   The corner window sets its own width, so it needs no container. */
-@property --watch-page-width { syntax: '<length>'; inherits: true; initial-value: 100vw; }
+   The corner window sets its own width, so it needs no container.
+   Neither is passed further down. Both are pixels that change with the
+   window, and a value inherited by every element under the player - the
+   gallery too, when this was an inherited `100vw` from the root - had the
+   browser restyle all of them on each frame of a resize: with a few hundred
+   comments open that was the bulk of dragging the window. */
+@property --watch-page-width { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .archive-watch:not(.is-mini) { container: watch-page / inline-size; }
 .archive-watch-main {
   --watch-page-width: 100cqw;
   --watch-stage-width: min(calc(var(--watch-stage-height) * (var(--watch-aspect))), var(--watch-page-width));
 }
+.archive-watch-main > :not(.archive-watch-stage, .archive-watch-chat),
+.archive-watch-main > * > * { --watch-stage-width: initial; }
 /* A phone on its side has no room for the header and title as well as the
    picture: leaving them in the sum gave the video a third of the height and a
    control bar several times its width. The picture takes what is under the
@@ -349,6 +356,10 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
 }
 /* Mid-zoom the thumbnail is measured against the stage, so it must be still. */
 .archive-watch.is-thumbnail-transitioning .archive-watch-stage { transition: none; }
+/* Nor while the window is resized, when the ease restarts every frame and the
+   picture lags over the chat (player-transitions.js). */
+.archive-watch.is-window-resizing .archive-watch-stage,
+.archive-watch.is-window-resizing:not(.is-mini).has-chat-beside .archive-watch-main > .archive-watch-chat { transition: none; }
 .archive-watch-stage > * { width: 100%; height: 100%; }
 .archive-watch-stage > .archive-ambient-glow {
   position: absolute;

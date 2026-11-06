@@ -25,7 +25,7 @@
  *   heatmap: {startSeconds: number, endSeconds: number, value: number}[],
  *   detailsUrl: string, detailsLoaded?: boolean,
  *   commentsUrl: string, commentCount: number, chatHeld: boolean,
- *   chatUrl: string,
+ *   chatUrl: string, chatOffered: boolean,
  *   playlists: Array<object>,
  *   playlist: {id: string, title: string, index: number, count: number,
  *   url: string, uploader: string, uploads: boolean}|null}}} MediaItem

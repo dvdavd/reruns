@@ -1,5 +1,5 @@
 import {iconHref} from 'media-ui';
-import {request} from './api.js';
+import {jobFinished, request} from './api.js';
 import {createChatOverlay} from './player-chat-overlay.js';
 import {t} from './i18n.js';
 import {preferences} from './preferences.js';
@@ -142,7 +142,13 @@ function drawMessage(message) {
   return row;
 }
 
-export function createChatSection(page, {video}) {
+// A replay is fetched page by page from the site, so a long stream takes a while.
+const FETCH_GIVE_UP_MS = 60 * 60 * 1000;
+
+/** `canFetch()` says whether this account may fetch, and `fetchChat(item)`
+ *  queues the fetch of a replay the site offers but the library lacks,
+ *  returning its job. */
+export function createChatSection(page, {video, canFetch = () => false, fetchChat = null}) {
   const node = page.querySelector('[data-watch-chat]');
   const toggle = node.querySelector('[data-chat-toggle]');
   const move = node.querySelector('[data-chat-move]');
@@ -170,6 +176,14 @@ export function createChatSection(page, {video}) {
   let where = 'below';
   let item = null;
   let open = false;
+  // A replay the site has but the library does not. The card waits under the
+  // details with a Fetch button: a column beside the player would be an
+  // empty card the height of the picture.
+  const unsaved = () => Boolean(item) && !item.archive?.chatUrl;
+  let fetching = false;
+  let fetchProblem = '';
+  // Opened as soon as it arrives, since someone has just asked for it.
+  let fetched = false;
   // In fullscreen the chat is shown and hidden from the control bar, beside
   // the gear, like the captions, where it is to hand whether the chat is
   // showing or not; the panel itself only closes. Put in the bar when first
@@ -324,6 +338,21 @@ export function createChatSection(page, {video}) {
 
   function draw() {
     drawChoice();
+    toggle.disabled = false;
+    if (unsaved()) {
+      toggle.hidden = false;
+      toggle.removeAttribute('aria-pressed');
+      toggle.textContent = t('watch.chat.fetch');
+      toggle.title = toggle.ariaLabel = t('watch.chat.fetchReplay');
+      toggle.disabled = fetching;
+      move.hidden = true;
+      list.hidden = true;
+      overlay?.set(false, false);
+      drawBar();
+      if (fetching) say(t('watch.chat.fetching'), {busy: true});
+      else say(fetchProblem || t('watch.chat.notSaved'));
+      return;
+    }
     toggle.setAttribute('aria-pressed', String(open));
     // Over the picture the bar's button shows the chat, so the panel's own
     // is only a close, a disc among the layout toggles.
@@ -387,11 +416,13 @@ export function createChatSection(page, {video}) {
     sync();
   }
 
-  /** Puts the chat where the choice and the window's room say. Moving the
-   *  node, rather than drawing a second list, keeps the windows already held. */
-  function place() {
+  /** Puts the chat where the choice and the window's room say, and says
+   *  whether that moved it. Moving the node, rather than drawing a second
+   *  list, keeps the windows already held. */
+  function locate() {
     const fullscreen = Boolean(player) && document.fullscreenElement === player;
-    const next = placement(choice, {beside: roomBeside.matches, automatic: roomAutomatic.matches, pinned: roomPinned.matches, fullscreen});
+    const next = unsaved() ? 'below'
+      : placement(choice, {beside: roomBeside.matches, automatic: roomAutomatic.matches, pinned: roomPinned.matches, fullscreen});
     const moved = next !== where;
     where = player ? next : next === 'overlay' ? 'below' : next;
     if ((where === 'beside' || where === 'pinned') && node.previousElementSibling !== stage) stage.after(node);
@@ -405,13 +436,41 @@ export function createChatSection(page, {video}) {
     node.classList.toggle('is-pinned', where === 'pinned');
     page.classList.toggle('has-chat-beside', where === 'beside' && !node.hidden);
     drawPinned();
+    return moved;
+  }
+
+  function place() {
+    const moved = locate();
     if (moved && (where === 'beside' || where === 'pinned' || where === 'overlay' && choice === 'overlay')) open = true;
     // A moved node keeps its children but not its scroll, and a list that
     // was following along should still be at the newest message.
     if (moved && open) reopen(); else draw();
   }
 
+  async function fetchReplay() {
+    if (fetching || !fetchChat || !unsaved()) return;
+    const mine = token;
+    fetching = true;
+    fetchProblem = '';
+    draw();
+    try {
+      const job = await fetchChat(item);
+      if (job) await jobFinished(job, {failure: t('watch.chat.fetchFailed'), giveUpMs: FETCH_GIVE_UP_MS});
+      if (mine !== token) return;
+      // Still fetching as far as anyone can see: the library is read again
+      // when the job ends, and that brings the replay with it (see show).
+      fetched = true;
+      say(t('watch.chat.loading'), {busy: true});
+    } catch (error) {
+      if (mine !== token) return;
+      fetching = false;
+      fetchProblem = error?.message || t('watch.chat.fetchFailed');
+      draw();
+    }
+  }
+
   toggle.addEventListener('click', () => {
+    if (unsaved()) { fetchReplay(); return; }
     open = !open;
     reopen();
   });
@@ -462,15 +521,24 @@ export function createChatSection(page, {video}) {
      *  over the picture by fullscreen and the choice was to keep it below. */
     show(next) {
       const same = item?.id === next?.id;
+      const wasHeld = item?.archive?.chatUrl || '';
       item = next;
-      node.hidden = !next?.archive?.chatUrl;
-      if (settingsRow) settingsRow.hidden = node.hidden;
+      const held = next?.archive?.chatUrl || '';
+      node.hidden = !held && !(next?.archive?.chatOffered && canFetch());
+      if (settingsRow) settingsRow.hidden = !held;
       page.classList.toggle('has-chat-beside', where === 'beside' && !node.hidden);
       drawPinned();
       drawBar();
-      if (same) return;
-      token++;
-      open = where === 'beside' || where === 'pinned' || where === 'overlay' && choice !== 'below';
+      // The same video is drawn again when its details arrive; only a replay
+      // that has just been fetched for it makes that a fresh start.
+      if (same && held === wasHeld) return;
+      const arrived = same && fetched;
+      if (!same) token++;
+      fetching = false;
+      fetchProblem = '';
+      fetched = false;
+      locate();
+      open = arrived || where === 'beside' || where === 'pinned' || where === 'overlay' && choice !== 'below';
       windows = new Map();
       requested = new Set();
       shownUntil = null;

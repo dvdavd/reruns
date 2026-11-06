@@ -1,5 +1,5 @@
 import {cardLabels} from './card-labels.js';
-import {locale, t} from './i18n.js';
+import {locale, plural, t} from './i18n.js';
 import {post} from './api.js';
 import {deletionVersions, survivingFormatId} from './delete-dialog.js';
 import {selectFormat, sourceUrlFor} from './item-adapter.js';
@@ -44,7 +44,8 @@ export function createGalleryActions({
     person: person => ({'data-creator-filter': person.name}),
   };
   const menuItems = [
-    {action: 'add-playlist', label: t('menu.addToPlaylists')},
+    {action: 'add-playlist', label: t('menu.addToPlaylists'), submenu: true,
+      controls: 'playlist-add-menu'},
     {action: 'save-file', label: t('menu.saveFile')},
     {action: 'download-format', label: t('menu.downloadFormat'), submenu: true,
       popupRole: 'dialog', controls: 'download-advanced'},
@@ -113,6 +114,15 @@ export function createGalleryActions({
   /** Everything a video card needs, shared by the gallery and the shelf;
    *  `surface` tells one card's menu apart from the same video's elsewhere. */
   function cardProps(item, surface = 'gallery') {
+    const collections = item.facets?.collections || [];
+    // A related card is narrow, so the playlists it is in go in its menu
+    // rather than taking a button beside the title. One playlist is shown
+    // straight away; only a choice of several needs a submenu.
+    const several = collections.length > 1;
+    const playlistsRow = surface === 'related' && collections.length
+      ? [{action: 'show-playlists', label: plural('menu.showPlaylist', collections.length),
+        ...(several ? {submenu: true, controls: 'collection-menu'} : {})}, {type: 'divider'}]
+      : [];
     return {
       item, labels, hooks,
       loadOwnerPortrait: owner => channelImages(owner === item.facets?.owner ? owner.id : ''),
@@ -123,7 +133,7 @@ export function createGalleryActions({
         item.music?.album || (item.archive?.uploadedAt ? new Date(item.archive.uploadedAt * 1000).toLocaleDateString(locale(),
           {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}) : ''),
       ],
-      menuItems: withoutStrayDividers(menuItems.filter(entry => entry.action === 'save-file'
+      menuItems: withoutStrayDividers([...playlistsRow, ...menuItems].filter(entry => entry.action === 'save-file'
         ? Boolean(item.sourceRef)
         : entry.action === 'download-format' ? Boolean(sourceUrlFor(item) && openFormatDownload)
         : entry.action === 'delete' ? document.body.dataset.canDelete !== 'false' : true)),
@@ -143,29 +153,43 @@ export function createGalleryActions({
       onToggleFavourite: toggleFavourite,
       onToggleMenu: target => {
         const wasOpen = openMenu.surface === surface && openMenu.id === target.id;
-        closeFormatDownload?.();
+        closeSubmenus();
         setCardMenu(wasOpen ? {surface: null, id: null} : {surface, id: target.id});
       },
       onMenuItemHover: (entry, target, event) => {
+        // Each submenu row opens its own and lets the other go, after a beat
+        // so a pointer cutting across a row on its way into one keeps it.
+        const keyboard = event.type === 'keydown' || (event.type === 'click' && event.detail === 0);
+        if (entry.action !== 'add-playlist') playlistEditor?.closeSubmenu({delay: 150});
+        if (entry.action !== 'show-playlists') openCollections?.closeSubmenu?.({delay: 150});
+        if (entry.action === 'show-playlists' && entry.submenu) {
+          closeFormatDownload?.();
+          openCollections(target.facets?.collections || [], event.currentTarget, {side: true, focus: keyboard});
+          return;
+        }
+        if (entry.action === 'add-playlist') {
+          closeFormatDownload?.();
+          playlistEditor?.add(target, event.currentTarget, {side: true, focus: keyboard});
+          return;
+        }
         if (entry.action !== 'download-format') {
           closeFormatDownload?.({delay: 150});
           return;
         }
         const sourceUrl = sourceUrlFor(target);
         if (sourceUrl) openFormatDownload?.(event.currentTarget, {
-          url: sourceUrl, side: true,
-          focus: event.type === 'keydown' || (event.type === 'click' && event.detail === 0),
+          url: sourceUrl, side: true, focus: keyboard,
         });
       },
-      onMenuAction: async (action, target, _partIndex, event) => {
-        closeFormatDownload?.();
-        // Found before the menu closes, since it takes the clicked row with it.
-        const trigger = event?.currentTarget?.closest?.('.card-menu')?.querySelector('.menu-trigger');
+      onMenuAction: async (action, target) => {
+        closeSubmenus();
         setCardMenu({surface: null, id: null});
         const sourceUrl = sourceUrlFor(target);
         try {
           if (action === 'delete') await deleteVideo(target);
-          if (action === 'add-playlist' && trigger) playlistEditor.add(target, trigger);
+          if (action === 'show-playlists' && target.facets?.collections?.length) {
+            filterByFacet('playlist', target.facets.collections[0]);
+          }
           if (action === 'save-file' && target.sourceRef) {
             const link = document.createElement('a');
             link.href = target.sourceRef;
@@ -219,9 +243,14 @@ export function createGalleryActions({
     }
   }
 
+  function closeSubmenus() {
+    closeFormatDownload?.();
+    openCollections?.closeSubmenu?.();
+    playlistEditor?.closeSubmenu();
+  }
   function closeCardMenu() {
     if (openMenu.id == null) return;
-    closeFormatDownload?.();
+    closeSubmenus();
     setCardMenu({surface: null, id: null});
   }
   function positionOpenCardMenu() {

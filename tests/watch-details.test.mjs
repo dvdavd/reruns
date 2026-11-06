@@ -55,6 +55,14 @@ test('the adapter carries the sidecar detail the watch page needs', () => {
   assert.deepEqual(archive.subtitleLanguages, ['en', 'es']);
 });
 
+test('a stream\'s live_chat track is offered as a chat replay, not as a subtitle language', () => {
+  const stream = toMediaItem({...raw, subtitles: {en: [{}], live_chat: [{}]}});
+  assert.deepEqual(stream.archive.subtitleLanguages, ['en']);
+  assert.equal(stream.archive.chatOffered, true);
+  assert.equal(stream.archive.chatUrl, '');
+  assert.equal(toMediaItem(raw).archive.chatOffered, false);
+});
+
 test('an epoch timestamp wins over the bare upload date, and neither is required', () => {
   assert.equal(uploadedAtOf({timestamp: 1700000000, upload_date: '20240301'}), 1700000000);
   assert.equal(uploadedAtOf({upload_date: 'unknown'}), 0);
@@ -275,6 +283,24 @@ test('channel videos come first, ranked by title overlap with stable ties', () =
   assert.deepEqual(relatedIds(item, items), ['strong', 'tied', 'weak', 'unrelated', 'outside']);
   assert.deepEqual(relatedIds(item, items, 2), ['strong', 'tied']);
   assert.deepEqual(items.map(entry => entry.id), ['unrelated', 'weak', 'outside', 'strong', 'tied', 'current']);
+});
+
+test('the parts after a numbered video lead the row, nearest first, then the earlier ones', () => {
+  const item = relatedVideo('p3', 'Building a shed - Part 3 of 5');
+  const items = [
+    relatedVideo('p1', 'Building a shed - Part 1 of 5: the base'),
+    relatedVideo('other', 'Building a shed: what went wrong'),
+    relatedVideo('p5', 'Building a shed - Part 5 of 5'),
+    relatedVideo('p2', 'Building a shed - Part 2 of 5', 'reupload'),
+    relatedVideo('p4', 'Building a shed - Part 4 of 5: the roof'),
+    relatedVideo('bike', 'Fixing a bike - Part 4'),
+    item,
+  ];
+  assert.deepEqual(relatedIds(item, items), ['p4', 'p5', 'p1', 'p2', 'other', 'bike']);
+  assert.deepEqual(relatedIds(item, items, 1), ['p4']);
+  // The last part has nothing after it, so the run reads from the start.
+  const last = relatedVideo('p5', 'Building a shed - Part 5 of 5');
+  assert.deepEqual(relatedIds(last, items, 4), ['p1', 'p2', 'p3', 'p4']);
 });
 
 test('library matches fill spare places in similarity order without unrelated filler', () => {

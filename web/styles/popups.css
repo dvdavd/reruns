@@ -422,11 +422,13 @@ body[data-video-colours="player"][data-watch-accent] .archive-watch {
 /* Three columns need the watch column to be wide, not the window: the column
    is capped by the stage's height, so zooming in or a short window narrows it
    while the window's width still reads as wide, and the middle was crushed.
-   940px is 250 + 320 for the sides, their gaps, and about 300 for the text
-   (the same number is WIDE_LOWER in the player controller). */
-@container watch-main (min-width: 940px) {
+   980px is 250 + 360 for the sides, their gaps, and about 300 for the text
+   (the same number is WIDE_LOWER in the player controller). The related
+   column is the chat replay's full width beside the player, so the two line
+   up when both are open. */
+@container watch-main (min-width: 980px) {
   .archive-watch-lower {
-    grid-template-columns: 250px minmax(0, 1fr) 320px;
+    grid-template-columns: 250px minmax(0, 1fr) 360px;
     grid-template-areas: "facts story related" "facts comments related";
     grid-template-rows: auto 1fr;
     column-gap: 28px;
@@ -464,7 +466,7 @@ body[data-video-colours="player"][data-watch-accent] .archive-watch-facts {
 /* In the narrow column the labels stay above their values, but closer. Beside
    them they met the values: RESOLUTION is wider than any column that leaves
    room for what it labels. */
-@container watch-main (min-width: 940px) {
+@container watch-main (min-width: 980px) {
   .archive-watch-specs { grid-template-columns: minmax(0, 1fr); gap: 9px; }
   .archive-watch-specs dt { margin-bottom: 1px; font-size: 10px; letter-spacing: .08em; }
   .archive-watch-specs dd { font-size: 13px; line-height: 1.3; }
@@ -720,7 +722,7 @@ button.archive-watch-action { padding: 0; background: none; cursor: pointer; }
 .archive-related[hidden] { display: none; }
 /* Wide: a column beside the facts and words. Dropping the container makes the
    row-fitting queries below find nothing to match, so every neighbour stays. */
-@container watch-main (min-width: 940px) {
+@container watch-main (min-width: 980px) {
   .archive-watch-lower > .archive-related { margin: 0; container: none; }
   .archive-watch-lower .archive-related-list { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   /* How many cards the column shows is decided in drawRelated's fitRelated,
@@ -810,6 +812,9 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
    without it the footer had nothing to set its height by, so a card with no
    playlist chip sat shorter than the rest of the row. */
 .archive-related-list .video-favourite-button { display: none; }
+/* The playlists a related video is in are a row of its menu instead, so the
+   title has the footer's width to itself. */
+.archive-related-list .group-chips { display: none; }
 .watch-thumbnail-transition {
   position: fixed;
   /* Under the topbar (z-index 100), which the gallery also scrolls behind. */

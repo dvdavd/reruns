@@ -315,13 +315,26 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
   // is saved the moment it is ticked, so there is nothing to Save or discard.
   let changed = false;
   const menu = createAnchoredMenu({label: t('pl.addMenu'), className: 'playlist-add-menu', onClose() {
+    cancelClose();
     // Rescanned once, on the way out, so a row ticked a moment ago is not
     // redrawn from under the pointer.
     if (changed) { changed = false; reload(); }
   }});
+  // What a card menu's row names as the menu it opens.
+  menu.element.id = 'playlist-add-menu';
 
-  /** `from` is the button the menu hangs from. */
-  function add(target, from) {
+  /**
+   * `from` is the button the menu hangs from. With `side` it is a card menu's
+   * row and the menu opens beside it as a submenu; `focus` moves into it, for
+   * a keyboard rather than a pointer passing over the row.
+   */
+  function add(target, from, {side = false, focus = true} = {}) {
+    // A pointer moving along the row re-announces it; rebuilding then would
+    // drop a name half typed into the new playlist field.
+    if (side && menu.isOpen() && menu.opener() === from) {
+      if (focus) menu.element.querySelector('button, input')?.focus({preventScroll: true});
+      return;
+    }
     const members = new Set(membershipsOf(target).map(member => String(member.id)));
     const problem = node('p', '', 'playlist-editor-error');
     problem.setAttribute('role', 'alert');
@@ -356,8 +369,10 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
     name.maxLength = 200;
     name.placeholder = t('pl.newPlaylist');
     name.setAttribute('aria-label', t('pl.newName'));
-    // Keys typed here are not menu navigation.
+    // Keys typed here are not menu navigation, except Left with nowhere left
+    // to go, which still backs out of a submenu.
     name.addEventListener('keydown', async event => {
+      if (event.key === 'ArrowLeft' && name.selectionStart === 0 && name.selectionEnd === 0) return;
       event.stopPropagation();
       if (event.key !== 'Enter' || !name.value.trim() || name.disabled) return;
       event.preventDefault();
@@ -376,9 +391,29 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
     const divider = node('div', '', 'menu-divider');
     divider.setAttribute('role', 'separator');
     // The card's own button keeps its aria-expanded to itself.
-    if (menu.open(from, [...rows, ...(rows.length ? [divider] : []), name, problem], {reflect: false})) {
+    if (menu.open(from, [...rows, ...(rows.length ? [divider] : []), name, problem], {reflect: false, side})
+        && focus) {
       (rows[0] || name).focus({preventScroll: true});
     }
   }
-  return {edit, add};
+  // Left closes a submenu back to the row it came from, as in the format one.
+  menu.element.addEventListener('keydown', event => {
+    const row = menu.opener();
+    if (event.key !== 'ArrowLeft' || !row?.closest('.card-menu')) return;
+    event.preventDefault();
+    menu.close();
+    row.focus();
+  });
+  menu.element.addEventListener('pointerenter', () => cancelClose());
+  let closeTimer = null;
+  function cancelClose() { clearTimeout(closeTimer); closeTimer = null; }
+  /** Closes it when it is a card menu's submenu, after `delay` so a pointer
+   *  crossing another row on its way into it does not shut it. */
+  function closeSubmenu({delay = 0} = {}) {
+    cancelClose();
+    if (!menu.opener()?.closest('.card-menu')) return;
+    if (delay) closeTimer = setTimeout(() => menu.close(), delay);
+    else menu.close();
+  }
+  return {edit, add: (...args) => { cancelClose(); add(...args); }, closeSubmenu};
 }

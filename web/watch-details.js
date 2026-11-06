@@ -1,5 +1,6 @@
 import {locale, plural, t} from './i18n.js';
 import {playlistItems} from './playlists.js';
+import {sameSeries, titleSequence} from './title-sequence.js';
 
 // Builds the metadata the watch page shows under the player. Everything here
 // reads the adapted item shape only, so it stays testable without a DOM and
@@ -282,23 +283,38 @@ function titleSimilarity(words, title) {
   return shared ? 2 * shared / (words.size + other.size) : 0;
 }
 
-/** Channel alternatives first, then title matches from the wider library. */
+/**
+ * Other parts of the series this video is numbered in, then channel
+ * alternatives, then title matches from the wider library. The parts after
+ * this one come first, nearest first, so the next part leads the row whether
+ * or not the one straight after is held; the earlier parts follow in order.
+ */
 export function relatedItems(item, items, limit = 10) {
   const channel = channelKey(item);
   const words = titleWords(item.title);
+  const sequence = titleSequence(item.title);
   const seen = new Set([item.id]);
+  const later = [];
+  const earlier = [];
   const siblings = [];
   const matches = [];
   for (const candidate of items) {
     if (seen.has(candidate.id)) continue;
     seen.add(candidate.id);
+    const part = sequence && titleSequence(candidate.title);
+    if (part && sameSeries(sequence, part)) {
+      (part.number > sequence.number ? later : earlier).push({candidate, score: part.number});
+      continue;
+    }
     const score = titleSimilarity(words, candidate.title);
     const ranked = {candidate, score};
     if (channel != null && channelKey(candidate) === channel) siblings.push(ranked);
     else if (score > 0) matches.push(ranked);
   }
   const bySimilarity = (left, right) => right.score - left.score;
-  return [...siblings.sort(bySimilarity), ...matches.sort(bySimilarity)]
+  const inOrder = (left, right) => left.score - right.score;
+  return [...later.sort(inOrder), ...earlier.sort(inOrder),
+    ...siblings.sort(bySimilarity), ...matches.sort(bySimilarity)]
     .slice(0, Math.max(0, limit)).map(entry => entry.candidate);
 }
 

@@ -138,11 +138,24 @@ class DownloadRoutes:
         except KeyError:
             self.send_error(HTTPStatus.NOT_FOUND, "No such downloaded video")
             return
+        # The chat card asks for the stream's chat replay alone.
+        chat = payload.get("chat") is True
+
+        def finish(job) -> None:
+            if job.state != "done":
+                return
+            self.archive.scan()
+            # yt-dlp only notes a stream with no replay to give, and finishes
+            # without error; the card is told plainly rather than left waiting.
+            if chat and not self.archive.chat_held(key):
+                job.state, job.error = "failed", "yt-dlp saved no chat replay for this video"
+                job.log(f"Fetching the chat replay for {job.label()} failed: {job.error}", logging.ERROR)
+
         job = self.downloader.start_subtitles(
             url, root=root, output=output, languages=languages,
-            automatic=payload.get("automatic") is True, title=title,
+            automatic=payload.get("automatic") is True, title=title, chat=chat,
             thumbnail=thumbnail, owner=self.account["id"] if self.auth else None,
-            on_finish=lambda finished: self.archive.scan() if finished.state == "done" else None,
+            on_finish=finish,
         )
         if self.auth:
             self.auth.job_owners[job.id] = self.account["id"]

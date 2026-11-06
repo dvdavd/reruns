@@ -1,4 +1,4 @@
-import {request} from './api.js';
+import {jobFinished, request} from './api.js';
 import {commentsOf, sortComments} from './item-adapter.js';
 import {formatDate} from './watch-details.js';
 import {plural, t} from './i18n.js';
@@ -155,37 +155,24 @@ const CLAMP_LINES = 4;
  *  it has, so this runs once the comments are in the page and again when their
  *  width changes. One the viewer has opened is left open, with its toggle. */
 function measure(root) {
-  for (const text of root.querySelectorAll('.archive-comment-text')) {
-    const more = text.nextElementSibling;
-    if (more.getAttribute('aria-expanded') === 'true') continue;
-    // Clamped while measured: its scrollHeight is still the whole text's.
-    text.classList.add('is-clamped');
-    if (!text.clientHeight) continue;
+  const texts = [...root.querySelectorAll('.archive-comment-text')]
+    .filter(text => text.nextElementSibling.getAttribute('aria-expanded') !== 'true');
+  // Clamped while measured: its scrollHeight is still the whole text's. All
+  // are clamped, then all read, then all settled: a write between reads laid
+  // the page out again for each comment, and a resize measures every frame,
+  // which with a few hundred comments was most of the work of dragging the
+  // window.
+  for (const text of texts) text.classList.add('is-clamped');
+  const worth = texts.map(text => {
+    if (!text.clientHeight) return null;
     const line = text.clientHeight / CLAMP_LINES;
-    const worth = text.scrollHeight > text.clientHeight + line + 1;
-    text.classList.toggle('is-clamped', worth);
-    more.hidden = !worth;
-  }
-}
-
-const JOB_POLL_MS = 1000;
-const JOB_GIVE_UP_MS = 5 * 60 * 1000;
-const FINAL_STATES = new Set(['done', 'failed', 'cancelled']);
-
-/** Resolves with the job once it has finished, or rejects if it failed. A job
- *  that has vanished from the list was cleared after finishing. */
-async function finished(job) {
-  const started = Date.now();
-  while (Date.now() - started < JOB_GIVE_UP_MS) {
-    await new Promise(resolve => setTimeout(resolve, JOB_POLL_MS));
-    const jobs = await request('/api/jobs');
-    const current = jobs.find(entry => entry.id === job.id);
-    if (!current) return job;
-    if (!FINAL_STATES.has(current.state)) continue;
-    if (current.state !== 'done') throw new Error(current.error || t('watch.comments.fetchFailed'));
-    return current;
-  }
-  throw new Error(t('watch.comments.fetchFailed'));
+    return text.scrollHeight > text.clientHeight + line + 1;
+  });
+  texts.forEach((text, index) => {
+    if (worth[index] === null) return;
+    text.classList.toggle('is-clamped', worth[index]);
+    text.nextElementSibling.hidden = !worth[index];
+  });
 }
 
 /**
@@ -223,12 +210,21 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
   let token = 0;
 
   // A narrower card wraps more lines, so a comment that fitted may not now.
+  // Measured once the width settles: re-clamping every comment restyles them
+  // all, and done on each frame of a window being dragged it cost ten times
+  // the rest of the page together.
   let width = 0;
+  let settle = 0;
   new ResizeObserver(([entry]) => {
     const next = Math.round(entry.contentRect.width);
     if (next === width) return;
+    // Coming into view (drawn while hidden, where nothing could be measured)
+    // is not a drag, and its read-more buttons should not wait.
+    const appearing = !width;
     width = next;
-    measure(list);
+    clearTimeout(settle);
+    if (appearing) measure(list);
+    else settle = setTimeout(() => measure(list), 150);
   }).observe(list);
 
   const holds = () => (threads ? threads.length > 0 : item?.archive.commentCount > 0);
@@ -286,7 +282,7 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     draw();
     try {
       const job = await fetchComments(current);
-      if (job) await finished(job);
+      if (job) await jobFinished(job, {failure: t('watch.comments.fetchFailed')});
       if (mine !== token) return;
       fetching = false;
       await read(mine);

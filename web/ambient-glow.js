@@ -127,6 +127,10 @@ const JANK_SLOW_MS = 40;
 const JANK_SHARE = .3;
 const JANK_WINDOWS = 3;
 const JANK_STALL_MS = 500;
+// How long a video is watched before the glow is judged fine on this device.
+// Timing frames means waking on every display refresh, which on a 144Hz
+// screen was a good part of what the page cost while playing.
+const JANK_WATCH_MS = 20000;
 export function createJankMonitor() {
   let elapsed = 0, frames = 0, slow = 0, bad = 0;
   return {
@@ -156,14 +160,10 @@ function suspendGlow(on) {
   try { on ? localStorage.setItem(SUSPENDED_KEY, '1') : localStorage.removeItem(SUSPENDED_KEY); } catch { /* Per page load then. */ }
 }
 
-export function finishGlowFades(canvas) {
-  for (const animation of canvas.getAnimations()) {
-    // Sampling must finish the crossfade before reusing a layer, but leave
-    // the immersive blur transition running across successive samples.
-    if (animation.effect?.getKeyframes().some(frame => Object.hasOwn(frame, 'opacity'))) {
-      animation.finish();
-    }
-  }
+/** How far through a crossfade begun at `start` and lasting `duration` the
+ *  glow is at `now`, from 0 to 1. */
+export function crossfadeProgress(start, duration, now) {
+  return duration > 0 ? Math.min(1, Math.max(0, (now - start) / duration)) : 1;
 }
 
 export function initialiseAmbientGlow(player, stage) {
@@ -208,6 +208,10 @@ export function initialiseAmbientGlow(player, stage) {
   let watching = false;
   let chosenMode = playerLightingMode();
   let warmUntil = 0;
+  // The load whose frames have been watched long enough; see watchFrames.
+  let watchedToken;
+  // The crossfade under way: the layer going, the one coming, and when.
+  let fading = null;
 
   function filterLightSample(context) {
     if (document.documentElement.dataset.theme !== 'light') return;
@@ -225,13 +229,15 @@ export function initialiseAmbientGlow(player, stage) {
   /** Automatic mode times the page's frames while the glow is showing. The
    *  glow's first moments (its fade up, the zoom settling) are left out. */
   function watchFrames() {
-    if (watching || playerLightingMode() !== 'automatic') return;
+    if (watching || playerLightingMode() !== 'automatic' || watchedToken === player.loadToken) return;
     watching = true;
     jank.reset();
     warmUntil = performance.now() + 1500;
+    const until = warmUntil + JANK_WATCH_MS;
     let previous;
     const tick = time => {
       if (glow.hidden || document.hidden || playerLightingMode() !== 'automatic') { watching = false; return; }
+      if (time > until) { watching = false; watchedToken = player.loadToken; return; }
       if (time > warmUntil && previous != null && jank.frame(time - previous)) {
         watching = false;
         suspended = true;
@@ -248,7 +254,7 @@ export function initialiseAmbientGlow(player, stage) {
   function hide() {
     glow.hidden = true;
     glow.getAnimations().forEach(animation => animation.cancel());
-    for (const {canvas} of layers) canvas.getAnimations().forEach(animation => animation.cancel());
+    settleFade();
     lastSample = -Infinity;
     lastTime = -1;
     still = '';
@@ -257,8 +263,36 @@ export function initialiseAmbientGlow(player, stage) {
   /** The layer not showing, to draw the next sample into. What is left of
    *  the last fade finishes first, so it is out of sight before it changes. */
   function nextLayer() {
-    for (const {canvas} of layers) finishGlowFades(canvas);
+    settleFade();
     return layers[1 - front];
+  }
+
+  /** Ends the crossfade where it was going. */
+  function settleFade() {
+    if (!fading) return;
+    fading.from.style.opacity = '0';
+    fading.to.style.opacity = '1';
+    fading = null;
+  }
+
+  /** Moves the crossfade on. It is stepped by hand rather than run as an
+   *  animation: there is a fade under way nearly all the time a video plays,
+   *  and an animation is redrawn on every display refresh, so the whole page
+   *  was composed afresh 144 times a second on a 144Hz screen, the chat and
+   *  details with it. Playing, it steps on the video's own frames, which
+   *  are being drawn anyway; otherwise (a still, or a seek sheet's tiles) on
+   *  animation frames, until the fade, at most FADE_MAX_MS, is done. */
+  function stepFade() {
+    if (!fading) return;
+    const progress = crossfadeProgress(fading.start, fading.duration, performance.now());
+    if (progress >= 1) { settleFade(); return; }
+    fading.from.style.opacity = String(1 - progress);
+    fading.to.style.opacity = String(progress);
+    const {video} = player;
+    const current = fading;
+    const next = () => { if (fading === current) stepFade(); };
+    if (video.requestVideoFrameCallback && !video.paused && !video.ended) video.requestVideoFrameCallback(next);
+    else requestAnimationFrame(next);
   }
 
   /** Fades a freshly drawn layer in as the other fades out, over the time
@@ -270,12 +304,8 @@ export function initialiseAmbientGlow(player, stage) {
     lastSample = now;
     const outgoing = layers[front].canvas;
     front = layers.indexOf(layer);
-    outgoing.style.opacity = '0';
-    layer.canvas.style.opacity = '1';
-    if (fade) {
-      outgoing.animate({opacity: [1, 0]}, {duration: fade});
-      layer.canvas.animate({opacity: [0, 1]}, {duration: fade});
-    }
+    fading = {from: outgoing, to: layer.canvas, start: now, duration: fade};
+    if (fade) stepFade(); else settleFade();
     glow.hidden = false;
     watchFrames();
     // On the container, not the layer: the next sample finishes the layers'
@@ -422,6 +452,8 @@ export function initialiseAmbientGlow(player, stage) {
   for (const event of ['timeupdate', 'play', 'pause', 'loadeddata', 'emptied']) {
     player.video.addEventListener(event, update);
   }
+  // A fade stepping on video frames would stop part way when they do.
+  player.video.addEventListener('pause', stepFade);
   player.video.addEventListener('seeked', () => {
     lastSample = -Infinity;
     lastTime = -1;

@@ -1,18 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {createJankMonitor, finishGlowFades, lightGlowPixels, nextSampleInterval} from '../web/ambient-glow.js';
+import {createJankMonitor, crossfadeProgress, lightGlowPixels, nextSampleInterval} from '../web/ambient-glow.js';
 
-test('new glow samples finish opacity fades without snapping the blur transition', () => {
-  const finished = [];
-  const animation = (property, value) => ({
-    effect: {getKeyframes: () => [{[property]: value}]},
-    finish: () => finished.push(property),
-  });
-  finishGlowFades({getAnimations: () => [
-    animation('opacity', 1), animation('filter', 'blur(13px)'), animation('opacity', 0),
-  ]});
-  assert.deepEqual(finished, ['opacity', 'opacity']);
+test('a glow crossfade runs from nothing to whole over its duration', () => {
+  assert.equal(crossfadeProgress(1000, 200, 1000), 0);
+  assert.equal(crossfadeProgress(1000, 200, 1100), .5);
+  assert.equal(crossfadeProgress(1000, 200, 1300), 1);
+  assert.equal(crossfadeProgress(1000, 200, 900), 0);
+  assert.equal(crossfadeProgress(1000, 0, 1000), 1);
 });
 
 function pixel(red, green, blue, alpha = 255) {

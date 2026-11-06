@@ -864,8 +864,11 @@ class Downloader:
 
     def start_subtitles(self, url: str, *, root: Path, output: str,
                         languages: str = "en.*", automatic: bool = True,
-                        title: str = "", thumbnail: str = "", on_finish=None, owner=None) -> Job:
-        """Fetch sidecar subtitles for one existing archive entry."""
+                        title: str = "", thumbnail: str = "", chat: bool = False,
+                        on_finish=None, owner=None) -> Job:
+        """Fetch sidecar subtitles for one existing archive entry, or with
+        ``chat`` its chat replay alone, which yt-dlp offers as a subtitle
+        track named live_chat."""
         languages = validate_languages(languages) or "all"
         options = {**DEFAULT_OPTIONS, "subtitles": "manual_auto" if automatic else "manual",
                    "subtitle_languages": languages, "playlist": "single"}
@@ -881,18 +884,20 @@ class Downloader:
         template = output.replace("%", "%%") + ".%(ext)s"
         command = [
             self.binary, "--newline", "--color", "no_color",
-            "--skip-download", "--write-subs", "--sub-format", "vtt/best",
-            "--sub-langs", f"{languages},-live_chat", "--no-playlist",
-            "--paths", str(root), "--output", template,
+            "--skip-download", "--write-subs",
+            *(["--sub-langs", "live_chat"] if chat else
+              ["--sub-format", "vtt/best", "--sub-langs", f"{languages},-live_chat"]),
+            "--no-playlist", "--paths", str(root), "--output", template,
         ]
-        if automatic:
+        if automatic and not chat:
             command.append("--write-auto-subs")
         job.command = command + ["--", url]
         with self._lock:
             self._jobs[job.id] = job
             self._order.append(job.id)
             self._save()
-        job.log(f"Queued subtitles ({languages}) for {job.label()}")
+        job.log(f"Queued chat replay for {job.label()}" if chat
+                else f"Queued subtitles ({languages}) for {job.label()}")
         self._launch(job)
         return job
 

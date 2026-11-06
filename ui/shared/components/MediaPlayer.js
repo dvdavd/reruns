@@ -566,6 +566,9 @@ export class MediaPlayer {
       this.showMessage(say(this.labels, 'noWebgl'));
     }
     this.resetView();
+    // A projected video that starts while playing - the next in a playlist -
+    // had its play event before it was known to need drawing.
+    if (!this.video.paused) this.startDrawing();
   }
   projectionSource() {
     const layout = this.media?.layout;
@@ -574,7 +577,7 @@ export class MediaPlayer {
       inputHfov: Number(this.media?.inputHfov || this.media?.detectedHfov || 180),
       alphaPacked: ['deovr', true].includes(this.media?.alphaPacking)};
   }
-  setRaw(raw) { this.raw = raw; this.root.classList.toggle('is-raw', raw); this.viewButton.ariaLabel = say(this.labels, raw ? 'showUnwarped' : 'showRaw'); if (!raw) this.draw(); }
+  setRaw(raw) { this.raw = raw; this.root.classList.toggle('is-raw', raw); this.viewButton.ariaLabel = say(this.labels, raw ? 'showUnwarped' : 'showRaw'); if (!raw) this.startDrawing(); }
   resetView() { this.yaw = 0; this.pitch = 0; this.fov = clampFov(this.media?.hfov || 90); this.draw(); }
   movePointer(event) {
     const previous = this.pointers.get(event.pointerId);
@@ -591,7 +594,10 @@ export class MediaPlayer {
     this.draw();
   }
   draw() { if (this.renderer && !this.raw) this.renderer.draw({view: {yaw: this.yaw, pitch: this.pitch, fov: this.fov}, source: this.projectionSource(), accent: new Float32Array([.55, .4, .7])}); }
-  startDrawing() { cancelAnimationFrame(this.frameRequest); const frame = () => { this.draw(); if (!this.video.paused) this.frameRequest = requestAnimationFrame(frame); }; frame(); }
+  // Only a projected picture is drawn by the page. For any other the loop
+  // drew nothing on every display refresh, which on a 144Hz screen kept the
+  // page waking 144 times a second for as long as a video played.
+  startDrawing() { cancelAnimationFrame(this.frameRequest); const frame = () => { this.draw(); if (!this.video.paused && this.renderer && !this.raw) this.frameRequest = requestAnimationFrame(frame); }; frame(); }
   configureSeekPreview(sheet) {
     this.seekPreview = sheet;
     this.previewImage.hidden = !sheet;
