@@ -112,7 +112,10 @@
 :root[data-theme="light"] body.watch-open:not([data-player-lighting="off"]) .topbar-shell:has(> .topbar) {
   background: rgb(245 246 249 / var(--watch-header-alpha, 0));
 }
-:root[data-theme="light"] .archive-watch-stage > .archive-ambient-glow { opacity: 1; }
+/* Immersive mode's lower opacity is the dark theme's; its selector outweighs
+   this one, so the light theme names immersive too to stay at full strength. */
+:root[data-theme="light"] .archive-watch-stage > .archive-ambient-glow,
+:root[data-theme="light"] body.watch-open.is-player-immersive .archive-watch-stage > .archive-ambient-glow { opacity: 1; }
 /* lightGlowPixels already sets the colour, and saturating it again on top
    turned skin orange and orange red. */
 :root[data-theme="light"] .archive-ambient-glow > canvas { filter: blur(9.5px); }

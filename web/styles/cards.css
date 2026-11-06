@@ -384,6 +384,22 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
   z-index: 0;
   mix-blend-mode: screen;
 }
+/* Immersive mode transforms the stage, and a transformed box is a closed
+   group: the screen blend then meets nothing outside the stage, so the light
+   was laid on as plain colour, deeper than the page and darker than it in the
+   channels it lacks, from the moment the class arrived. A ring of the page's
+   own colour inside the stage gives the blend the same backdrop either way.
+   It is a shadow so the stage's own dark ground stays uncovered, and it
+   reaches past the enlarged glow's blur. */
+:root:not([data-theme="light"]) .archive-watch:not(.is-mini) .archive-watch-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 0 280px var(--shell-bg);
+  pointer-events: none;
+}
 .archive-ambient-glow > canvas {
   position: absolute;
   top: 0;
