@@ -125,11 +125,135 @@ export function createPlayerTransitions({
     width: rect.width, height: rect.height,
   });
 
+  /** Every length in a computed border-radius, multiplied by `factor`. */
+  const scaleRadius = (radius, factor) => String(radius)
+    .replace(/(-?[\d.]+)px/g, (_, value) => `${parseFloat(value) * factor}px`);
+
+  /**
+   * The smallest rect of `aspect` (width over height) that covers `rect`,
+   * centred on it. The zoom flies the thumbnail at the card's shape whatever
+   * the video's is, so over a narrower stage this is where it lands: a 4:3
+   * or vertical video's height, with the sides hanging over.
+   */
+  const coverShape = (rect, aspect) => {
+    const width = Math.max(rect.width, rect.height * aspect);
+    const height = width / aspect;
+    return {
+      left: rect.left + (rect.width - width) / 2, top: rect.top + (rect.height - height) / 2,
+      width, height,
+    };
+  };
+
+  const sameShape = (a, b) => Math.abs((a.width / a.height) / (b.width / b.height) - 1) < 0.01;
+
+  /**
+   * Where a thumbnail of `aspect` sits over the stage. Covering a stage
+   * narrower than it hangs the sides over and fades them (see cropCopy), but
+   * covering a wider one made it as tall as a 16:9 player that wide, which
+   * filled the page; a wide video takes the stage's own rect instead, and
+   * the thumbnail changes shape on the way (see flyBetween).
+   */
+  const landingRect = (stage, aspect) => (stage.width / stage.height > aspect * 1.01
+    ? stage : coverShape(stage, aspect));
+
+  /**
+   * A copy of `image` (sitting at `shown`) cut down to the part over
+   * `stage`, laid over it. With the copy in place the whole thumbnail can
+   * fade, so the overhang fades away and the picture over the stage stays.
+   * The cut is in percentages of the image, so it flies with it at any size.
+   */
+  function cropCopy(image, shown, stage, radius) {
+    const copy = image.cloneNode();
+    const pct = (part, whole) => `${(part / whole) * 100}%`;
+    const radii = String(radius).split('/')[0].trim().split(/\s+/).map(parseFloat);
+    const corners = [0, 1, 2, 3].map(n => radii[n] ?? radii[n > 1 ? n - 2 : 0] ?? 0);
+    copy.style.borderRadius = '0';
+    copy.style.clipPath = `inset(${pct(stage.top - shown.top, shown.height)} `
+      + `${pct(shown.left + shown.width - stage.left - stage.width, shown.width)} `
+      + `${pct(shown.top + shown.height - stage.top - stage.height, shown.height)} `
+      + `${pct(stage.left - shown.left, shown.width)} round `
+      + `${corners.map(r => pct(r, shown.width)).join(' ')} / ${corners.map(r => pct(r, shown.height)).join(' ')})`;
+    image.after(copy);
+    return copy;
+  }
+
+  /**
+   * Flies `image` between two rects of the same shape and resolves when it
+   * lands, left sitting at `to` in plain layout.
+   *
+   * Opening a video is the page's busiest moment: the watch page renders,
+   * the video starts, details and comments arrive, and the glow wakes up.
+   * Animating left/top/width/height ran on the main thread, so each of those
+   * tasks froze the thumbnail mid-flight. A transform runs on the compositor
+   * and keeps going through them. The scale is uniform, which is why the
+   * thumbnail keeps the card's shape all the way, and a narrower video is
+   * reached by fading the overhang instead (see cropCopy).
+   */
+  async function flyRect(image, from, fromRadius, to, toRadius, timing) {
+    const launch = prepareFlight(image, from, fromRadius, to, toRadius);
+    await frame().then(frame);
+    return launch(timing);
+  }
+
+  /**
+   * Puts `image` at the start of a flight from `from` to `to`, and returns
+   * the function that sets it off.
+   *
+   * The image is laid out at the size it lands at and scaled down to where
+   * it starts, so the first frame of a flight is a much bigger image than
+   * the one on the card. Starting the clock in the same frame meant the
+   * browser could spend the opening frames decoding and drawing it at that
+   * size - Firefox draws images asynchronously - and the flight was already
+   * part-way when it first showed. Placed first, it is drawn while it sits
+   * where the card's picture is, and looks the same.
+   */
+  function prepareFlight(image, from, fromRadius, to, toRadius) {
+    const scale = from.width / to.width;
+    const start = `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${scale})`;
+    // The corners are scaled with the picture, so they start out at the
+    // card's rounding divided by the scale.
+    const startRadius = scaleRadius(fromRadius, 1 / scale);
+    Object.assign(image.style, {
+      left: `${to.left}px`, top: `${to.top}px`,
+      width: `${to.width}px`, height: `${to.height}px`,
+      transformOrigin: '0 0', transform: start, borderRadius: startRadius, willChange: 'transform',
+    });
+    return async timing => {
+      // The radius is a separate animation, since it cannot run on the
+      // compositor and would hold the transform back with it; if the main
+      // thread is busy only the corners lag.
+      image.animate([{borderRadius: startRadius}, {borderRadius: toRadius}], {...timing, fill: 'both'});
+      await image.animate([{transform: start}, {transform: 'none'}], {...timing, fill: 'both'})
+        .finished.catch(() => {});
+      for (const running of image.getAnimations()) running.cancel();
+      for (const property of ['transform', 'transform-origin', 'will-change']) image.style.removeProperty(property);
+      image.style.borderRadius = toRadius;
+    };
+  }
+
+  /**
+   * Flies between rects of different shapes by animating the rect itself,
+   * which the main thread has to draw, so this is kept to wide videos.
+   */
+  async function flyLayout(image, from, fromRadius, to, toRadius, timing) {
+    const place = (rect, radius) => ({
+      left: `${rect.left}px`, top: `${rect.top}px`,
+      width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: radius,
+    });
+    Object.assign(image.style, place(to, toRadius));
+    await image.animate([place(from, fromRadius), place(to, toRadius)], {...timing, fill: 'both'})
+      .finished.catch(() => {});
+    for (const running of image.getAnimations()) running.cancel();
+  }
+
+  const flyBetween = (image, from, fromRadius, to, toRadius, timing) => (sameShape(from, to)
+    ? flyRect : flyLayout)(image, from, fromRadius, to, toRadius, timing);
+
   async function transitionThumbnail(source, frameReady) {
     if (!source.src) return;
     const token = ++transitionToken;
     transitionImage?.remove();
-    const image = document.createElement('img');
+    let image = document.createElement('img');
     transitionImage = image;
     image.className = 'watch-thumbnail-transition watch-thumbnail-transition-enter';
     image.src = source.src;
@@ -140,37 +264,46 @@ export function createPlayerTransitions({
       width: `${initial.width}px`, height: `${initial.height}px`,
     });
     document.body.append(image);
-    await frame();
-    await frame();
+    // Decoded before it flies, so the first frames are not spent waiting on
+    // the picture. It is the card's own image, so this is normally at once.
+    await Promise.all([image.decode().catch(() => {}), frame().then(frame)]);
     if (token !== transitionToken) return image.remove();
-    const target = documentRect(pictureRect());
+    const shape = initial.width / initial.height;
+    const target = landingRect(documentRect(pictureRect()), shape);
     const targetRadius = getComputedStyle(stageNode()).borderRadius;
-    const start = source.rect ? initial : target;
-    Object.assign(image.style, {
-      left: `${target.left}px`, top: `${target.top}px`,
-      width: `${target.width}px`, height: `${target.height}px`,
-    });
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (source.rect && !reduced) {
-      await image.animate([
-        {left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: source.radius},
-        {left: `${target.left}px`, top: `${target.top}px`, width: `${target.width}px`, height: `${target.height}px`, borderRadius: targetRadius},
-      ], {duration: 360, easing: 'cubic-bezier(.22,.8,.25,1)', fill: 'both'}).finished.catch(() => {});
+      await flyBetween(image, initial, source.radius, target, targetRadius,
+        {duration: 360, easing: 'cubic-bezier(.22,.8,.25,1)'});
+    } else {
+      Object.assign(image.style, {
+        left: `${target.left}px`, top: `${target.top}px`,
+        width: `${target.width}px`, height: `${target.height}px`, borderRadius: targetRadius,
+      });
     }
     if (token !== transitionToken) return image.remove();
-    await settleAspect(image, target);
+    const landed = await settleAspect(image, target, targetRadius, shape);
     if (token !== transitionToken) return image.remove();
-    // Reveal the settled player while the opaque thumbnail still covers it;
-    // the following opacity animation is the only visible handoff.
+    const fade = {duration: reduced ? 100 : 220, easing: 'ease'};
+    // A video of another shape: the overhang fades away, leaving a copy cut
+    // to the stage that carries on as the thumbnail below.
+    const stage = documentRect(pictureRect());
+    if (!sameShape(landed, stage)) {
+      const whole = image;
+      image = cropCopy(whole, landed, stage, targetRadius);
+      transitionImage = image;
+      const gone = () => whole.remove();
+      whole.animate([{opacity: 1}, {opacity: 0}], {...fade, fill: 'forwards'}).finished.then(gone, gone);
+    }
+    // The stage is now wholly under the thumbnail, so it is revealed and the
+    // thumbnail's fade is the only visible handoff.
     page.classList.remove('is-thumbnail-transitioning');
     // A video that resumes shows its first frame before seeking to where the
     // viewer had got to, so fading on landing let the start of the video show
     // through for a moment. Hold until the frame it opens on is there.
     await Promise.race([frameReady, new Promise(resolve => setTimeout(resolve, ZOOM_HOLD_LIMIT_MS))]);
     if (token !== transitionToken) return image.remove();
-    await image.animate([{opacity: 1}, {opacity: 0}], {
-      duration: reduced ? 100 : 220, easing: 'ease', fill: 'forwards',
-    }).finished.catch(() => {});
+    await image.animate([{opacity: 1}, {opacity: 0}], {...fade, fill: 'forwards'}).finished.catch(() => {});
     image.remove();
     if (transitionImage === image) {
       transitionImage = null;
@@ -191,23 +324,29 @@ export function createPlayerTransitions({
     image.className = 'watch-thumbnail-transition watch-thumbnail-transition-enter';
     image.src = src;
     image.alt = '';
-    const start = documentRect(initial);
+    // The thumbnail is the card's shape, so it leaves from that shape over
+    // the picture; flying a different shape would stretch it.
+    const start = landingRect(documentRect(initial), 16 / 9);
     Object.assign(image.style, {
       left: `${start.left}px`, top: `${start.top}px`,
       width: `${start.width}px`, height: `${start.height}px`,
     });
     document.body.append(image);
+    // A video of another shape leaves as itself: a copy cut to the picture
+    // is what shows, and the rest of the thumbnail fades in as it flies.
+    const crop = sameShape(start, initial) ? null : cropCopy(image, start, documentRect(initial), initialRadius);
+    if (crop) image.style.opacity = '0';
+    const removeAll = () => { crop?.remove(); image.remove(); };
     const initialCard = cardFor(item.id, sourceSpot);
     let cardImage = initialCard?.querySelector('.thumbnail-image');
     let overlays = cardOverlays(initialCard);
     if (cardImage) cardImage.style.visibility = 'hidden';
     for (const overlay of overlays) overlay.style.opacity = '0';
-    await frame();
-    await frame();
+    await Promise.all([image.decode().catch(() => {}), frame().then(frame)]);
     if (token !== transitionToken) {
       cardImage?.style.removeProperty('visibility');
       for (const overlay of overlays) overlay.style.removeProperty('opacity');
-      return image.remove();
+      return removeAll();
     }
     // Re-query rather than trusting the node captured above: showing the watch
     // page re-renders the gallery, so that node is detached by now and would
@@ -224,29 +363,33 @@ export function createPlayerTransitions({
     for (const overlay of overlays) overlay.style.opacity = '0';
     const targetView = cardImage?.getBoundingClientRect();
     const target = targetView && documentRect(targetView);
+    const from = target ? landingRect(documentRect(initial), target.width / target.height) : start;
     const targetRadius = thumbnailRadius(cardImage);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const visible = onScreen(targetView);
     if (visible && !reduced) {
-      await image.animate([
-        {
-          left: `${start.left}px`, top: `${start.top}px`,
-          width: `${start.width}px`, height: `${start.height}px`,
-          borderRadius: initialRadius,
-        },
-        {
-          left: `${target.left}px`, top: `${target.top}px`,
-          width: `${target.width}px`, height: `${target.height}px`,
-          borderRadius: targetRadius,
-        },
-      ], {duration: 260, easing: 'cubic-bezier(.22,.8,.25,1)', fill: 'both'}).finished.catch(() => {});
+      const timing = {duration: 260, easing: 'cubic-bezier(.22,.8,.25,1)'};
+      if (crop) {
+        // The copy flies with the thumbnail and its sides fade in over the
+        // first part of the flight; once they have, the copy is redundant.
+        // Both are placed before either sets off, so they leave together.
+        const launch = prepareFlight(image, from, initialRadius, target, targetRadius);
+        const launchCrop = prepareFlight(crop, from, '0px', target, '0px');
+        await frame().then(frame);
+        launchCrop(timing);
+        image.animate([{opacity: 0}, {opacity: 1}], {duration: 110, easing: 'ease-out'})
+          .finished.then(() => { image.style.removeProperty('opacity'); crop.remove(); }, () => {});
+        await launch(timing);
+      } else {
+        await flyBetween(image, from, initialRadius, target, targetRadius, timing);
+      }
     } else if (visible) {
-      await image.animate([{opacity: 1}, {opacity: 0}], {
+      await Promise.all([crop || image].map(node => node.animate([{opacity: 1}, {opacity: 0}], {
         duration: reduced ? 100 : 180, easing: 'ease', fill: 'forwards',
-      }).finished.catch(() => {});
+      }).finished.catch(() => {})));
     }
     cardImage?.style.removeProperty('visibility');
-    image.remove();
+    removeAll();
     if (transitionImage === image) transitionImage = null;
     await Promise.all(overlays.map(overlay => overlay.animate([{opacity: 0}, {opacity: 1}], {
       duration: reduced ? 60 : 110, easing: 'ease-out', fill: 'forwards',
@@ -280,22 +423,25 @@ export function createPlayerTransitions({
 
   /**
    * A correction that arrived while the thumbnail was in flight, applied now
-   * that it has landed: the stage takes the new shape and the thumbnail over
-   * it follows, so the two are still the same rectangle when it fades.
+   * that it has landed: the stage takes the new shape and the thumbnail
+   * moves to its card-shaped fit inside it. Resolves with where it ends up.
    */
-  async function settleAspect(image, from) {
+  async function settleAspect(image, from, radius, shape) {
     aspectFlight = false;
-    if (!aspectPending || !from) return;
+    if (!aspectPending || !from) return from;
     applyAspect(aspectPending);
     aspectPending = '';
     await frame();
-    const to = documentRect(pictureRect());
-    if (Math.abs(to.width - from.width) < 1 && Math.abs(to.height - from.height) < 1) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    await image.animate([
-      {left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`},
-      {left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`},
-    ], {duration: ASPECT_MORPH_MS, easing: ASPECT_MORPH_EASING, fill: 'both'}).finished.catch(() => {});
+    const to = landingRect(documentRect(pictureRect()), shape);
+    if (Math.abs(to.width - from.width) < 1 && Math.abs(to.height - from.height) < 1) return from;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      Object.assign(image.style, {
+        left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`,
+      });
+    } else {
+      await flyBetween(image, from, radius, to, radius, {duration: ASPECT_MORPH_MS, easing: ASPECT_MORPH_EASING});
+    }
+    return to;
   }
 
   /**

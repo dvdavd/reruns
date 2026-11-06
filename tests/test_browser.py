@@ -85,15 +85,19 @@ def make_clip(folder, name, title, *, video):
 @unittest.skipUnless(sync_playwright, "needs the playwright package")
 @unittest.skipUnless(chromium_executable(), "needs a Chromium for playwright")
 @unittest.skipUnless(ffmpeg_makes_clips(), "needs ffmpeg with libvpx and libopus")
-class BrowserSmokeTests(unittest.TestCase):
+class _BrowserCase(unittest.TestCase):
+    """A server over an archive the subclass fills, and a browser to drive it."""
+    @classmethod
+    def fill_archive(cls, archive):
+        raise NotImplementedError
+
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
         base = Path(cls.temp.name)
         archive = base / "archive"
         archive.mkdir()
-        make_clip(archive, "smokevideo", "Smoke Video", video=True)
-        make_clip(archive, "smokesong", "Smoke Song", video=False)
+        cls.fill_archive(archive)
         port = free_port()
         cls.url = f"http://127.0.0.1:{port}"
         cls.log = open(base / "server.log", "w")
@@ -151,6 +155,13 @@ class BrowserSmokeTests(unittest.TestCase):
         page.goto(self.url + "/?videos")
         page.wait_for_selector(".video-card")
         return page
+
+
+class BrowserSmokeTests(_BrowserCase):
+    @classmethod
+    def fill_archive(cls, archive):
+        make_clip(archive, "smokevideo", "Smoke Video", video=True)
+        make_clip(archive, "smokesong", "Smoke Song", video=False)
 
     def test_library_lists_the_clips_without_failed_requests(self):
         page = self.open_page()
@@ -262,6 +273,51 @@ class BrowserSmokeTests(unittest.TestCase):
         button.click()
         self.assertEqual(page.evaluate('window.batchAction'),
                          {'id': 'batch-job', 'action': 'cancel'})
+        self.assertEqual(self.failures, [])
+
+
+class GalleryScrollTests(_BrowserCase):
+    """A library long enough that a jump to the bottom skips chunks, which
+    stay at their estimated height until scrolling back up mounts them."""
+    @classmethod
+    def fill_archive(cls, archive):
+        make_clip(archive, "scroll000", "Scroll 0", video=True)
+        info = json.loads((archive / "scroll000.info.json").read_text())
+        for index in range(1, 300):
+            name = f"scroll{index:03d}"
+            (archive / f"{name}.webm").symlink_to(archive / "scroll000.webm")
+            (archive / f"{name}.info.json").write_text(json.dumps(
+                {**info, "id": name, "title": f"Scroll {index}"}), encoding="utf-8")
+
+    def test_scrolling_up_from_the_bottom_never_moves_the_other_way(self):
+        page = self.open_page()
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.evaluate("""() => {
+            window.corrections = 0;
+            const scrollBy = window.scrollBy.bind(window);
+            window.scrollBy = (x, y) => { if (y) window.corrections += 1; scrollBy(x, y); };
+            scrollTo(0, document.documentElement.scrollHeight);
+        }""")
+        page.wait_for_timeout(300)
+        page.mouse.move(700, 450)
+        # A card under the pointer should come down by exactly what the wheel
+        # scrolled. When the gallery's correction and the browser's scroll
+        # anchoring both made up a mounted chunk's height, it went up instead.
+        moves = []
+        for _ in range(60):
+            before = page.evaluate("""() => {
+                const card = document.elementFromPoint(700, 450)?.closest('.video-card');
+                return card && [card.dataset.id, card.getBoundingClientRect().top];
+            }""")
+            page.mouse.wheel(0, -120)
+            page.wait_for_timeout(100)
+            if before:
+                moves.append(round(page.evaluate(
+                    "id => document.querySelector(`.video-card[data-id='${id}']`)"
+                    ".getBoundingClientRect().top", before[0]) - before[1]))
+        self.assertGreater(page.evaluate("window.corrections"), 0,
+                           "no chunk above the view mounted, so nothing was tested")
+        self.assertEqual([move for move in moves if abs(move - 120) > 2], [])
         self.assertEqual(self.failures, [])
 
 

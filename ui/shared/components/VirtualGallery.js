@@ -33,6 +33,12 @@ export class VirtualGallery {
     this.chunks = [];
     this.columns = '';
     this.frame = null;
+    // updateWindow keeps the view still itself when a chunk above it mounts
+    // at other than its estimated height. Browser scroll anchoring would make
+    // the same correction again, and the doubled jump outweighed the wheel:
+    // scrolling up past a chunk skipped on the way down threw the page down.
+    // The correction is ours rather than the browser's because Safari has none.
+    root.style.overflowAnchor = 'none';
 
     this.update = this.scheduleUpdate.bind(this);
     window.addEventListener('scroll', this.update, {passive: true});
