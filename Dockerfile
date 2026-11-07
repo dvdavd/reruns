@@ -142,4 +142,5 @@ CMD ["reruns", \
      "--browse-cache", "/cache/browse", \
      "--sponsorblock-cache", "/cache/sponsorblock", \
      "--probe-cache", "/cache/media-probes.json", \
+     "--sidecar-cache", "/cache/sidecars.json", \
      "--manage-yt-dlp"]

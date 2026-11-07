@@ -108,7 +108,8 @@ class _BrowserCase(unittest.TestCase):
              "--channel-cache", str(base / "channels"),
              "--browse-cache", str(base / "browse"),
              "--sponsorblock-cache", str(base / "sponsorblock"),
-             "--probe-cache", str(base / "probes")],
+             "--probe-cache", str(base / "probes"),
+             "--sidecar-cache", str(base / "sidecars.json")],
             cwd=ROOT, stdout=cls.log, stderr=subprocess.STDOUT)
         cls.playwright = sync_playwright().start()
         cls.browser = cls.playwright.chromium.launch(

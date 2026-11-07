@@ -8,6 +8,7 @@ import shutil
 import threading
 import time
 import urllib.request
+from collections import OrderedDict
 from collections.abc import Callable
 from .playlists import channel_listing, video_source
 from pathlib import Path
@@ -82,6 +83,17 @@ REFRESHED_FIELD = "_reruns_refreshed"
 DETAIL_FIELDS = ("description", "heatmap", "automatic_caption_languages", "_comments_held")
 
 RESCAN_AFTER = 60
+
+# Sidecars whose comments are held parsed. Opening a video's comments asks for
+# each commenter's picture, and every one of those asks the sidecar who it is.
+KEPT_COMMENT_SETS = 4
+
+# What the slimmed sidecars kept on disk were made by. Raise it whenever
+# _slim_sidecar, or the playlist record _read_sidecar builds, changes what it
+# keeps: a cache from before would otherwise go on serving the old shape for
+# every sidecar that has not been touched since. Adding to SIDECAR_FIELDS
+# needs no bump; the field list is part of the check.
+SIDECAR_CACHE_VERSION = 1
 
 SHOW_PLAYLIST_URL = re.compile(r"youtube\.com/show/VL([\w-]+)")
 
@@ -393,7 +405,8 @@ class Archive:
     """The scanned archive. Rescans on request so new downloads just appear."""
 
     def __init__(self, libraries: Path | Callable[[], list[tuple[str, Path]]],
-                 probes: MediaProbes | None = None) -> None:
+                 probes: MediaProbes | None = None,
+                 sidecar_cache: Path | None = None) -> None:
         # A bare folder is a single library whose keys carry no prefix.
         if isinstance(libraries, Path):
             root = libraries
@@ -409,6 +422,12 @@ class Archive:
         # The chat replay beside each stream that has one.
         self._chat: dict[str, Path] = {}
         self._chat_replays = ChatReplays()
+        # sidecar -> (signature, slimmed comments, {comment id: (author id,
+        # picture address)}), least recently used first. Parsed under the lock:
+        # a browser asks for six pictures at once, and each would otherwise
+        # parse the same sidecar of several megabytes.
+        self._comment_sets: OrderedDict[Path, tuple[tuple[int, int], list[dict], dict[str, tuple[str, str]]]] = OrderedDict()
+        self._comments_lock = threading.Lock()
         # Thumbnails a sidecar only links to, fetched once and kept beside it.
         self._remote_images: dict[str, tuple[str, Path, str]] = {}
         # Videos with no thumbnail at all, or only a link to one that may be
@@ -449,6 +468,13 @@ class Archive:
         self._scan_lock = threading.Lock()
         self._sidecars: dict[Path, tuple[tuple[int, int], dict | None]] = {}
         self._listings: dict[Path, tuple[int, Listing]] = {}
+        # The parsed sidecars are also kept on disk. Reading every .info.json
+        # is most of a cold start - a library of 450 took ten seconds off a
+        # hard disk, nearly all of it seeking from file to file - and the
+        # slimmed records are a small fraction of their size.
+        self._sidecar_cache = sidecar_cache
+        self._sidecars_dirty = False
+        self._load_sidecar_cache()
         # Videos found with no sidecar beside them, from the last scan.
         self._orphans: list[dict] = []
         # What the libraries looked like when the last scan began, and what it
@@ -512,6 +538,57 @@ class Archive:
             (root / LEGACY_STATE_FILE).unlink(missing_ok=True)
         return favourite
 
+    @staticmethod
+    def _sidecar_cache_version() -> str:
+        return f"{SIDECAR_CACHE_VERSION}:{','.join(sorted(SIDECAR_FIELDS))}"
+
+    def _load_sidecar_cache(self) -> None:
+        if self._sidecar_cache is None:
+            return
+        try:
+            payload = json.loads(self._sidecar_cache.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            return
+        if not isinstance(payload, dict) or payload.get("version") != self._sidecar_cache_version():
+            return
+        files = payload.get("files")
+        for path, held in (files.items() if isinstance(files, dict) else ()):
+            try:
+                mtime, size, entry = held
+            except (TypeError, ValueError):
+                continue
+            if isinstance(mtime, int) and isinstance(size, int) and (entry is None or isinstance(entry, dict)):
+                self._sidecars[Path(path)] = ((mtime, size), entry)
+
+    def _save_sidecar_cache(self) -> None:
+        """Write the parsed sidecars once a scan that changed them ends, not
+        per file, so a first scan of a large library writes once."""
+        if self._sidecar_cache is None or not self._sidecars_dirty:
+            return
+        self._sidecars_dirty = False
+        # A copy, as subtitle_target and channel_id_of read sidecars outside
+        # the scan lock.
+        held = dict(self._sidecars)
+        payload = {"version": self._sidecar_cache_version(),
+                   "files": {str(path): [signature[0], signature[1], entry]
+                             for path, (signature, entry) in held.items()}}
+        try:
+            self._sidecar_cache.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self._sidecar_cache.with_name(f".{self._sidecar_cache.name}.tmp")
+            temporary.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+            temporary.replace(self._sidecar_cache)
+        except OSError as error:
+            log.warning("could not save the sidecar cache: %s", error)
+
+    def _ensure_scanned(self) -> None:
+        """Scan first if no scan has finished yet. The server's first scan runs
+        on a thread while requests are already arriving, so a lookup made then
+        waits for it on the scan lock rather than finding nothing."""
+        with self._lock:
+            scanned = self._scanned
+        if not scanned:
+            self.scan()
+
     def _read_sidecar(self, info_path: Path) -> dict | None:
         """The slimmed sidecar, or a playlist record marked ``_type``; parsed
         again only when the file changed. None for an unreadable one."""
@@ -557,6 +634,7 @@ class Archive:
             _drop_channel_playlist(raw)
             entry = _slim_sidecar(raw)
         self._sidecars[info_path] = (signature, entry)
+        self._sidecars_dirty = True
         return entry
 
     def _listing(self, folder: Path) -> Listing:
@@ -712,6 +790,7 @@ class Archive:
     def refresh_languages(self, key: str) -> list[str]:
         """The subtitle languages an item already holds, which a refresh keeps
         up to date."""
+        self._ensure_scanned()
         with self._lock:
             return sorted(self._subtitles.get(key, {}))
 
@@ -835,6 +914,7 @@ class Archive:
     def orphan_target(self, key: str) -> tuple[Path, Path, str]:
         """(library root, the video, its YouTube id) for a fetch. KeyError when
         the last scan did not list this file, ValueError when the name holds no id."""
+        self._ensure_scanned()
         with self._lock:
             entry = next((entry for entry in self._orphans if entry["key"] == key), None)
         path = self._orphan_path(key) if entry else None
@@ -1034,6 +1114,8 @@ class Archive:
         # Forget sidecars that are gone, and folders nothing lives in now.
         for stale in self._sidecars.keys() - seen:
             del self._sidecars[stale]
+            self._sidecars_dirty = True
+        self._save_sidecar_cache()
         folders = ({path.parent for path in seen} | {path.parent.parent for path in seen}
                    | orphan_folders)
         for stale in self._listings.keys() - folders:
@@ -1080,6 +1162,7 @@ class Archive:
     def thumbnail_for_source(self, extractor: str, video_id: str) -> str:
         """The saved thumbnail of a held video, by extractor and the site's id,
         from the last scan; empty when the archive does not hold it."""
+        self._ensure_scanned()
         with self._lock:
             return self._thumbs_by_source.get(f"{extractor.lower()} {video_id}", "")
 
@@ -1098,6 +1181,7 @@ class Archive:
         the format each was fetched in, its extension and the subtitle
         languages and chat beside it. held_sources names only one copy, but a
         video fetched again in another format has several."""
+        self._ensure_scanned()
         self.held_sources()
         with self._lock:
             return [dict(copy) for copy in self._held_copies.get(source, [])]
@@ -1113,17 +1197,43 @@ class Archive:
         with self._lock:
             return self._details.get(key)
 
-    def _read_comments(self, key: str) -> list[dict]:
+    def _read_comments(self, key: str) -> tuple[list[dict], dict[str, tuple[str, str]]]:
+        """The sidecar's comments, slimmed to COMMENT_FIELDS, and each one's
+        (author id, picture address) by comment id. Parsed again only when the
+        sidecar changed."""
+        self._ensure_scanned()
         with self._lock:
             held = self._item_files.get(key)
         if held is None:
-            return []
+            return [], {}
+        path = held[1]
         try:
-            raw = json.loads(held[1].read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return []
-        comments = raw.get("comments") if isinstance(raw, dict) else None
-        return [c for c in comments if isinstance(c, dict)] if isinstance(comments, list) else []
+            stat = path.stat()
+        except OSError:
+            return [], {}
+        signature = (stat.st_mtime_ns, stat.st_size)
+        with self._comments_lock:
+            cached = self._comment_sets.get(path)
+            if cached is not None and cached[0] == signature:
+                self._comment_sets.move_to_end(path)
+                return cached[1], cached[2]
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return [], {}
+            comments = raw.get("comments") if isinstance(raw, dict) else None
+            slim, avatars = [], {}
+            for comment in comments if isinstance(comments, list) else ():
+                if not isinstance(comment, dict):
+                    continue
+                slim.append({field: comment[field] for field in COMMENT_FIELDS if field in comment})
+                if comment.get("author_thumbnail") and comment.get("author_id") and comment.get("id"):
+                    avatars[str(comment["id"])] = (str(comment["author_id"]), str(comment["author_thumbnail"]))
+            self._comment_sets[path] = (signature, slim, avatars)
+            self._comment_sets.move_to_end(path)
+            while len(self._comment_sets) > KEPT_COMMENT_SETS:
+                self._comment_sets.popitem(last=False)
+            return slim, avatars
 
     def comments(self, key: str) -> dict | None:
         """The comments the download saved, read from the sidecar on demand so
@@ -1138,11 +1248,12 @@ class Archive:
             known = key in self._item_files
         if not known:
             return None
-        comments = self._read_comments(key)
+        comments, avatars = self._read_comments(key)
         slim = []
         for comment in comments:
-            entry = {field: comment[field] for field in COMMENT_FIELDS if field in comment}
-            if comment.get("author_thumbnail") and comment.get("author_id") and comment.get("id"):
+            # A copy: the held set is shared between requests.
+            entry = dict(comment)
+            if str(comment.get("id")) in avatars:
                 entry["author_thumbnail"] = (
                     f"/api/comment-avatar/{quote(key)}?c={quote(str(comment['id']))}")
             slim.append(entry)
@@ -1168,12 +1279,14 @@ class Archive:
 
     def chat_held(self, key: str) -> bool:
         """Whether the last scan found a chat replay beside this video."""
+        self._ensure_scanned()
         with self._lock:
             return key in self._chat
 
     def chat_avatar_source(self, key: str, channel: str) -> tuple[str, str] | None:
         """(channel, picture address) for an author in a stream's chat replay,
         the address from the replay itself, never from the request."""
+        self._ensure_scanned()
         with self._lock:
             path = self._chat.get(key)
         photo = self._chat_replays.photo(path, channel) if path and channel else ""
@@ -1181,10 +1294,7 @@ class Archive:
 
     def comment_avatar_source(self, key: str, comment_id: str) -> tuple[str, str] | None:
         """(commenter id, picture address) for one comment, from the sidecar."""
-        for comment in self._read_comments(key):
-            if str(comment.get("id")) == comment_id:
-                return str(comment.get("author_id") or ""), str(comment.get("author_thumbnail") or "")
-        return None
+        return self._read_comments(key)[1].get(comment_id)
 
     def playlists(self, allowed=None) -> list[dict]:
         """The playlist records from the most recent scan; scans once if none has."""
@@ -1264,11 +1374,13 @@ class Archive:
 
     def channel_list(self) -> list[dict]:
         """Every channel the last scan found, as {id, url, ...}."""
+        self._ensure_scanned()
         with self._lock:
             return list(self._channels.values())
 
     def channel_id_of(self, key: str) -> str:
         """The id of the channel a held video belongs to, or ''."""
+        self._ensure_scanned()
         with self._lock:
             files = self._item_files.get(key)
         channel = _channel_of(self._read_sidecar(files[1]) or {}) if files else None
@@ -1278,16 +1390,19 @@ class Archive:
         """A picture from the channel's own videos, for when it publishes no
         portrait this archive can reach. Not a portrait, but a great deal
         better than the empty disc that stood there before."""
+        self._ensure_scanned()
         with self._lock:
             return self._channel_thumbs.get(identifier, "")
 
     def media_path(self, key: str) -> Path | None:
+        self._ensure_scanned()
         with self._lock:
             return self._media.get(key)
 
     def audio_languages(self, key: str) -> list[str]:
         """The language of each audio track the file was merged from, in the
         order of its streams. Empty when the sidecar does not say."""
+        self._ensure_scanned()
         with self._lock:
             files = self._item_files.get(key)
             cached = self._sidecars.get(files[1]) if files else None
@@ -1297,16 +1412,19 @@ class Archive:
 
     def item_path(self, key: str) -> Path | None:
         """The physical media location determines folder permissions."""
+        self._ensure_scanned()
         with self._lock:
             media = self._media.get(key)
             files = self._item_files.get(key)
             return media or (files[1] if files else None)
 
     def subtitle_path(self, key: str, language: str) -> Path | None:
+        self._ensure_scanned()
         with self._lock:
             return self._subtitles.get(key, {}).get(language)
 
     def youtube_id(self, key: str) -> str | None:
+        self._ensure_scanned()
         with self._lock:
             return self._youtube_ids.get(key)
 
@@ -1314,6 +1432,7 @@ class Archive:
         """The thumbnail beside the video, downloading it there first when the
         sidecar only links to one, and taking a frame of the video when there
         is no link or it no longer leads anywhere - Dropbox's expire in a day."""
+        self._ensure_scanned()
         with self._lock:
             local = self._images.get(key)
             remote = self._remote_images.get(key)

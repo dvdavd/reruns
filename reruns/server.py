@@ -21,6 +21,7 @@ import signal
 import sqlite3
 import sys
 import threading
+import time
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -577,6 +578,9 @@ def main() -> None:
     parser.add_argument("--probe-cache", type=Path,
                         default=default_cache_dir() / "media-probes.json",
                         help="Where what each media file says about itself is kept")
+    parser.add_argument("--sidecar-cache", type=Path,
+                        default=default_cache_dir() / "sidecars.json",
+                        help="Where the parsed .info.json sidecars are kept between runs")
     parser.add_argument("--yt-dlp", default="yt-dlp",
                         help="yt-dlp executable to run, or with --manage-yt-dlp "
                              "the copy a fresh config folder starts from")
@@ -675,8 +679,21 @@ def main() -> None:
             settings.add(str(seeded))
 
     archive = Archive(settings.libraries,
-                      probes=MediaProbes(args.probe_cache.expanduser().resolve()))
-    found = len(archive.scan())
+                      probes=MediaProbes(args.probe_cache.expanduser().resolve()),
+                      sidecar_cache=args.sidecar_cache.expanduser().resolve())
+
+    # The first scan runs while the server is already answering, so the page
+    # comes up at once with its loading panel; /api/items, and anything else
+    # that needs the library, waits on the scan lock until the scan is done.
+    def first_scan() -> None:
+        started = time.monotonic()
+        try:
+            found = len(archive.scan())
+        except Exception:
+            log.exception("the first scan of the library failed")
+            return
+        print(f"Archive : {found} videos, read in {time.monotonic() - started:.1f}s", flush=True)
+    threading.Thread(target=first_scan, name="first-scan", daemon=True).start()
     ffmpeg = ffmpeg_version()
     previews = SeekPreviews(args.cache.expanduser().resolve(),
                             ffmpeg_version=ffmpeg)
@@ -743,7 +760,6 @@ def main() -> None:
         print(f"Library : {path}{'' if path.is_dir() else '  (MISSING)'}{marker}")
     if not settings.libraries():
         print("Library : none yet - add one under Settings in the page")
-    print(f"Archive : {found} videos")
     print(f"Version : {DISPLAY_VERSION}")
     print(f"Package : {package}")
     print(f"yt-dlp  : {yt_dlp_version} ({args.yt_dlp})" if yt_dlp_version else

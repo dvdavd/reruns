@@ -472,7 +472,8 @@ class RemoteThumbnailTests(unittest.TestCase):
                 saved = archive.image_path("clip.info.json")
                 self.assertEqual((saved, saved.read_bytes()), (root / "clip.jpg", b"jpeg"))
                 self.assertEqual(archive.image_path("clip.info.json"), saved)
-                self.assertEqual(Archive(root).image_path("clip.info.json"), None)
+                # A fresh archive scans before answering, and finds the saved copy.
+                self.assertEqual(Archive(root).image_path("clip.info.json"), saved)
                 Archive(root).scan()
                 self.assertEqual(hits, ["/t.jpg"])
         finally:
@@ -875,6 +876,30 @@ class SubtitleTests(unittest.TestCase):
         self.assertEqual(archive.comments("library/bare.info.json"), {"held": False, "comments": []})
         self.assertIsNone(archive.comments("library/missing.info.json"))
 
+    def test_commenter_pictures_do_not_read_the_sidecar_again(self):
+        root = Path(self.directory.name)
+        sidecar = root / "clip.info.json"
+        sidecar.write_text(json.dumps({"id": "abc", "title": "Clip", "comments": [
+            {"id": str(index), "text": "Hi", "author_id": f"UC{index}",
+             "author_thumbnail": f"https://yt3.example/{index}"} for index in range(20)]}),
+            encoding="utf-8")
+        (root / "clip.webm").write_bytes(b"video")
+        archive = Archive(root)
+        archive.scan()
+        self.assertEqual(len(archive.comments("clip.info.json")["comments"]), 20)
+        with mock.patch("reruns.archive.json.loads", side_effect=AssertionError):
+            for index in range(20):
+                self.assertEqual(archive.comment_avatar_source("clip.info.json", str(index)),
+                                 (f"UC{index}", f"https://yt3.example/{index}"))
+            archive.comments("clip.info.json")
+        # Rewritten with a reply added, so the size moves and it is read again.
+        sidecar.write_text(json.dumps({"id": "abc", "title": "Clip", "comments": [
+            {"id": "new", "text": "Reply", "author_id": "UCnew",
+             "author_thumbnail": "https://yt3.example/new"}]}), encoding="utf-8")
+        self.assertEqual(archive.comment_avatar_source("clip.info.json", "new"),
+                         ("UCnew", "https://yt3.example/new"))
+        self.assertIsNone(archive.comment_avatar_source("clip.info.json", "0"))
+
     def test_a_comments_only_refresh_leaves_everything_else_alone(self):
         root = Path(self.directory.name)
         sidecar = root / "clip.info.json"
@@ -1166,6 +1191,70 @@ class UnchangedScanTests(unittest.TestCase):
         with mock.patch.object(Archive, "_scan", return_value=[]) as scan:
             self.archive.scan()
         scan.assert_called_once()
+
+    def test_a_lookup_before_any_scan_waits_for_one(self):
+        # The server's first scan runs on a thread, so a request for a video
+        # can arrive before it has finished.
+        self.assertEqual(self.archive.media_path("clip.info.json"), self.root / "clip.mp4")
+
+
+class SidecarCacheTests(unittest.TestCase):
+    """Parsed sidecars are kept on disk, so a restart reads only what changed."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        base = Path(self.directory.name)
+        self.root = base / "library"
+        self.root.mkdir()
+        self.cache = base / "cache" / "sidecars.json"
+        (self.root / "clip.info.json").write_text('{"title":"Clip","formats":[{"url":"x"}]}')
+        (self.root / "clip.mp4").write_bytes(b"x")
+        (self.root / "other.info.json").write_text('{"title":"Other"}')
+        (self.root / "other.mp4").write_bytes(b"x")
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def restart(self):
+        return Archive(self.root, sidecar_cache=self.cache)
+
+    def test_a_restart_reads_no_sidecar_that_has_not_changed(self):
+        first = self.restart().scan()
+        self.assertNotIn("formats", json.loads(self.cache.read_text())["files"][str(self.root / "clip.info.json")][2])
+        with mock.patch("reruns.archive._slim_sidecar", side_effect=AssertionError):
+            self.assertEqual(self.restart().scan(), first)
+
+    def test_a_restart_reads_a_sidecar_changed_meanwhile(self):
+        self.restart().scan()
+        (self.root / "clip.info.json").write_text('{"title":"Clip, edited"}')
+        titles = sorted(item["title"] for item in self.restart().scan())
+        self.assertEqual(titles, ["Clip, edited", "Other"])
+
+    def test_a_removed_sidecar_leaves_the_cache(self):
+        self.restart().scan()
+        (self.root / "other.info.json").unlink()
+        self.restart().scan()
+        self.assertEqual(list(json.loads(self.cache.read_text())["files"]), [str(self.root / "clip.info.json")])
+
+    def test_a_cache_from_another_version_is_not_used(self):
+        self.restart().scan()
+        payload = json.loads(self.cache.read_text())
+        payload["version"] = "0:old"
+        payload["files"][str(self.root / "clip.info.json")][2]["title"] = "Stale"
+        self.cache.write_text(json.dumps(payload))
+        self.assertIn("Clip", [item["title"] for item in self.restart().scan()])
+
+    def test_an_unreadable_cache_is_ignored(self):
+        self.cache.parent.mkdir()
+        self.cache.write_text("{not json")
+        self.assertEqual(len(self.restart().scan()), 2)
+
+    def test_a_scan_that_changed_nothing_does_not_write(self):
+        self.restart().scan()
+        written = self.cache.stat().st_mtime_ns
+        with mock.patch("reruns.archive.json.dumps", side_effect=AssertionError):
+            self.restart().scan()
+        self.assertEqual(self.cache.stat().st_mtime_ns, written)
 
 
 class JsonResponseTests(unittest.TestCase):
