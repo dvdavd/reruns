@@ -1,4 +1,4 @@
-import {playerLightingMode} from './customisation.js';
+import {glowBacksOff, glowHeldBack, playerGlowShown, suspendGlow} from './customisation.js';
 
 // Seek sheets sample the middle of each interval. Interpolating between those
 // centres keeps the light moving gently without reading back video pixels.
@@ -127,6 +127,11 @@ const JANK_SLOW_MS = 40;
 const JANK_SHARE = .3;
 const JANK_WINDOWS = 3;
 const JANK_STALL_MS = 500;
+// Frames are timed only once the video has settled: opening one is the page's
+// busiest moment (the zoom, details arriving), and a device that copes with
+// the glow can still stutter through that. The time after settling is left
+// out too, for the details being drawn.
+const JANK_WARM_MS = 2000;
 // How long a video is watched before the glow is judged fine on this device.
 // Timing frames means waking on every display refresh, which on a 144Hz
 // screen was a good part of what the page cost while playing.
@@ -147,17 +152,6 @@ export function createJankMonitor() {
       return bad >= JANK_WINDOWS;
     },
   };
-}
-
-// Automatic mode's verdict is about this device, not the account, so it is
-// kept here rather than in preferences.js, which would carry it to the
-// account's faster devices. Choosing another lighting mode clears it.
-const SUSPENDED_KEY = 'archive-glow-suspended';
-function glowSuspended() {
-  try { return localStorage.getItem(SUSPENDED_KEY) === '1'; } catch { return false; }
-}
-function suspendGlow(on) {
-  try { on ? localStorage.setItem(SUSPENDED_KEY, '1') : localStorage.removeItem(SUSPENDED_KEY); } catch { /* Per page load then. */ }
 }
 
 /** How far through a crossfade begun at `start` and lasting `duration` the
@@ -204,9 +198,7 @@ export function initialiseAmbientGlow(player, stage) {
   const copies = [];
   let droppedBefore;
   const jank = createJankMonitor();
-  let suspended = glowSuspended();
   let watching = false;
-  let chosenMode = playerLightingMode();
   let warmUntil = 0;
   // The load whose frames have been watched long enough; see watchFrames.
   let watchedToken;
@@ -226,23 +218,29 @@ export function initialiseAmbientGlow(player, stage) {
     }
   }
 
-  /** Automatic mode times the page's frames while the glow is showing. The
-   *  glow's first moments (its fade up, the zoom settling) are left out. */
+  // Still opening: player-controller.js holds this class until the details
+  // have arrived and been drawn.
+  const settling = () => page?.classList.contains('is-settling');
+  const playing = () => !player.video.paused && !player.video.ended;
+
+  /** Backing off times the page's frames while the glow is showing over a
+   *  playing video. The video's opening is left out (see JANK_WARM_MS), and a
+   *  pause stops the watch, to start again when play resumes: scrolling the
+   *  comments of a paused video is not what the glow costs. */
   function watchFrames() {
-    if (watching || playerLightingMode() !== 'automatic' || watchedToken === player.loadToken) return;
+    if (watching || !glowBacksOff() || watchedToken === player.loadToken || settling() || !playing()) return;
     watching = true;
     jank.reset();
-    warmUntil = performance.now() + 1500;
+    warmUntil = performance.now() + JANK_WARM_MS;
     const until = warmUntil + JANK_WATCH_MS;
     let previous;
     const tick = time => {
-      if (glow.hidden || document.hidden || playerLightingMode() !== 'automatic') { watching = false; return; }
+      if (glow.hidden || document.hidden || !glowBacksOff() || settling() || !playing()) { watching = false; return; }
       if (time > until) { watching = false; watchedToken = player.loadToken; return; }
       if (time > warmUntil && previous != null && jank.frame(time - previous)) {
         watching = false;
-        suspended = true;
-        suspendGlow(true);
-        update();
+        // Announced as a lighting change, which hides the glow.
+        suspendGlow();
         return;
       }
       previous = time;
@@ -329,14 +327,13 @@ export function initialiseAmbientGlow(player, stage) {
 
   function update() {
     clearTimeout(timer);
-    const mode = playerLightingMode();
     const state = player.root.dataset.playerState;
     const switching = page?.classList.contains('is-switching');
     if (switching) switchedToken = player.loadToken;
     // No light until the zoom from a card has landed and faded: sampling and
     // redrawing the blur mid-flight made the zoom stutter. The mini player's
     // stylesheet hides the glow, so sampling for it would be pure waste.
-    if (mode === 'off' || (mode === 'automatic' && suspended) || document.hidden || document.fullscreenElement || !visible || reducedMotion.matches || !player.source
+    if (!playerGlowShown() || document.hidden || document.fullscreenElement || !visible || reducedMotion.matches || !player.source
         || switching || page?.classList.contains('is-zooming') || page?.classList.contains('is-mini')
         || !['playing', 'paused'].includes(state)) {
       hide();
@@ -476,13 +473,9 @@ export function initialiseAmbientGlow(player, stage) {
   // IntersectionObserver cannot notice.
   document.addEventListener('fullscreenchange', update);
   window.addEventListener('archive-lighting-change', () => {
-    // The event also fires as the page loads, so only a changed mode counts
-    // as choosing again.
-    if (playerLightingMode() !== chosenMode) {
-      chosenMode = playerLightingMode();
-      suspended = false;
-      suspendGlow(false);
-    }
+    // Turned back on after backing off, the video on screen is watched afresh
+    // rather than counted as already judged fine.
+    if (!glowHeldBack()) watchedToken = undefined;
     hide();
     sampleInterval = REALTIME_SAMPLE_MS;
     copies.length = 0;

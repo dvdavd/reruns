@@ -12,6 +12,7 @@ import {applyItemDetails} from './item-adapter.js';
 import {followPosition, rectKey} from './popover.js';
 import {ArchiveMediaProvider} from './media-provider.js';
 import {initialiseAmbientGlow, initialisePlayerHeader} from './ambient-glow.js';
+import {createGlowSetting} from './player-glow.js';
 import {initialisePlayerImmersive} from './player-immersive.js';
 import {createPlayerStats} from './player-stats.js';
 import {preferences} from './preferences.js';
@@ -38,7 +39,7 @@ function buildChapterLayer(element) {
   return {seek, markers};
 }
 
-export function createPlayerController(page, report) {
+export function createPlayerController(page, report, {openAppearance} = {}) {
   const home = document.querySelector('#archive-home');
   const relatedRoot = page.querySelector('.archive-related-list');
   const element = createPlayerElement({label: t('player.archived'), labels: playerLabels()});
@@ -383,6 +384,10 @@ export function createPlayerController(page, report) {
   };
   statsToggle.addEventListener('click', () => setStatsShown(!statsShown));
   drawStats();
+  createGlowSetting(settingsPopup.querySelector('[data-glow-setting]'), {
+    leave: () => settingsPopup.hidePopover?.(),
+    openAppearance,
+  });
 
   // The popover lives in the top layer, so it is placed here rather than by
   // the flow it is written in. It sits inside the player like a panel of the
@@ -556,7 +561,10 @@ export function createPlayerController(page, report) {
     activeId = item.id;
     drawStats();
     timeline.setItem(item);
-    loadDetails(item);
+    // The glow's slowness check waits for this: a busy opening is not the
+    // glow's doing. A load overtaken by the next video leaves the class to it.
+    page.classList.add('is-settling');
+    loadDetails(item).finally(() => { if (activeId === item.id) page.classList.remove('is-settling'); });
     drawDetails(item);
     drawPlaylist(item);
     drawRelated(item);
@@ -647,7 +655,7 @@ export function createPlayerController(page, report) {
     formatPopup.hidePopover?.();
     settingsPopup.hidePopover?.();
     stopCountdown();
-    page.classList.remove('is-thumbnail-transitioning', 'is-zooming', 'is-switching', 'is-holding-poster');
+    page.classList.remove('is-thumbnail-transitioning', 'is-zooming', 'is-switching', 'is-holding-poster', 'is-settling');
     if (keep) {
       miniItem = item;
       page.classList.add('is-mini');

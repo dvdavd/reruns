@@ -231,6 +231,30 @@
 .settings-row[hidden], .settings-field[hidden], .settings-note[hidden], .settings-list[hidden], [data-subtitle-download][hidden] { display: none; }
 .settings-link { width: 100%; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
 .autoplay-row { appearance: none; font: inherit; }
+/* The glow's warning lies over its row, just before the switch (the row's
+   padding, the switch and the gap), so the switch keeps the whole row as its
+   target and the warning is a button of its own. */
+.settings-glow { position: relative; }
+.settings-glow-warning {
+  position: absolute;
+  top: 50%;
+  right: 62px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-warning);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+.settings-glow-warning[hidden] { display: none; }
+.settings-glow-warning .icon { width: 18px; height: 18px; }
+.settings-glow-warning:is(:hover, :focus-visible) { background: #ffffff1f; }
+.settings-glow-warning:focus-visible { outline: 2px solid #ffffff80; outline-offset: 1px; }
 .settings-link:not(.autoplay-row) > span:last-child { color: var(--shell-muted); }
 .settings-link:not(.autoplay-row) > span:last-child::after { content: '  ›'; color: inherit; }
 .settings-field select { width: 100%; }
@@ -687,8 +711,11 @@ button.archive-watch-action { padding: 0; background: none; cursor: pointer; }
   transition: opacity 140ms ease;
   pointer-events: none;
 }
+/* Keyboard focus shows them too, for scrubbing with the arrows; a click
+   leaves the bar focused, and :focus-within kept them up until the next
+   click elsewhere. */
 .archive-seek-track:hover .archive-chapter-markers,
-.archive-seek-track:focus-within .archive-chapter-markers { opacity: 1; }
+.archive-seek-track:has(:focus-visible) .archive-chapter-markers { opacity: 1; }
 .archive-chapter-dot {
   position: absolute;
   top: 50%;
@@ -853,6 +880,60 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
      and scaled both ways it reached a few pixels past the window and the
      whole page scrolled sideways by that much, control bar and all. */
   .archive-watch-stage > .archive-ambient-glow { transform: scaleY(1.035); }
+}
+/* Edge to edge, a portrait video's frame is as tall as the screen is wide
+   times 16/9, which with the control strip under it ran past the bottom of
+   the window: the controls were only reached by scrolling. The frame is held
+   to the window's height instead and narrows to the video's shape, which
+   leaves room beside it, so it goes back to the wide layout's look there:
+   rounded, with the glow either side rather than black bars. The corners grow
+   with the gap beside the frame, so a video only a little too tall stays all
+   but square rather than rounding corners that nearly touch the screen's
+   edges. A little height is left over so the title shows beneath and the page
+   reads as one that scrolls. svh rather than dvh, or the frame would resize
+   as the address bar came and went. 102px is the topbar, wrapped to two rows
+   at this width. body.watch-open clips sideways overflow, so the glow can
+   spread both ways again. The pinned chat sets its own height, so it is left
+   alone here. Not only in portrait: a window a little wider than it is tall
+   but too tall for the landscape-phone rule below (650x600, say) is still
+   edge to edge, and a tall video there ran to twice the window's height.
+   That rule, later and as specific, still wins on a phone on its side. */
+@media (max-width: 700px) {
+  .archive-watch:not(.is-mini, .has-chat-pinned) .archive-watch-stage {
+    --held-stage-width: min(100vw, calc((100svh - 102px - var(--bar-strip, 48px) - 2.5rem) * (var(--watch-aspect))));
+    width: var(--held-stage-width);
+    margin-inline: calc((100% - var(--held-stage-width)) / 2);
+    border-radius: min(var(--player-rounding, 34px), max(0px, (100vw - var(--held-stage-width)) / 2));
+    /* The ground is clipped to the picture (content-box, above the strip),
+       but its rounding is at the strip's foot, so it showed as square dark
+       corners under the rounded picture. The video is black behind itself
+       and rounded already, so the stage needs none. */
+    background-color: transparent;
+  }
+  .archive-watch:not(.is-mini, .has-chat-pinned) .archive-watch-stage > .archive-ambient-glow { transform: scale(1.035); }
+}
+/* A phone on its side works its stage height out with the strip taken off
+   (cards.css), so dropping the strip there gained the picture nothing. */
+@media (max-width: 700px) and (min-height: 501px) {
+  /* A tall video is held to the window's height, so the strip under it came
+     straight out of the picture's height, and so its width. Its controls go
+     back over the picture as the wide layout has them - the pill, inset, and
+     fading when idle - and the strip is gone: every measure built on
+     --bar-strip (the picture's insets, the glow, the height above) follows. */
+  .archive-watch[data-tall-video]:not(.is-mini, .has-chat-pinned) .archive-watch-stage { --bar-strip: 0px; }
+  .archive-watch[data-tall-video]:not(.is-mini, .has-chat-pinned) .media-player:not(:fullscreen) .media-player-controls {
+    bottom: 10px;
+    padding-inline: 8px;
+    background: linear-gradient(#222b, #121212c2);
+    box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+    backdrop-filter: blur(12px);
+  }
+  .archive-watch[data-tall-video]:not(.is-mini, .has-chat-pinned) .media-player:not(:fullscreen):not([data-player-state="poster"]) .media-player-controls { width: calc(100% - 20px); }
+  .archive-watch[data-tall-video]:not(.is-mini, .has-chat-pinned) .media-player:not(:fullscreen)[data-player-state="poster"] .media-player-controls { width: 48px; }
+  .archive-watch[data-tall-video]:not(.is-mini, .has-chat-pinned) .media-player:not(:fullscreen)[data-player-state="playing"].is-controls-hidden .media-player-controls {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 /* On its side the edge-to-edge frame would be as tall as it is wide, taller
    than the window. It keeps the height-limited width of the wide layout. */

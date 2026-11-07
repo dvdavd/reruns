@@ -9,8 +9,20 @@
    profile hides the manual overrides and took a good third off it. `side`
    keeps the side chosen when it opened, so a panel that grows while open
    scrolls inside itself rather than jumping to the button's other side.
-   Returns the side, for the next placement to keep. */
-export function placePopover(button, panel, gap = 6, side = null, prefer = 'down') {
+   Returns the side, for the next placement to keep.
+
+   Across, a panel lines up with the edge of its button nearer the edge of the
+   screen, so it opens towards the middle: always lining up right edges sent
+   the folder and profile pickers on the left of the page out leftwards, away
+   from what they belong to. `align` is 'start' or 'end' to choose, or 'auto'
+   to decide by which half of the screen the button is in. */
+export const popoverAlign = (button, align = 'auto') => {
+  if (align !== 'auto') return align;
+  const {left, right} = button.getBoundingClientRect();
+  return (left + right) / 2 < innerWidth / 2 ? 'start' : 'end';
+};
+
+export function placePopover(button, panel, gap = 6, side = null, prefer = 'down', align = 'end') {
   const anchor = button.getBoundingClientRect();
   // Measured with any cap from a previous placement lifted, or a panel would
   // come back a little shorter every time it opened.
@@ -28,7 +40,8 @@ export function placePopover(button, panel, gap = 6, side = null, prefer = 'down
   // behind it took the scroll that was meant for the options.
   const room = Math.max(up ? above : below, 0);
   panel.style.maxHeight = `${room}px`;
-  panel.style.left = `${Math.max(gap, Math.min(anchor.right - width, innerWidth - width - gap))}px`;
+  const left = popoverAlign(button, align) === 'start' ? anchor.left : anchor.right - width;
+  panel.style.left = `${Math.max(gap, Math.min(left, innerWidth - width - gap))}px`;
   panel.style.top = up ? 'auto' : `${anchor.bottom + gap}px`;
   panel.style.bottom = up ? `${innerHeight - anchor.top + gap}px` : 'auto';
   return up ? 'up' : 'down';
@@ -88,19 +101,24 @@ export const rectKey = (...elements) => [innerWidth, innerHeight, ...elements.fl
  * however the panel's own contents change its size. `button` is a function,
  * for a panel that more than one button can open.
  */
-export function followButton(panel, button, gap = 6, placement = () => 'vertical', prefer = 'down') {
+export function followButton(panel, button, gap = 6, placement = () => 'vertical', prefer = 'down', align = 'auto') {
   let side = null;
+  // Settled when it opens, like `side`, so a button that crosses the middle
+  // while the panel is up (a resize, a drawer sliding) does not swing it over.
+  let across = null;
   const place = () => {
     const target = button();
-    if (target) side = placement() === 'side'
-      ? placeSidePopover(target, panel, gap, side)
-      : placePopover(target, panel, gap, side, prefer);
+    if (!target) return;
+    if (placement() === 'side') { side = placeSidePopover(target, panel, gap, side); return; }
+    across ??= popoverAlign(target, align);
+    side = placePopover(target, panel, gap, side, prefer, across);
   };
   const position = followPosition(() => (button() ? rectKey(button()) : ''), place);
   const resized = new ResizeObserver(place);
   return {
     start() {
       side = null;
+      across = null;
       position.start();
       resized.observe(panel);
     },
@@ -144,7 +162,8 @@ export function animateResize(panel, change) {
 /**
  * One menu hung from whichever button opens it, for the menus that stand in
  * for a card's own: built once, filled and placed on each `open`. It sits
- * above its button when there is room, as a card's menu does.
+ * above its button when there is room, as a card's menu does, and lines up
+ * with the button's right edge so it opens over the card the button is on.
  *
  * Pressing the button an open menu hangs from light-dismisses it before the
  * click arrives, which would only open it again. The press is noted while the
@@ -158,7 +177,7 @@ export function animateResize(panel, change) {
  * A submenu opens on hover, so the press that follows is not a second thought
  * and must not close it again: it is opened whatever was pressed.
  */
-export function createAnchoredMenu({label, className = '', prefer = 'up', onClose = () => {}}) {
+export function createAnchoredMenu({label, className = '', prefer = 'up', align = 'end', onClose = () => {}}) {
   const menu = document.createElement('div');
   menu.className = `menu-popover ${className}`.trim();
   menu.popover = 'auto';
@@ -176,7 +195,7 @@ export function createAnchoredMenu({label, className = '', prefer = 'up', onClos
     return lastRect;
   }};
   const follow = followButton(menu, () => (opener ? anchor : null), 6,
-    () => (side ? 'side' : 'vertical'), prefer);
+    () => (side ? 'side' : 'vertical'), prefer, align);
   let pressed = null;
   document.addEventListener('pointerdown', event => {
     pressed = opener && menu.matches(':popover-open') && opener.contains(event.target) ? opener : null;

@@ -91,3 +91,30 @@ test('a save that fails says so, and keeps the change for the next one', async (
   assert.equal(await store.flush(), true);
   assert.deepEqual(calls.at(-1)[1].changes, {'archive-language': 'en-US'});
 });
+
+test('the glow is chosen per browser, and a browser that has not chosen follows the admin default', async () => {
+  assert.ok(!isSynced('archive-player-glow'));
+  assert.ok(isDefaultable('archive-player-glow'));
+  const storage = memory();
+  // An account value left from when it was synced is not taken.
+  const calls = server({account: 1, values: {'archive-player-glow': 'off'}, defaults: {'archive-player-glow': 'on'}});
+  const store = createPreferences({storage});
+  await store.sync();
+  assert.equal(store.getItem('archive-player-glow'), 'on');
+  // Looked up, not copied in, so it does not pass for this browser's choice.
+  assert.equal(storage.getItem('archive-player-glow'), null);
+  store.setItem('archive-player-glow', 'off');
+  assert.equal(store.getItem('archive-player-glow'), 'off');
+  // Survives the next sign-in, and is never sent to the account.
+  await store.sync();
+  assert.equal(store.getItem('archive-player-glow'), 'off');
+  await store.flush();
+  assert.ok(!calls.some(([path, body]) => path === '/api/preferences' && body?.changes && 'archive-player-glow' in body.changes));
+  store.removeItem('archive-player-glow');
+  assert.equal(store.getItem('archive-player-glow'), 'on');
+  // An admin setting defaults passes on this browser's choice.
+  store.setItem('archive-player-glow', 'off');
+  await store.setDefaults();
+  const sent = calls.filter(([path]) => path === '/api/preferences/defaults').at(-1)[1].values;
+  assert.equal(sent['archive-player-glow'], 'off');
+});

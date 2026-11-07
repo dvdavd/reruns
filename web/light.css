@@ -562,3 +562,7 @@
   background: rgb(32 35 59 / .16);
   color: #202431;
 }
+
+/* The drawer is pale here, and the dark theme's amber washes out on it. The
+   player's settings menu stays dark glass, so its warning keeps the amber. */
+:root[data-theme="light"] .customisation-held-back .icon { color: var(--color-warning-text); }

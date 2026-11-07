@@ -899,12 +899,11 @@
           <span class="customisation-title" id="player-lighting-label" data-i18n="appearance.lighting" data-i18n-attrs="title:appearance.lighting.note" title="A soft glow around the player that follows the video's colours.">Player lighting</span>
           <div class="statistics-ranking" role="group" aria-labelledby="player-lighting-label">
             <button type="button" data-choice-for="player-lighting" data-value="on" aria-pressed="false"><span data-i18n="appearance.on">On</span></button>
-            <button type="button" data-choice-for="player-lighting" data-value="automatic" aria-pressed="false"><span data-i18n="appearance.automatic">Automatic</span></button>
             <button type="button" data-choice-for="player-lighting" data-value="off" aria-pressed="false"><span data-i18n="appearance.off">Off</span></button>
           </div>
           <p class="customisation-option-note" data-note-for="player-lighting" data-note-value="on" data-i18n="appearance.on.note" hidden>Follows the playing video closely.</p>
-          <p class="customisation-option-note" data-note-for="player-lighting" data-note-value="automatic" data-i18n="appearance.automatic.note" hidden>Like On, but turns itself off if the page runs slowly.</p>
           <p class="customisation-option-note" data-note-for="player-lighting" data-note-value="off" data-i18n="appearance.off.note" hidden>No glow around the player.</p>
+          <p class="customisation-option-note" data-i18n="appearance.lighting.device">Chosen for this device only.</p>
           <p class="customisation-option-note customisation-reduced" data-i18n="appearance.lighting.reduced">Turned off when reduced motion is on.</p>
         </div>
       </div>
@@ -943,6 +942,22 @@
           <p class="customisation-option-note" data-note-for="video-colours" data-note-value="player" data-i18n="appearance.video-colours.player.note" hidden>Just the player controls.</p>
           <p class="customisation-option-note" data-note-for="video-colours" data-note-value="off" data-i18n="appearance.video-colours.off.note" hidden>Always use chosen theme.</p>
         </div>
+      </div>
+      </div>
+    </section>
+    <section class="customisation-group" aria-labelledby="customisation-group-performance">
+      <h3 id="customisation-group-performance" data-i18n="appearance.group.performance">Performance</h3>
+      <div class="customisation-card">
+      <div class="customisation-setting" data-customisation-setting="performance-backoff">
+        <button class="settings-row autoplay-row sponsorblock-toggle-row customisation-switch" type="button" role="switch"
+                aria-checked="false" data-customisation-switch="performance-backoff">
+          <span><span class="customisation-title" data-i18n="appearance.backoff">Ease off when the page runs slowly</span><small data-i18n="appearance.backoff.note">Turns the player lighting off on this device if videos start to stutter.</small></span>
+          <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+        </button>
+        <p class="customisation-held-back" data-glow-held-back hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#alert-triangle"/></svg>
+          <span data-i18n="appearance.backoff.heldBack">The player lighting was turned off on this device because the page was running slowly. Turn it back on in the player's settings to try again, or turn this off to keep it on.</span>
+        </p>
       </div>
       </div>
     </section>
@@ -1507,6 +1522,25 @@
             </span>
             <span data-i18n="player.immersive">Immersive mode</span><span data-immersive-summary>20 seconds</span>
           </button>
+          <!-- The warning is its own button, so it sits over the row rather than in the switch. -->
+          <div class="settings-glow" data-glow-setting>
+            <button class="settings-row settings-link autoplay-row" type="button" role="switch"
+                    aria-checked="false" data-glow-toggle>
+              <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3"/><path d="M9.7 17l4.6 0"/></svg></span>
+              <span data-i18n="appearance.lighting">Player lighting</span>
+              <span class="archive-autoplay settings-toggle" aria-hidden="true">
+                <span class="archive-autoplay-track" aria-hidden="true">
+                  <span class="archive-autoplay-knob"></span>
+                </span>
+              </span>
+            </button>
+            <button class="settings-glow-warning" type="button" data-glow-warning hidden
+                    aria-label="Turned off on this device because the page was running slowly. Show the setting."
+                    title="Turned off on this device because the page was running slowly"
+                    data-i18n-attrs="aria-label:player.glowHeldBackLabel,title:player.glowHeldBack">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#alert-triangle"/></svg>
+            </button>
+          </div>
           <button class="settings-row settings-link" type="button" data-settings-go="chat" data-chat-settings-row hidden>
             <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"/><path d="M15 4l0 16"/></svg></span>
             <span data-i18n="watch.chat">Chat replay</span><span data-chat-position-summary>Automatic</span>

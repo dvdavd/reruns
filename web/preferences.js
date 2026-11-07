@@ -15,12 +15,16 @@ const POSITION_PREFIX = 'reruns.playback:';
 // Where a window was last browsing, and the palette's early stylesheet, belong
 // to this browser and are derived from other keys rather than chosen.
 const LOCAL_ONLY = new Set(['archive-directory', 'archive-palette-style']);
+// Chosen per browser rather than per account, as a slow device may want it off
+// where a fast one wants it on; but a browser that has never chosen still
+// follows the admin's default.
+const PER_DEVICE = new Set(['archive-player-glow']);
 const SAVE_DELAY = 1500;
 
 export const isSynced = key => typeof key === 'string' && (key.startsWith(POSITION_PREFIX)
-  || /^(archive|ytdlp)-/.test(key) && !LOCAL_ONLY.has(key));
+  || /^(archive|ytdlp)-/.test(key) && !LOCAL_ONLY.has(key) && !PER_DEVICE.has(key));
 // A resume position is one person's, so only the other settings can be a default.
-export const isDefaultable = key => isSynced(key) && !key.startsWith(POSITION_PREFIX);
+export const isDefaultable = key => isSynced(key) && !key.startsWith(POSITION_PREFIX) || PER_DEVICE.has(key);
 
 function save(changes) {
   return request('/api/preferences', {
@@ -71,14 +75,16 @@ export function createPreferences({storage: fixed, send = save} = {}) {
   }
 
   const store = {
-    getItem: key => backing().getItem(key),
+    // A per-device key holds only this browser's own choice; the default is
+    // looked up rather than copied in, or it would pass for a choice.
+    getItem: key => backing().getItem(key) ?? (PER_DEVICE.has(key) ? defaults[key] ?? null : null),
     setItem(key, value) {
       backing().setItem(key, value);
       queue(key, String(value));
     },
     /** Drops this account's own choice, so the admin's default (if any) applies. */
     removeItem(key) {
-      if (signedIn && isDefaultable(key) && key in defaults) backing().setItem(key, defaults[key]);
+      if (signedIn && isSynced(key) && isDefaultable(key) && key in defaults) backing().setItem(key, defaults[key]);
       else backing().removeItem(key);
       queue(key, null);
     },
@@ -94,7 +100,7 @@ export function createPreferences({storage: fixed, send = save} = {}) {
       defaults = state.defaults || {};
       const values = {...state.values};
       const effective = {};
-      for (const [key, value] of Object.entries(defaults)) if (isDefaultable(key)) effective[key] = value;
+      for (const [key, value] of Object.entries(defaults)) if (isSynced(key) && isDefaultable(key)) effective[key] = value;
       for (const [key, value] of Object.entries(values)) if (isSynced(key)) effective[key] = value;
       for (const key of keys()) if (!(key in effective)) backing().removeItem(key);
       for (const [key, value] of Object.entries(effective)) backing().setItem(key, value);
@@ -107,6 +113,10 @@ export function createPreferences({storage: fixed, send = save} = {}) {
     async setDefaults() {
       const values = {};
       for (const key of keys()) if (isDefaultable(key)) values[key] = backing().getItem(key);
+      for (const key of PER_DEVICE) {
+        const value = store.getItem(key);
+        if (value != null) values[key] = value;
+      }
       await request('/api/preferences/defaults', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values}),
       });

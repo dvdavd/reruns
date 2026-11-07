@@ -410,6 +410,11 @@ export function createPlayerTransitions({
   function applyAspect(value) {
     if (value) page.style.setProperty('--watch-aspect', value);
     else page.style.removeProperty('--watch-aspect');
+    // A video taller than it is wide is held to the window's height on a
+    // phone, so the stylesheet floats its controls over the picture rather
+    // than spending height on a strip below it (see popups.css).
+    const [width, height] = String(value || '').split('/').map(Number);
+    page.toggleAttribute('data-tall-video', height > width);
   }
 
   /** The stage moves between shapes rather than snapping between them, so this

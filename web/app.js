@@ -93,7 +93,8 @@ const directory = createDirectoryUI({
   label: document.querySelector('#directory-label'),
   onChange: key => gallery.setDirectory(key),
 });
-const player = createPlayerController(document.querySelector('#archive-player'), report);
+const player = createPlayerController(document.querySelector('#archive-player'), report,
+  {openAppearance: show => customisation.open({show})});
 const gallery = createGalleryController({
   directory,
   root: document.querySelector('#archive-gallery'),

@@ -466,6 +466,28 @@ body[data-card-size="large"] { --video-card-min: clamp(480px, 28vw, 700px); }
 .customisation-title { font-weight: 600; }
 .customisation-option-note { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); line-height: 1.4; }
 .customisation-option-note:empty { display: none; }
+/* A whole-row switch, its label lined up with the other settings' titles. */
+.customisation-setting > .customisation-switch { margin: -5px -8px; }
+.customisation-held-back {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin: 0;
+  color: var(--color-warning-text);
+  font-size: var(--font-size-control);
+  line-height: 1.4;
+}
+.customisation-held-back[hidden] { display: none; }
+.customisation-held-back .icon { width: 18px; height: 18px; color: var(--color-warning); }
+/* Where the player's glow warning leads: the setting is lit and fades back,
+   so the eye finds it among the rest. A change of colour, not of place, so it
+   stays under reduced motion. */
+.customisation-setting.is-pointed-out { animation: customisation-pointed-out 2.4s ease-out; }
+@keyframes customisation-pointed-out {
+  0%, 35% { box-shadow: inset 0 0 0 2px var(--color-accent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
 .customisation-row { grid-template-columns: 112px minmax(0, 1fr); gap: 18px; align-items: start; }
 .customisation-controls { display: grid; gap: 12px; align-content: start; min-width: 0; }
 /* Only worth saying to someone who has asked for less motion. */
@@ -645,8 +667,12 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
     padding-inline: 0;
   }
   .archive-watch:not(.is-mini) .media-player:not(:fullscreen) :is(.media-player-video, .media-player-poster, .media-player-canvas) {
+    /* An explicit height, not auto: a video or image is a replaced element,
+       and with auto it keeps its own shape rather than stretching between
+       the insets, and ran down under the controls whenever the frame's
+       shape differed from the video's even slightly. */
     inset: 0 0 var(--bar-strip);
-    height: auto;
+    height: calc(100% - var(--bar-strip));
   }
   .archive-watch:not(.is-mini) .media-player:not(:fullscreen)[data-player-state="playing"].is-controls-hidden .media-player-controls {
     opacity: 1;

@@ -48,11 +48,19 @@ const SETTINGS = {
     // here and again whenever the system changes its mind.
     document.documentElement.dataset.theme = value === 'system' ? (prefersLight?.matches ? 'light' : 'dark') : value;
   }},
-  'player-lighting': {key: 'archive-player-lighting', values: ['on', 'automatic', 'off'], fallback: 'off',
-    // Realtime became On. Efficient (once Fast) blended seek-sheet images; it
-    // flickered and saved little, so Automatic, which backs off when the page
-    // is struggling, replaces it.
-    renamed: {realtime: 'on', efficient: 'automatic', fast: 'automatic'}, dataset: 'playerLighting', event: 'archive-lighting-change'},
+  // Chosen per browser, not per account (see PER_DEVICE in preferences.js).
+  // The glow is a plain switch, kept under a new key: the old one held On,
+  // Automatic and Off, and Automatic's backing off is now the Performance
+  // group's switch, which applies to everything that can ease off. A key never
+  // written reads the old choice through `legacy`, so On (never back off)
+  // keeps the glow with backing off turned off, and Automatic keeps it on.
+  // The old key's Realtime, Efficient and Fast were earlier names for these.
+  'player-lighting': {key: 'archive-player-glow', values: ['on', 'off'], fallback: 'off',
+    legacy: {key: 'archive-player-lighting', values: {on: 'on', automatic: 'on', realtime: 'on', efficient: 'on', fast: 'on', off: 'off'}},
+    dataset: 'playerLighting', event: 'archive-lighting-change', shown: () => playerGlowShown() ? 'on' : 'off'},
+  'performance-backoff': {key: 'archive-performance-backoff', values: ['on', 'off'], fallback: 'on',
+    legacy: {key: 'archive-player-lighting', values: {on: 'off', realtime: 'off'}},
+    event: 'archive-lighting-change'},
   'popup-player-size': {key: 'archive-popup-player-size', values: ['small', 'medium', 'large'], fallback: 'medium', dataset: 'popupPlayerSize'},
   'player-rounding': {key: 'archive-player-rounding', values: ['default', 'small', 'off'], fallback: 'default', dataset: 'playerRounding'},
   'palette': {key: 'archive-palette', values: Object.keys(PALETTES), fallback: 'original', dataset: 'palette', apply: applyPalette,
@@ -77,6 +85,7 @@ const SETTINGS = {
 function read(setting) {
   try {
     let saved = preferences.getItem(setting.key);
+    if (saved == null && setting.legacy) saved = setting.legacy.values[preferences.getItem(setting.legacy.key)];
     saved = setting.renamed?.[saved] ?? saved;
     if (setting.values.includes(saved)) return saved;
   } catch { /* Keep the current default when storage is unavailable. */ }
@@ -84,6 +93,32 @@ function read(setting) {
 }
 const current = Object.fromEntries(Object.entries(SETTINGS).map(([name, setting]) => [name, read(setting)]));
 export const playerLightingMode = () => current['player-lighting'];
+export const glowBacksOff = () => current['performance-backoff'] === 'on';
+
+// When backing off turns the glow off, that verdict is about this device, not
+// the account, so it is kept in this browser alone rather than in
+// preferences.js, which would carry it to the account's faster devices.
+// Choosing either setting again clears it.
+const SUSPENDED_KEY = 'archive-glow-suspended';
+let suspended = false;
+try { suspended = localStorage.getItem(SUSPENDED_KEY) === '1'; } catch { /* Not suspended, then. */ }
+/** The glow is wanted, but backing off has turned it off on this device. */
+export const glowHeldBack = () => current['player-lighting'] === 'on' && glowBacksOff() && suspended;
+/** Whether the glow is to show here: wanted, and not held back. */
+export const playerGlowShown = () => current['player-lighting'] === 'on' && !glowHeldBack();
+function keepSuspended(on) {
+  suspended = on;
+  try { on ? localStorage.setItem(SUSPENDED_KEY, '1') : localStorage.removeItem(SUSPENDED_KEY); } catch { /* For this page load then. */ }
+}
+/** Backing off gives up on the glow for this device. */
+export function suspendGlow() {
+  keepSuspended(true);
+  sync('player-lighting');
+}
+/** The player's switch. Turning it on when it is held back tries again. */
+export function setPlayerGlow(on) {
+  choose('player-lighting', on ? 'on' : 'off');
+}
 export const chosenLanguage = () => current.language;
 // What the page was worded in when it loaded.
 const loadedLanguage = current.language;
@@ -104,25 +139,52 @@ async function reloadForLanguage(sync, report) {
   report?.(t('appearance.language.unsaved'), {error: true});
 }
 
-export function createCustomisationUI(drawer, {report} = {}) {
-  const controls = createDrawerControls(drawer);
-  function sync(name) {
-    const setting = SETTINGS[name];
-    if (setting.dataset) document.body.dataset[setting.dataset] = current[name];
-    for (const input of drawer.querySelectorAll(`[name="${name}"]`)) input.checked = input.value === current[name];
-    for (const button of drawer.querySelectorAll(`[data-choice-for="${name}"]`)) {
-      button.setAttribute('aria-pressed', String(button.dataset.value === current[name]));
-    }
-    for (const toggle of drawer.querySelectorAll(`[data-customisation-switch="${name}"]`)) {
-      toggle.setAttribute('aria-checked', String(current[name] === 'on'));
-    }
-    // Each option's one-line note shows only while it is the chosen one, so a
-    // setting costs a line however many options it has.
-    for (const note of drawer.querySelectorAll(`[data-note-for="${name}"]`)) note.hidden = note.dataset.noteValue !== current[name];
-    for (const text of drawer.querySelectorAll(`[data-selected-name="${name}"]`)) text.textContent = t(`${name}.${current[name]}`);
-    setting.apply?.(current[name]);
-    if (setting.event) window.dispatchEvent(new Event(setting.event));
+// The drawer, once createCustomisationUI has it. The player's glow switch
+// chooses through here too, so sync and choose work without it.
+let drawer = null;
+let reportChoice;
+const inDrawer = selector => drawer ? drawer.querySelectorAll(selector) : [];
+
+function sync(name) {
+  const setting = SETTINGS[name];
+  // What shows can differ from what was chosen: a glow held back on this
+  // device shows as off.
+  const shown = setting.shown?.() ?? current[name];
+  if (setting.dataset) document.body.dataset[setting.dataset] = shown;
+  for (const input of inDrawer(`[name="${name}"]`)) input.checked = input.value === shown;
+  for (const button of inDrawer(`[data-choice-for="${name}"]`)) {
+    button.setAttribute('aria-pressed', String(button.dataset.value === shown));
   }
+  for (const toggle of inDrawer(`[data-customisation-switch="${name}"]`)) {
+    toggle.setAttribute('aria-checked', String(shown === 'on'));
+  }
+  // Each option's one-line note shows only while it is the chosen one, so a
+  // setting costs a line however many options it has.
+  for (const note of inDrawer(`[data-note-for="${name}"]`)) note.hidden = note.dataset.noteValue !== shown;
+  for (const text of inDrawer(`[data-selected-name="${name}"]`)) text.textContent = t(`${name}.${shown}`);
+  for (const note of inDrawer('[data-glow-held-back]')) note.hidden = !glowHeldBack();
+  setting.apply?.(current[name]);
+  if (setting.event) window.dispatchEvent(new Event(setting.event));
+}
+
+function choose(name, value) {
+  current[name] = value;
+  // Kept even when it is the built-in default: with an admin default in place,
+  // an absent choice would mean that one instead.
+  try { preferences.setItem(SETTINGS[name].key, value); } catch { /* Still apply for this session. */ }
+  if (name === 'player-lighting' || name === 'performance-backoff') {
+    keepSuspended(false);
+    // Each shows the other's effect: backing off decides whether the glow is held back.
+    sync(name === 'player-lighting' ? 'performance-backoff' : 'player-lighting');
+  }
+  sync(name);
+  if (name === 'language') reloadForLanguage(sync, reportChoice);
+}
+
+export function createCustomisationUI(element, {report} = {}) {
+  drawer = element;
+  reportChoice = report;
+  const controls = createDrawerControls(drawer);
   // The palette tiles are drawn from the list above rather than written out
   // in the markup, so a palette is added in one place.
   drawer.querySelector('[data-palette-choices]').append(...Object.entries(PALETTES).map(([key, palette]) => {
@@ -137,15 +199,7 @@ export function createCustomisationUI(drawer, {report} = {}) {
     return label;
   }));
   drawer.querySelector('[data-customisation-close]').addEventListener('click', controls.close);
-  function choose(name, value) {
-    current[name] = value;
-    // Kept even when it is the built-in default: with an admin default in place,
-    // an absent choice would mean that one instead.
-    try { preferences.setItem(SETTINGS[name].key, value); } catch { /* Still apply for this session. */ }
-    sync(name);
-    if (name === 'language') reloadForLanguage(sync, report);
-  }
-  for (const [name, setting] of Object.entries(SETTINGS)) {
+  for (const [name] of Object.entries(SETTINGS)) {
     for (const input of drawer.querySelectorAll(`[name="${name}"]`)) input.addEventListener('change', () => {
       if (input.checked) choose(name, input.value);
     });
@@ -164,12 +218,17 @@ export function createCustomisationUI(drawer, {report} = {}) {
   }
   drawer.querySelector('[data-customisation-reset]').addEventListener('click', () => {
     // Back to what the account would have had without choosing: the admin's
-    // default where there is one, else the built-in.
+    // default where there is one, else the built-in. The glow's old key goes
+    // too, or it would go on standing in for the new ones.
+    keepSuspended(false);
     for (const [name, setting] of Object.entries(SETTINGS)) {
-      try { preferences.removeItem(setting.key); } catch { /* Still apply for this session. */ }
+      try {
+        preferences.removeItem(setting.key);
+        if (setting.legacy) preferences.removeItem(setting.legacy.key);
+      } catch { /* Still apply for this session. */ }
       current[name] = read(setting);
-      sync(name);
     }
+    for (const name of Object.keys(SETTINGS)) sync(name);
     reloadForLanguage(sync, report);
   });
   prefersLight?.addEventListener('change', () => { if (current.theme === 'system') sync('theme'); });
@@ -178,8 +237,25 @@ export function createCustomisationUI(drawer, {report} = {}) {
       // Another tab's language is left to that tab: reloading here would race
       // its save to the server, and the old language could win.
       if (name === 'language') continue;
-      if (event.key === setting.key || event.key === null) { current[name] = read(setting); sync(name); }
+      if (event.key === setting.key || event.key === setting.legacy?.key || event.key === null) {
+        current[name] = read(setting);
+        sync(name);
+      }
     }
   });
-  return controls;
+  const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+  /** Opens the drawer, and with `show`, at that setting, lit briefly so the
+   *  eye finds it: the player's glow warning sends people to Performance. */
+  function open({show} = {}) {
+    controls.open();
+    const target = show && drawer.querySelector(`[data-customisation-setting="${show}"]`);
+    if (!target) return;
+    target.scrollIntoView({block: 'center', behavior: reducedMotion?.matches ? 'auto' : 'smooth'});
+    target.classList.remove('is-pointed-out');
+    // Restarts the highlight when it is asked for again before it ends.
+    void target.offsetWidth;
+    target.classList.add('is-pointed-out');
+    target.addEventListener('animationend', () => target.classList.remove('is-pointed-out'), {once: true});
+  }
+  return {...controls, open};
 }
