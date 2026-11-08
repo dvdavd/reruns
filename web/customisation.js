@@ -61,6 +61,9 @@ const SETTINGS = {
   'performance-backoff': {key: 'archive-performance-backoff', values: ['on', 'off'], fallback: 'on',
     legacy: {key: 'archive-player-lighting', values: {on: 'off', realtime: 'off'}},
     event: 'archive-lighting-change'},
+  // Whether a card's preview plays by itself once the pointer rests on it, or
+  // waits for its play button; waiting fetches nothing until it is pressed.
+  'preview-autoplay': {key: 'archive-preview-autoplay', values: ['on', 'off'], fallback: 'on'},
   'popup-player-size': {key: 'archive-popup-player-size', values: ['small', 'medium', 'large'], fallback: 'medium', dataset: 'popupPlayerSize'},
   'player-rounding': {key: 'archive-player-rounding', values: ['default', 'small', 'off'], fallback: 'default', dataset: 'playerRounding'},
   'palette': {key: 'archive-palette', values: Object.keys(PALETTES), fallback: 'original', dataset: 'palette', apply: applyPalette,
@@ -94,6 +97,7 @@ function read(setting) {
 const current = Object.fromEntries(Object.entries(SETTINGS).map(([name, setting]) => [name, read(setting)]));
 export const playerLightingMode = () => current['player-lighting'];
 export const glowBacksOff = () => current['performance-backoff'] === 'on';
+export const previewsAutoplay = () => current['preview-autoplay'] === 'on';
 
 // When backing off turns the glow off, that verdict is about this device, not
 // the account, so it is kept in this browser alone rather than in

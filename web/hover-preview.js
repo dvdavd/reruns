@@ -22,6 +22,24 @@ export function previewUrl(item, partIndex = 0) {
   return part?.sourceRef || item?.sourceRef || '';
 }
 
+/**
+ * The addresses to try for a card's preview, smallest file first, ending at
+ * the card's own. A card is a few hundred pixels wide, so the lowest-quality
+ * copy held looks the same there and costs a fraction of the best one to
+ * stream; one the browser cannot play falls through to the next.
+ */
+export function previewSources(item, partIndex = 0) {
+  const own = previewUrl(item, partIndex);
+  if (!own) return [];
+  // Only a single video has copies in other formats (groupFormats).
+  const formats = (item?.parts?.length ?? 1) > 1 ? [] : item?.archive?.formats || [];
+  const size = format => Number(format.sizeBytes) || Number.MAX_SAFE_INTEGER;
+  const smallest = formats.filter(format => format.sourceRef && !format.audioOnly)
+    .sort((a, b) => size(a) - size(b))
+    .map(format => format.sourceRef);
+  return [...new Set([...smallest, own])];
+}
+
 // Sheets are fetched once per video: a card previewed again must not ask the
 // server twice. A failure is remembered as null, so a video with no sheet
 // simply seeks without pictures.
@@ -52,7 +70,12 @@ async function loadSheet(url, stillWanted) {
   return null;
 }
 
-export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
+/**
+ * `autoplay` says whether a preview starts by itself. When it does not, the
+ * pointer resting on a card brings up the preview's buttons and nothing more:
+ * no part of the video is fetched until its play button or bar is pressed.
+ */
+export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS, autoplay = () => true}) {
   let timer = 0;
   let current = null;
 
@@ -60,11 +83,13 @@ export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
     clearTimeout(timer);
     timer = 0;
     if (!current) return;
-    const {video, controls, restoreProgress} = current;
+    const {video, controls, restoreProgress, loaded} = current;
     current = null;
     // Not kept at the very start or end, where carrying on would mean nothing.
+    // A preview never started has no say over where the last one got to.
     const at = video.currentTime;
-    if (video.duration && at > 1 && at < video.duration - 1) resumeAt.set(video.dataset.url, at);
+    if (!loaded()) { /* Leave it. */ }
+    else if (video.duration && at > 1 && at < video.duration - 1) resumeAt.set(video.dataset.url, at);
     else resumeAt.delete(video.dataset.url);
     restoreProgress();
     video.pause();
@@ -81,7 +106,8 @@ export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
   function start(area, card) {
     const id = card.dataset.id;
     const item = itemFor(card);
-    const url = previewUrl(item, Number(card.dataset.partIndex) || 0);
+    const sources = previewSources(item, Number(card.dataset.partIndex) || 0);
+    const url = sources.at(-1);
     const frame = area.querySelector('.thumbnail-frame');
     // The card may have been recycled or removed while the timer ran.
     if (!url || !frame || !card.isConnected || card.dataset.id !== id || !area.matches(':hover')) return;
@@ -90,14 +116,24 @@ export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    video.preload = 'auto';
+    // Kept under the card's own address whichever copy plays, so where it
+    // got to carries over if the smaller copy goes.
     video.dataset.url = url;
-    video.src = url;
     const continueFrom = resumeAt.get(url);
-    if (continueFrom) video.addEventListener('loadedmetadata', () => { video.currentTime = continueFrom; }, {once: true});
-    // A format the browser cannot decode simply leaves the picture showing.
+    if (continueFrom) video.addEventListener('loadedmetadata', () => { video.currentTime = continueFrom; });
     const endThisPreview = () => { if (current?.video === video) end(); };
-    video.addEventListener('error', endThisPreview);
+    // A copy the browser cannot decode gives way to the next, and once none
+    // is left the picture simply stays showing.
+    let tried = -1;
+    let starting = false;
+    const loaded = () => tried >= 0;
+    const tryNext = () => {
+      tried += 1;
+      if (tried >= sources.length) return endThisPreview();
+      video.src = sources[tried];
+      if (starting) video.play().catch(() => {});
+    };
+    video.addEventListener('error', () => { if (current?.video === video) tryNext(); });
     // Revealed on the first frame, so the thumbnail is never swapped for black.
     video.addEventListener('playing', () => video.classList.add('is-ready'), {once: true});
     frame.querySelector('.thumbnail-image')?.after(video);
@@ -110,10 +146,17 @@ export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
       <button type="button" data-preview-mute aria-label="${escapeMarkup(t('preview.unmute'))}" aria-pressed="true">${
         iconMarkup('volume-muted', 'hover-preview-muted')}${iconMarkup('volume-high', 'hover-preview-sound')}</button>`;
     const [playButton, muteButton] = controls.children;
+    // Waiting for a press, the button offers to play.
+    if (!autoplay()) {
+      controls.classList.add('is-paused');
+      playButton.setAttribute('aria-label', t('preview.play'));
+    }
     playButton.addEventListener('click', event => {
       event.preventDefault();
       event.stopPropagation();
-      if (video.paused) video.play().catch(() => {}); else video.pause();
+      if (!loaded()) begin();
+      else if (video.paused) video.play().catch(() => {});
+      else video.pause();
     });
     muteButton.addEventListener('click', event => {
       event.preventDefault();
@@ -181,15 +224,12 @@ export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
     seekBar.addEventListener('pointercancel', release);
     // The click that ends a seek would otherwise follow the card's link.
     seekBar.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); });
-    area.append(seekBar);
 
     // The card's progress bar follows the preview while it plays, then goes
     // back to the saved position. Preact owns both the bar and its fill, so
     // what it drew is remembered and put back rather than recomputed.
     const bar = area.querySelector('.thumbnail-watch-progress');
     const saved = bar && {hidden: bar.hidden};
-    // The preview's own bar takes the card's place while it is up.
-    if (bar) bar.hidden = true;
     video.addEventListener('timeupdate', () => {
       if (!video.duration) return;
       const percent = video.currentTime / video.duration * 100;
@@ -200,17 +240,29 @@ export function createHoverPreview({root, itemFor, delay = PREVIEW_DELAY_MS}) {
       if (bar) bar.hidden = saved.hidden;
       seekBar.remove();
     };
-    current = {video, controls, area, card, restoreProgress,
+    current = {video, controls, area, card, restoreProgress, loaded,
       id, partId: card.dataset.partId, partIndex: card.dataset.partIndex};
-    // Loading checks that this preview is still active, so register it first.
-    if (!sheet && sheetUrl) {
-      loadSheet(sheetUrl, () => current?.video === video).then(loaded => {
-        if (!loaded || current?.video !== video) return;
-        sheet = loaded;
-        seekPreview.refresh();
-      });
+    // Fetches the video and puts up its bar, at once or on the first press.
+    function begin() {
+      if (loaded()) return;
+      starting = true;
+      video.preload = 'auto';
+      // The preview's own bar takes the card's place while it is up.
+      area.append(seekBar);
+      if (bar) bar.hidden = true;
+      // Loading checks that this preview is still active, so it is registered
+      // before this runs.
+      if (!sheet && sheetUrl) {
+        loadSheet(sheetUrl, () => current?.video === video).then(loadedSheet => {
+          if (!loadedSheet || current?.video !== video) return;
+          sheet = loadedSheet;
+          seekPreview.refresh();
+        });
+      }
+      tryNext();
     }
-    video.play().catch(endThisPreview);
+    if (autoplay()) begin();
+    else video.preload = 'none';
   }
 
   root.addEventListener('pointerover', event => {

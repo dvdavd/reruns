@@ -1,5 +1,52 @@
 // Window-scrolling gallery virtualizer. Rendering is injected so this module
 // has no dependency on Preact, VideoCard, app state, routes, or API behavior.
+
+const isSpacer = node => node.classList?.contains('gallery-spacer');
+
+/**
+ * Brings `root`'s children into line with `wanted`: a number is a spacer of
+ * that many pixels, a node is a mounted chunk's own node. Only spacers are
+ * added, moved or dropped; chunk nodes already in place are left where they
+ * are (moving one would restart its thumbnails and previews), and one not yet
+ * in `root` is put where it belongs. Existing spacers are reused, so a redraw
+ * touches a handful of elements however long the gallery is.
+ */
+export function reconcileSpacers(root, wanted, makeSpacer) {
+  const spare = [];
+  let cursor = root.firstChild;
+  for (const want of wanted) {
+    if (typeof want === 'number') {
+      let spacer;
+      if (cursor && isSpacer(cursor)) {
+        spacer = cursor;
+        cursor = cursor.nextSibling;
+      } else {
+        spacer = spare.pop() || makeSpacer();
+        root.insertBefore(spacer, cursor);
+      }
+      const height = `${want}px`;
+      if (spacer.style.height !== height) spacer.style.height = height;
+    } else if (want.parentNode !== root) {
+      root.insertBefore(want, cursor);
+    } else {
+      while (cursor && cursor !== want) {
+        const next = cursor.nextSibling;
+        if (isSpacer(cursor)) {
+          cursor.remove();
+          spare.push(cursor);
+        }
+        cursor = next;
+      }
+      if (cursor) cursor = cursor.nextSibling;
+    }
+  }
+  while (cursor) {
+    const next = cursor.nextSibling;
+    if (isSpacer(cursor)) cursor.remove();
+    cursor = next;
+  }
+}
+
 export class VirtualGallery {
   constructor({
     root,
@@ -32,6 +79,12 @@ export class VirtualGallery {
     this.items = [];
     this.chunks = [];
     this.columns = '';
+    this.gap = 0;
+    // Pixels per row of cards, measured from the chunks on screen; until then
+    // estimatedCardHeight stands in.
+    this.rowHeight = 0;
+    // While set, mounts and drops leave the spacers for one sync at the end.
+    this.batching = false;
     this.frame = null;
     // updateWindow keeps the view still itself when a chunk above it mounts
     // at other than its estimated height. Browser scroll anchoring would make
@@ -76,55 +129,137 @@ export class VirtualGallery {
       return;
     }
 
+    this.rebuild(items, style, nextColumns, sameGrid);
+  }
+
+  /** Cards per chunk for a grid with this column template. */
+  chunkSize(template) {
+    return Math.max(1, template.split(' ').filter(Boolean).length) * this.rowsPerChunk;
+  }
+
+  /**
+   * Replaces the chunks with ones for `items`. Chunks off screen are drawn as
+   * one spacer per unbroken run of them rather than one each: a sort of
+   * 50,000 videos made some 3,800 new spacers, and styling them cost more
+   * than the cards themselves.
+   */
+  rebuild(items, style, template, sameGrid) {
     const previousChunks = this.chunks;
     const previousItems = this.items;
+    this.batching = true;
     for (const chunk of previousChunks) this.dropChunk(chunk);
+    this.batching = false;
+    // Whatever else the markup started with goes, as replaceChildren once did.
+    for (const child of [...this.root.childNodes]) if (!isSpacer(child)) child.remove();
 
-    this.columns = nextColumns;
+    this.columns = template;
     this.items = items;
     this.chunks = [];
-    const columnCount = Math.max(1, nextColumns.split(' ').filter(Boolean).length);
-    const gap = parseFloat(style.rowGap) || 0;
-    const chunkSize = columnCount * this.rowsPerChunk;
-    const fragment = document.createDocumentFragment();
+    const columnCount = Math.max(1, template.split(' ').filter(Boolean).length);
+    this.gap = parseFloat(style.rowGap) || 0;
+    const chunkSize = this.chunkSize(template);
+    const previousChunk = this.previousChunkFinder(previousChunks, previousItems);
     for (let start = 0; start < items.length; start += chunkSize) {
       const end = Math.min(items.length, start + chunkSize);
       const rows = Math.ceil((end - start) / columnCount);
-      const previous = sameGrid ? previousChunks.find(chunk =>
-        previousItems[chunk.start] === items[start]
-        && previousItems[chunk.end - 1] === items[end - 1]) : null;
-      const height = previous?.height || rows * this.estimatedCardHeight + (rows - 1) * gap;
-      const placeholder = document.createElement('div');
-      placeholder.className = 'gallery-spacer';
-      placeholder.setAttribute('aria-hidden', 'true');
-      placeholder.style.height = `${height}px`;
-      fragment.append(placeholder);
-      this.chunks.push({start, end, height, placeholder, mounted: false, host: null});
+      const previous = sameGrid ? previousChunk(items[start], items[end - 1]) : null;
+      this.chunks.push({index: this.chunks.length, start, end,
+                        height: previous?.height || this.estimate(end - start, columnCount),
+                        measuredFor: previous?.measuredFor ?? null,
+                        mounted: false, host: null, node: null});
     }
-    this.root.replaceChildren(fragment);
+    this.syncSpacers();
     this.updateWindow();
+  }
+
+  /** The height a chunk of `count` cards is taken to have until it is drawn. */
+  estimate(count, columns) {
+    const rows = Math.ceil(count / columns);
+    return rows * (this.rowHeight || this.estimatedCardHeight) + (rows - 1) * this.gap;
+  }
+
+  /** One spacer for each run of unmounted chunks, holding their room. */
+  syncSpacers() {
+    if (this.batching) return;
+    const wanted = [];
+    let height = 0;
+    let count = 0;
+    const flush = () => {
+      if (count) wanted.push(height + this.gap * (count - 1));
+      height = 0;
+      count = 0;
+    };
+    for (const chunk of this.chunks) {
+      if (chunk.mounted && chunk.node) {
+        flush();
+        wanted.push(chunk.node);
+      } else if (!chunk.mounted) {
+        height += chunk.height;
+        count += 1;
+      }
+    }
+    flush();
+    reconcileSpacers(this.root, wanted, () => {
+      const spacer = document.createElement('div');
+      spacer.className = 'gallery-spacer';
+      spacer.setAttribute('aria-hidden', 'true');
+      return spacer;
+    });
+  }
+
+  /**
+   * Given to renderChunk to put a chunk's node in the grid: before the next
+   * mounted chunk's, and syncSpacers then splits the spacer around it.
+   */
+  placeChunk(chunk, node) {
+    chunk.node = node;
+    let next = null;
+    for (let index = chunk.index + 1; index < this.chunks.length && !next; index += 1) {
+      const later = this.chunks[index];
+      if (later.mounted && later.node?.parentNode === this.root) next = later.node;
+    }
+    this.root.insertBefore(node, next);
+  }
+
+  /**
+   * Finds the old chunk that ran from one item to another, so a chunk that
+   * survives a redraw keeps its measured height. Looked up by its first item:
+   * searching every old chunk for each new one made a redraw of 50,000 videos
+   * spend a fifth of a second just matching chunks.
+   */
+  previousChunkFinder(previousChunks, previousItems) {
+    const byFirst = new Map(previousChunks.map(chunk => [previousItems[chunk.start], chunk]));
+    return (first, last) => {
+      const chunk = byFirst.get(first);
+      return chunk && previousItems[chunk.end - 1] === last ? chunk : null;
+    };
   }
 
   mountChunk(chunk) {
     if (chunk.mounted) return;
-    this.renderChunk(chunk, this.items.slice(chunk.start, chunk.end));
-    chunk.placeholder.hidden = true;
     chunk.mounted = true;
+    this.renderChunk(chunk, this.items.slice(chunk.start, chunk.end),
+                     node => this.placeChunk(chunk, node));
+    this.syncSpacers();
     this.onMount?.(this.elementsForChunk(chunk), chunk);
   }
 
   dropChunk(chunk) {
-    if (!chunk.mounted && !chunk.host) return;
+    if (!chunk.mounted && !chunk.host && !chunk.node) return;
     const elements = this.elementsForChunk(chunk);
     this.onUnmount?.(elements, chunk);
     this.unmountChunk(chunk);
+    if (chunk.node?.parentNode === this.root) chunk.node.remove();
+    chunk.node = null;
     chunk.mounted = false;
+    this.syncSpacers();
   }
 
   refreshMounted() {
     for (const chunk of this.chunks) {
       if (!chunk.mounted) continue;
-      this.renderChunk(chunk, this.items.slice(chunk.start, chunk.end));
+      this.renderChunk(chunk, this.items.slice(chunk.start, chunk.end),
+                       node => this.placeChunk(chunk, node));
       this.onMount?.(this.elementsForChunk(chunk), chunk);
     }
   }
@@ -139,48 +274,96 @@ export class VirtualGallery {
     if (!this.root.getClientRects().length) return;
     const style = getComputedStyle(this.root);
     const gap = parseFloat(style.rowGap) || 0;
+    this.gap = gap;
+    const template = style.gridTemplateColumns;
+    const columns = Math.max(1, template.split(' ').filter(Boolean).length);
     const origin = this.root.getBoundingClientRect().top + window.scrollY
       + (parseFloat(style.paddingTop) || 0);
+    const measure = elements => elements.at(-1).getBoundingClientRect().bottom
+      - elements[0].getBoundingClientRect().top;
+    const learnRowHeight = () => {
+      let rows = 0;
+      let height = 0;
+      for (const chunk of this.chunks) {
+        if (!chunk.mounted || chunk.measuredFor !== template) continue;
+        const count = Math.ceil((chunk.end - chunk.start) / columns);
+        rows += count;
+        height += chunk.height - (count - 1) * gap;
+      }
+      return rows ? height / rows : this.rowHeight;
+    };
+
+    for (const chunk of this.chunks) {
+      if (!chunk.mounted) continue;
+      const elements = this.elementsForChunk(chunk);
+      if (!elements.length) continue;
+      chunk.height = measure(elements);
+      chunk.measuredFor = template;
+    }
+    this.rowHeight = learnRowHeight();
+
+    // A chunk measured at another width, or never, is guessed again from the
+    // rows it now has. The gallery keeps its chunks when the column count
+    // changes, so without this a page that lost a column to its scrollbar
+    // kept guessing three rows a chunk where there were four, and came out a
+    // quarter short. A guess that changes above the view moves the page by
+    // as much, so what is on screen stays put.
+    let before = 0;
+    let shift = 0;
+    let reguessed = false;
+    for (const chunk of this.chunks) {
+      const old = chunk.height;
+      if (!chunk.mounted && chunk.measuredFor !== template) {
+        const guess = this.estimate(chunk.end - chunk.start, columns);
+        if (Math.abs(guess - old) > 0.5) {
+          if (before + old <= position - origin) shift += guess - old;
+          chunk.height = guess;
+          reguessed = true;
+        }
+      }
+      before += old + gap;
+    }
+    if (reguessed) this.syncSpacers();
+    position += shift;
+
     const overscan = window.innerHeight * this.overscanViewports;
     const low = position - origin - overscan;
     const high = position - origin + window.innerHeight + overscan;
     let top = 0;
-
     for (const chunk of this.chunks) {
-      if (chunk.mounted) {
-        const elements = this.elementsForChunk(chunk);
-        if (elements.length) chunk.height = elements.at(-1).getBoundingClientRect().bottom
-          - elements[0].getBoundingClientRect().top;
-      }
       chunk.top = top;
       chunk.needed = top <= high && top + chunk.height >= low;
       top += chunk.height + gap;
     }
 
     const viewportTop = position - origin;
-    let drift = 0;
+    let drift = shift;
     for (const chunk of this.chunks) {
       if (chunk.needed) {
         const estimated = chunk.height;
         this.mountChunk(chunk);
         const elements = this.elementsForChunk(chunk);
-        const measured = elements.length
-          ? elements.at(-1).getBoundingClientRect().bottom - elements[0].getBoundingClientRect().top
-          : 0;
+        const measured = elements.length ? measure(elements) : 0;
         if (measured > 0) {
           chunk.height = measured;
+          chunk.measuredFor = template;
           if (chunk.top + estimated <= viewportTop) drift += measured - estimated;
         }
       } else if (chunk.mounted) {
         const elements = this.elementsForChunk(chunk);
         if (elements.some(element => element.contains(document.activeElement)
             || element.classList.contains('menu-open'))) continue;
-        chunk.placeholder.style.height = `${chunk.height}px`;
-        chunk.placeholder.hidden = false;
         this.dropChunk(chunk);
       }
     }
     if (drift) window.scrollBy(0, drift);
+    // Chunks drawn just now may show rows of another height than the guesses
+    // were made with, as on the first draw; guess again next frame.
+    const rowHeight = learnRowHeight();
+    if (Math.abs(rowHeight - this.rowHeight) > 0.5) {
+      this.rowHeight = rowHeight;
+      this.scheduleUpdate();
+    }
     this.onRenderCount?.(this.chunks.reduce((count, chunk) =>
       count + (chunk.mounted ? chunk.end - chunk.start : 0), 0));
   }
@@ -206,6 +389,8 @@ export class VirtualGallery {
     window.removeEventListener('resize', this.update);
     this.resizeObserver?.disconnect();
     if (this.frame) cancelAnimationFrame(this.frame);
+    this.batching = true;
     for (const chunk of this.chunks) this.dropChunk(chunk);
+    this.batching = false;
   }
 }

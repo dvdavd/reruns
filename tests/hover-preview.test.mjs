@@ -152,3 +152,106 @@ test('changing a hovered playlist part replaces the playing preview', async () =
     Object.assign(globalThis, globals);
   }
 });
+
+import {previewSources} from '../web/hover-preview.js';
+
+test('a preview tries the smallest copy held first, and the card\'s own last', () => {
+  const item = {sourceRef: '/media/4k', parts: [{sourceRef: '/media/4k'}], archive: {formats: [
+    {sourceRef: '/media/4k', sizeBytes: 900},
+    {sourceRef: '/media/audio', sizeBytes: 10, audioOnly: true},
+    {sourceRef: '/media/unknown'},
+    {sourceRef: '/media/720', sizeBytes: 100},
+  ]}};
+  assert.deepEqual(previewSources(item), ['/media/720', '/media/4k', '/media/unknown']);
+  assert.deepEqual(previewSources({sourceRef: '/media/only'}), ['/media/only']);
+  assert.deepEqual(previewSources({parts: []}), []);
+});
+
+/** A card with a preview made for it, run until the pointer has rested. */
+async function hoverOnce({autoplay, item}) {
+  const listeners = {};
+  const elements = [];
+  const node = () => ({
+    dataset: {}, style: {}, events: {}, classList: {names: new Set(),
+      add(name) { this.names.add(name); }, remove(name) { this.names.delete(name); }},
+    attributes: {},
+    addEventListener(name, callback) { (this.events[name] ||= []).push(callback); },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    removeAttribute() {}, remove() {}, append() {}, after() {},
+    pause() {}, load() {}, plays: 0, play() { this.plays += 1; return Promise.resolve(); },
+    getBoundingClientRect: () => ({left: 0, width: 200}),
+    querySelector(selector) { return this.nodes[selector] ||= node(); }, nodes: {},
+  });
+  const buttons = [node(), node()];
+  const card = {dataset: {id: 'paused-test', partIndex: '0'}, isConnected: true};
+  const frame = {querySelector: () => ({after() {}})};
+  const appended = [];
+  const area = {closest: () => card, matches: () => true, contains: () => false,
+    append: element => appended.push(element), querySelector: selector =>
+      selector === '.thumbnail-frame' ? frame : null};
+  globalThis.document = {addEventListener() {}, createElement() {
+    const element = node();
+    if (elements.length === 1) element.children = buttons;
+    elements.push(element);
+    return element;
+  }};
+  globalThis.window = {addEventListener() {}};
+  globalThis.MutationObserver = class { observe() {} };
+  const preview = createHoverPreview({
+    root: {addEventListener(name, callback) { listeners[name] = callback; }},
+    itemFor: () => item, delay: 0, autoplay: () => autoplay,
+  });
+  listeners.pointerover({target: {closest: selector => selector === '.thumbnail-area' ? area : card},
+    relatedTarget: null});
+  await new Promise(resolve => setTimeout(resolve, 5));
+  return {preview, video: elements[0], controls: elements[1], play: buttons[0], appended};
+}
+
+test('with autoplay off, a preview fetches nothing until its play button is pressed', async () => {
+  const globals = {document: globalThis.document, window: globalThis.window,
+    MutationObserver: globalThis.MutationObserver, fetch: globalThis.fetch};
+  let fetched = 0;
+  globalThis.fetch = async () => { fetched += 1; return {ok: false}; };
+  let preview;
+  try {
+    const hovered = await hoverOnce({autoplay: false,
+      item: {sourceRef: '/media/a', seekPreviewUrl: '/sheet'}});
+    preview = hovered.preview;
+    const {video, controls, play, appended} = hovered;
+    assert.equal(video.src, undefined);
+    assert.equal(video.preload, 'none');
+    assert.equal(video.plays, 0);
+    assert.equal(fetched, 0);
+    assert.ok(controls.classList.names.has('is-paused'));
+    // Only the buttons are up; the seek bar waits for the video.
+    assert.deepEqual(appended, [controls]);
+    for (const click of play.events.click) click({preventDefault() {}, stopPropagation() {}});
+    assert.equal(video.src, '/media/a');
+    assert.equal(video.plays, 1);
+    assert.equal(fetched, 1);
+    assert.equal(appended.length, 2);
+  } finally {
+    preview?.end();
+    Object.assign(globalThis, globals);
+  }
+});
+
+test('a copy the browser cannot play gives way to the next', async () => {
+  const globals = {document: globalThis.document, window: globalThis.window,
+    MutationObserver: globalThis.MutationObserver};
+  let preview;
+  try {
+    const hovered = await hoverOnce({autoplay: true, item: {sourceRef: '/media/big',
+      parts: [{sourceRef: '/media/big'}],
+      archive: {formats: [{sourceRef: '/media/big', sizeBytes: 9}, {sourceRef: '/media/small', sizeBytes: 1}]}}});
+    preview = hovered.preview;
+    const {video} = hovered;
+    assert.equal(video.src, '/media/small');
+    for (const fail of video.events.error) fail();
+    assert.equal(video.src, '/media/big');
+    assert.equal(video.plays, 2);
+  } finally {
+    preview?.end();
+    Object.assign(globalThis, globals);
+  }
+});

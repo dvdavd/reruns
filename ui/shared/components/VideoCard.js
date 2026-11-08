@@ -134,6 +134,7 @@ export function VideoCard({
   hidden = false,
   accent,
   thumbnailUrlFor,
+  thumbnailSizes = 'min(100vw, 720px)',
   loadOwnerPortrait,
   channelMetadata = [],
   durationInCorner = false,
@@ -173,12 +174,18 @@ export function VideoCard({
   const detailsHref = detailsUrlFor?.(item, view.partIndex);
   const multipart = view.partCount > 1;
   const thumbnailUrl = thumbnailUrlFor?.(item, view.partIndex) ?? view.thumbnail.url;
+  // A consumer that names its own picture has said which one; otherwise the
+  // item's srcset, when it has one, lets the browser fetch a copy the size of
+  // the card rather than the full picture. `thumbnailSizes` is how wide the
+  // card is drawn.
+  const thumbnailSrcset = (!thumbnailUrlFor && view.thumbnail.srcset) || undefined;
 
   // In the HereSphere browser the thumbnail itself is the play link and the
   // details button moves alongside it; elsewhere the thumbnail opens details.
   const thumbnailInner = html`
     <span class=${`thumbnail-frame${view.thumbnail.alphaPacking ? ' thumbnail-frame--alpha' : ''}`}>
       <img class="thumbnail-image" src=${thumbnailUrl}
+           srcset=${thumbnailSrcset} sizes=${thumbnailSrcset ? thumbnailSizes : undefined}
            data-missing=${thumbnailUrl ? undefined : ''}
            onError=${markThumbnailMissing} onLoad=${clearThumbnailMissing}
            loading=${thumbnailLoading} decoding="async" width="640" height="360" alt="" />

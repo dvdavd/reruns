@@ -4,7 +4,7 @@ import {applyPlaylists, toMediaItem, toPlaylist} from '../web/item-adapter.js';
 import {createPlaylistCollapser, markPlaylistDirection, playlistsFrom} from '../web/playlists.js';
 
 const video = (id, playlist, index, count) => toMediaItem({
-  id, extractor_key: 'Youtube', title: id, _key: id, _media_url: '/media/' + id,
+  id, extractor_key: 'Youtube', title: id, _key: id, _serves: 'media' + id,
   ...(playlist ? {playlist_id: playlist, playlist_title: playlist, playlist_index: index, playlist_count: count} : {}),
 });
 const ids = list => list.map(item => item.id);
@@ -50,7 +50,7 @@ test('an unchanged playlist keeps its entry, so the gallery does not rebuild', (
 
 test('a channel downloaded whole stays as its videos', () => {
   const upload = (id, index, extra) => toMediaItem({
-    id, extractor_key: 'Youtube', title: id, _key: id, _media_url: '/media/' + id, channel_id: 'UCabc',
+    id, extractor_key: 'Youtube', title: id, _key: id, _serves: 'media' + id, channel_id: 'UCabc',
     playlist_index: index, playlist_count: 2, ...extra,
   });
   const cases = [

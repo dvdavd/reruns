@@ -1,6 +1,7 @@
 import {html, render} from 'media-ui';
 import {icon} from './icon.js';
-import {post, request} from './api.js';
+import {post} from './api.js';
+import {createJobFeed} from './job-feed.js';
 import {DEBUG_DOWNLOADS, debugJobs} from './download-debug.js';
 import {t} from './i18n.js';
 import {ACTIVE_STATES, createJobFailureTracker, flattenDownloads, isDownloadUrl, queueStatus} from './download-model.js';
@@ -23,16 +24,26 @@ export const DEFAULT_PREFERENCES = {
 const STORAGE_KEY = 'ytdlp-download-options-v1';
 
 const POLL_FAILURES_BEFORE_REPORT = 3;
+// While a job runs, the gallery is read again at most this often for the
+// parts it has saved. Each read is the whole library listing, which for a
+// large library is most of a megabyte, and a playlist of short videos can
+// land a part every few seconds.
+const ARRIVAL_RELOAD_MS = 15000;
 
 export function createDownloadsUI({access = {role: 'admin'}, directory, form, urlInput, jobsElement,
   advancedToggle, advancedPanel, profileMenu, manualPanel, subscribeButton,
   queueToggle, queueCount, drawer, drawerClose, drawerSummary, onJobs, onSettled, playLocal, report}) {
   let pollTimer = null;
+  const jobFeed = createJobFeed();
   let pollFailures = 0;
   const newFailures = createJobFailureTracker();
   // Videos finished across all jobs at the last poll; null until there is one,
   // so opening the page does not read as a download having just landed.
   let completedBefore = null;
+  // A part that landed while the last reload was too recent, so it is still
+  // owed one: when the wait is up, or when the job ends.
+  let arrivalWaiting = false;
+  let lastArrivalReload = 0;
   let preferences = loadPreferences();
   let profiles = [];
   let defaultProfile = '';
@@ -529,7 +540,7 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
   async function poll() {
     let failedJobs = [];
     try {
-      const jobs = DEBUG_DOWNLOADS ? debugJobs() : await request('/api/jobs');
+      const jobs = DEBUG_DOWNLOADS ? debugJobs() : await jobFeed.read();
       pollFailures = 0;
       draw(jobs);
       failedJobs = newFailures(jobs);
@@ -541,18 +552,25 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
       // showed the scanning toast for nothing the gallery lists.
       const completed = jobs.reduce((total, job) =>
         total + (job.commentsOnly ? 0 : job.counts?.completed || 0), 0);
-      const arrived = completedBefore !== null && completed > completedBefore;
+      if (completedBefore !== null && completed > completedBefore) arrivalWaiting = true;
       completedBefore = completed;
       if (active) {
         pollTimer = setTimeout(poll, 1000);
-        // A playlist can run for hours; each part is watchable the moment it
+        // A playlist can run for hours; each part is watchable soon after it
         // is saved, so the gallery need not wait for the whole job to settle.
-        if (arrived) { await onSettled(); draw(jobs); }
+        if (arrivalWaiting && Date.now() - lastArrivalReload >= ARRIVAL_RELOAD_MS) {
+          arrivalWaiting = false;
+          lastArrivalReload = Date.now();
+          await onSettled();
+          draw(jobs);
+        }
         return;
       }
       // Subscriptions start checks on the server's clock, so keep an ear out.
       pollTimer = setTimeout(poll, 30000);
-      if (arrived || settledBrowse) {
+      if (arrivalWaiting || settledBrowse) {
+        arrivalWaiting = false;
+        lastArrivalReload = Date.now();
         await onSettled();
         draw(jobs);
       }

@@ -377,11 +377,11 @@ export function createGalleryController({
   }
   const virtualGallery = new ColumnGallery({
     root,
-    renderChunk(chunk, items) {
+    renderChunk(chunk, items, place) {
       if (!chunk.host) {
         chunk.host = document.createElement('div');
         chunk.host.className = 'gallery-chunk';
-        chunk.placeholder.before(chunk.host);
+        place(chunk.host);
       }
       render(html`<${Cards} items=${items} />`, chunk.host);
       initialiseCardAccents(chunk.host, id => store.itemForRef(id));
@@ -532,6 +532,8 @@ export function createGalleryController({
     // A tracklist stands in for the cards rather than sitting under them.
     root.hidden = asTracks;
     tracks.update(asTracks ? shown : []);
+    // The record layout's styles key on this; see library.css.
+    tracklistRoot.parentElement.classList.toggle('is-tracklist-view', !tracklistRoot.hidden);
     virtualGallery.setItems(asTracks ? [] : onScreen === 'home' && foldsPlaylists()
       ? collapsePlaylists(shown, allPlaylists(pool)) : shown);
     if (deletionGalleryAnchor) virtualGallery.restoreAnchor(deletionGalleryAnchor);

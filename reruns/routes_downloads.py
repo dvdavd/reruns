@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from http import HTTPStatus
 from .playlists import video_source
+from .routes_media import PORTRAIT_WIDTH
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -13,6 +14,7 @@ from urllib.parse import parse_qs
 from .archive import (REFRESH_FIELDS)
 from .channels import pick_largest
 from .downloads import canonical_url, validate_languages, validate_options
+from .job_changes import tracker_for
 from .subscriptions import channel_root, subscription_kind
 
 
@@ -348,6 +350,27 @@ class DownloadRoutes:
                     item["thumbnail"] = saved
         return jobs
 
+    def _send_jobs(self, *, head_only: bool) -> None:
+        """The whole queue, or with ``?since=`` only what changed after the
+        token a previous answer gave (see job_changes)."""
+        since = parse_qs(self.path.partition("?")[2], keep_blank_values=True).get("since")
+        jobs = self._jobs_with_saved_thumbnails()
+        if since is None:
+            self._send_json(jobs, head_only=head_only)
+            return
+        viewer = str(self.account["id"]) if self.auth else ""
+        self._send_json(tracker_for(self.downloader).since(viewer, jobs, since[0]),
+                        head_only=head_only)
+
+    def _send_job(self, job_id: str, *, head_only: bool) -> None:
+        """One job, for a card waiting on its own fetch, which need not carry
+        the rest of the queue every second to watch it."""
+        job = next((job for job in self._jobs_with_saved_thumbnails() if job["id"] == job_id), None)
+        if job is None:
+            self.send_error(HTTPStatus.NOT_FOUND, "No such job")
+        else:
+            self._send_json(job, head_only=head_only)
+
     def _send_subscription_image(self, subscription_id: str, *, head_only: bool) -> None:
         """A followed channel's avatar or a playlist's cover, fetched and
         cached like a channel picture and polled for the same way."""
@@ -362,7 +385,7 @@ class DownloadRoutes:
             state = self.channels.request(f"subscription:{item['url']}", item["url"], pick_largest)
         if state.get("state") == "ready":
             state = {**state,
-                     "imageUrl": f"/channel-image/{state['key']}/{state['imageName']}"}
+                     "imageUrl": f"/channel-image/{state['key']}/{state['imageName']}?w={PORTRAIT_WIDTH}"}
         self._send_json(state, head_only=head_only)
 
     def _send_browse(self, *, head_only: bool) -> None:

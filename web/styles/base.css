@@ -37,7 +37,8 @@
      size wherever it appears - bar the related row, which sits in the capped
      watch column. It grows with the window rather than being
      fixed: a large fixed minimum left too few columns just under each
-     breakpoint, so a 1400px window got two cards of nearly 700px each. */
+     breakpoint, so a 1400px window got two cards of nearly 700px each.
+     web/thumbnail-sizes.js repeats all three, to fetch thumbnails to fit. */
   --video-card-min: clamp(380px, 21vw, 520px);
 
   /* Selected text takes the accent rather than the browser's blue, in both

@@ -35,11 +35,44 @@ export function initialisePlayerHeader(stage) {
   schedule();
 }
 
-// The glow is a small copy of the picture, blurred large. Each cell of it is
-// averaged over its patch of the frame rather than sampled at its centre, so
-// an edge crossing the picture moves the light smoothly, not a cell at a time.
+// Sample the picture once, then extend its edge strips outward. The centre
+// stays aligned with the player, so colours travel straight out from each
+// edge rather than moving sideways as an enlarged frame would.
 const GLOW_WIDTH = 64;
 const GLOW_HEIGHT = 36;
+// One sample pixel of extended edge, about 16px on a 1000px player: the side
+// spread the enlarged frame used to give, which half that fell short of, so
+// the blur's bright middle sat behind the picture. The blur does the rest.
+// A whole number, so the sample lands on whole pixels of the canvas around
+// it and is read back from there; the stylesheet places the canvas from the
+// same figures (see below).
+const GLOW_REACH = 1;
+const EDGE_STRIP = 2;
+
+/** Extend the sample's edges and corners out into the margin around it. The
+ *  sample is drawn in place (the context is translated by the reach), so only
+ *  the eight margin pieces are copied, each from the canvas's own edge strip;
+ *  none overlaps the strip it is copied from. */
+function drawEdgeGlow(context) {
+  const r = GLOW_REACH;
+  const x = [[r, EDGE_STRIP, 0, r], [r, GLOW_WIDTH, r, GLOW_WIDTH],
+    [r + GLOW_WIDTH - EDGE_STRIP, EDGE_STRIP, r + GLOW_WIDTH, r]];
+  const y = [[r, EDGE_STRIP, 0, r], [r, GLOW_HEIGHT, r, GLOW_HEIGHT],
+    [r + GLOW_HEIGHT - EDGE_STRIP, EDGE_STRIP, r + GLOW_HEIGHT, r]];
+  const {canvas} = context;
+  context.save();
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.globalAlpha = 1;
+  for (const [sx, sw, dx, dw] of x) {
+    for (const [sy, sh, dy, dh] of y) {
+      // The middle is the sample itself.
+      if (dx === r && dy === r) continue;
+      context.clearRect(dx, dy, dw, dh);
+      context.drawImage(canvas, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+  }
+  context.restore();
+}
 // How often a playing video is copied in realtime mode, and so how far the
 // light runs behind the picture: each copy fades in over the gap since the
 // last. The copy is tiny; the blur redrawn for each one is the cost. Samples
@@ -83,7 +116,9 @@ export function lightGlowPixels(pixels) {
     const light = Math.max(0, Math.min(1, (luminance - 45) / 125));
     const vivid = Math.max(0, Math.min(1, (chroma - 30) / 120))
       * Math.min(1, brightest / 100);
-    data[i + 3] *= Math.max(light, vivid);
+    // Give colour more weight on the pale page without extending the halo.
+    // Cap the weight before applying source alpha so transparency is kept.
+    data[i + 3] *= Math.max(light, Math.min(1, vivid * 1.1));
     const white = 235 + 20 * brightest / 255;
     // Held short of pushing a channel below zero: a clipped channel shifts
     // the hue, so oranges went red and skin went orange.
@@ -165,17 +200,26 @@ export function initialiseAmbientGlow(player, stage) {
   glow.className = 'archive-ambient-glow';
   glow.hidden = true;
   glow.setAttribute('aria-hidden', 'true');
+  // The canvas overhangs the stage by the reach on every side; cards.css sizes
+  // it from these, so the picture inside it stays exactly over the player.
+  glow.style.setProperty('--glow-reach-x', String(GLOW_REACH / GLOW_WIDTH));
+  glow.style.setProperty('--glow-reach-y', String(GLOW_REACH / GLOW_HEIGHT));
   const layers = [0, 1].map(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = GLOW_WIDTH;
-    canvas.height = GLOW_HEIGHT;
+    canvas.width = GLOW_WIDTH + 2 * GLOW_REACH;
+    canvas.height = GLOW_HEIGHT + 2 * GLOW_REACH;
     // Neither shows until a sample is drawn into it: the two add together.
     canvas.style.opacity = '0';
     // The light theme reads each sample back to filter it. At this size that
     // is cheaper on the CPU than a round trip from a GPU-backed canvas, and
     // only Chrome works that out for itself.
     const context = canvas.getContext('2d', {willReadFrequently: true});
-    if (context) context.imageSmoothingQuality = 'high';
+    if (context) {
+      context.imageSmoothingQuality = 'high';
+      // Samples are drawn at 0,0 to GLOW_WIDTH x GLOW_HEIGHT, inside the
+      // margin drawEdgeGlow fills.
+      context.translate(GLOW_REACH, GLOW_REACH);
+    }
     return {canvas, context};
   });
   if (layers.some(layer => !layer.context)) return;
@@ -208,8 +252,10 @@ export function initialiseAmbientGlow(player, stage) {
   function filterLightSample(context) {
     if (document.documentElement.dataset.theme !== 'light') return;
     try {
-      const pixels = context.getImageData(0, 0, GLOW_WIDTH, GLOW_HEIGHT);
-      context.putImageData(lightGlowPixels(pixels), 0, 0);
+      // Pixel reads and writes ignore the translation, so the sample is
+      // addressed where it sits on the canvas.
+      const pixels = context.getImageData(GLOW_REACH, GLOW_REACH, GLOW_WIDTH, GLOW_HEIGHT);
+      context.putImageData(lightGlowPixels(pixels), GLOW_REACH, GLOW_REACH);
       glow.style.mixBlendMode = '';
     } catch {
       // A cross-origin poster may draw but forbid pixel reads. Screen blending
@@ -297,6 +343,7 @@ export function initialiseAmbientGlow(player, stage) {
    *  since the last sample so fades meet end to end; the first sample after
    *  the glow was hidden shows at once, and the glow as a whole fades up. */
   function present(layer, now) {
+    drawEdgeGlow(layer.context);
     const appearing = glow.hidden;
     const fade = appearing ? 0 : Math.min(FADE_MAX_MS, Math.max(FADE_MIN_MS, now - lastSample));
     lastSample = now;

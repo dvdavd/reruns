@@ -368,7 +368,6 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
   pointer-events: none;
   border-radius: inherit;
   opacity: .5;
-  transform: scale(1.035);
 }
 .archive-ambient-glow[hidden] { display: none; }
 /* Two samples, the newer fading in as the older fades out. They add rather
@@ -402,14 +401,14 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
 }
 .archive-ambient-glow > canvas {
   position: absolute;
-  top: 0;
-  left: 0;
-  /* Filter a quarter-size surface, then enlarge it. The source is only
-     64x36 pixels, so a full-stage blur spent GPU time on interpolated pixels,
-     especially on high-resolution displays. Scaling the blur radius with the
-     surface keeps its apparent 38px spread. */
-  width: 25%;
-  height: 25%;
+  /* ambient-glow.js sets the reach, as a fraction of the sample, so the
+     extended edges overhang the stage and the sample's centre sits exactly
+     on the picture. The canvas is filtered at quarter size, then enlarged,
+     for an apparent 38px blur. */
+  top: calc(var(--glow-reach-y, 0) * -100%);
+  left: calc(var(--glow-reach-x, 0) * -100%);
+  width: calc(25% * (1 + 2 * var(--glow-reach-x, 0)));
+  height: calc(25% * (1 + 2 * var(--glow-reach-y, 0)));
   transform: scale(4);
   transform-origin: top left;
   border-radius: 8.5px;
@@ -421,9 +420,14 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
 }
 /* The stage is positioned, and positioned boxes paint after ordinary ones, so
    the glow's blur spilling past the stage's foot covered the title and the
-   buttons under it. Positioned too, and later in the page, they paint over. */
-.archive-watch-stage ~ * { position: relative; }
-/* Card size from the customisation drawer; medium is the :root default. */
+   buttons under it. Positioned too, and later in the page, they paint over.
+   Written from the parent: as `.archive-watch-stage ~ *` every element on the
+   page searched its earlier siblings for the stage, and each of a large
+   gallery's thousands of spacers searched all the others, so drawing 50,000
+   videos spent a tenth of a second styling them. :where keeps the old weight. */
+.archive-watch-main > :where(:not(.archive-watch-stage)) { position: relative; }
+/* Card size from the customisation drawer; medium is the :root default.
+   web/thumbnail-sizes.js repeats these, to fetch thumbnails to fit. */
 body[data-card-size="small"] { --video-card-min: clamp(280px, 15vw, 380px); }
 body[data-card-size="large"] { --video-card-min: clamp(480px, 28vw, 700px); }
 .customisation-options { margin: 24px var(--drawer-inset, 24px) 0; padding: 0; border: 0; }
@@ -468,6 +472,9 @@ body[data-card-size="large"] { --video-card-min: clamp(480px, 28vw, 700px); }
 .customisation-option-note:empty { display: none; }
 /* A whole-row switch, its label lined up with the other settings' titles. */
 .customisation-setting > .customisation-switch { margin: -5px -8px; }
+/* A settings row keeps to one line, but a note here is a sentence, and a
+   long one ran on under the switch rather than wrapping beside it. */
+.customisation-setting > .customisation-switch > span:first-child { white-space: normal; }
 .customisation-held-back {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -625,6 +632,27 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   border-radius: inherit;
 }
 .archive-watch-stage .media-player:fullscreen { border-radius: 0; }
+/* Rounded one by one, the stage's ground, the player's and the video each
+   antialias along the same curve, and the dark fills showing through the
+   video's part-drawn edge pixels stacked into a black rim against the glow.
+   Once the video is drawing it fills the frame with its own black, so the
+   grounds behind it step aside, as they do in the corner window; until
+   then (a poster, a projection, a file that will not decode) they stay. */
+.archive-watch-stage:has(> .media-player:is([data-player-state="playing"], [data-player-state="paused"]):not(:fullscreen, .is-projected, .is-unplayable)),
+.archive-watch-stage > .media-player:is([data-player-state="playing"], [data-player-state="paused"]):not(:fullscreen, .is-projected, .is-unplayable) { background: transparent; }
+/* The video's own black is rounded to that curve as well, and was a rim on
+   its own. It is still wanted behind letterbox bars while the frame moves to
+   a new shape, so it moves to a layer 1px inside the curve instead: its soft
+   edge then lies under solid picture, not under the picture's soft edge. */
+.archive-watch:not(.is-mini) .archive-watch-stage > .media-player:is([data-player-state="playing"], [data-player-state="paused"]):not(:fullscreen, .is-projected, .is-unplayable) .media-player-video { background: transparent; }
+.archive-watch:not(.is-mini) .archive-watch-stage > .media-player:is([data-player-state="playing"], [data-player-state="paused"]):not(:fullscreen, .is-projected, .is-unplayable)::before {
+  content: "";
+  position: absolute;
+  inset: 1px 1px calc(var(--bar-strip, 0px) + 1px);
+  border-radius: inherit;
+  background: black;
+  pointer-events: none;
+}
 /* On a phone the bar floating over the picture covers a good part of a small
    video, and leaves the settings and playlist panels only the sliver above
    it. So the bar gets a strip of its own under the picture: the stage's

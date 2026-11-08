@@ -1,5 +1,6 @@
 """Archive indexing, metadata and local media operations."""
 from __future__ import annotations
+import base64
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import shutil
 import threading
 import time
 import urllib.request
+import zlib
 from collections import OrderedDict
 from collections.abc import Callable
 from .playlists import channel_listing, video_source
@@ -93,7 +95,7 @@ KEPT_COMMENT_SETS = 4
 # keeps: a cache from before would otherwise go on serving the old shape for
 # every sidecar that has not been touched since. Adding to SIDECAR_FIELDS
 # needs no bump; the field list is part of the check.
-SIDECAR_CACHE_VERSION = 1
+SIDECAR_CACHE_VERSION = 2
 
 SHOW_PLAYLIST_URL = re.compile(r"youtube\.com/show/VL([\w-]+)")
 
@@ -165,10 +167,27 @@ def _merged_formats(raw: dict) -> list[dict]:
     return [by_id[identifier] for identifier in str(raw.get("format_id") or "").split("+")
             if identifier in by_id]
 
+def _pack_heatmap(heatmap: list) -> str:
+    """A heatmap as it is held until a watch page asks for it: compressed
+    text. As parsed JSON it is ~100 small dicts, about 16 KB of memory a
+    video and most of what the server held for each; packed it is ~2.4 KB."""
+    text = json.dumps(heatmap, separators=(",", ":")).encode("utf-8")
+    return base64.b64encode(zlib.compress(text, 9)).decode("ascii")
+
+def _unpack_heatmap(packed) -> list:
+    if not isinstance(packed, str):
+        return packed
+    try:
+        return json.loads(zlib.decompress(base64.b64decode(packed)))
+    except (ValueError, zlib.error):
+        return []
+
 def _slim_sidecar(raw: dict) -> dict:
     """Keep only what the page reads. Subtitles become their language codes,
     which is all the watch page lists."""
     slim = {field: raw[field] for field in SIDECAR_FIELDS if field in raw}
+    if isinstance(slim.get("heatmap"), list):
+        slim["heatmap"] = _pack_heatmap(slim["heatmap"])
     if isinstance(raw.get("subtitles"), dict):
         slim["subtitles"] = {language: [] for language in raw["subtitles"]}
     merged = _merged_formats(raw)
@@ -186,6 +205,31 @@ def _slim_sidecar(raw: dict) -> dict:
         # Served only for the video currently open: even trimmed this is a
         # detail the gallery never shows.
         slim["automatic_caption_languages"] = _spoken_languages(raw["automatic_captions"])
+    return slim
+
+# The addresses each record carries for the server's own use, and the word
+# /api/items sends in their place. All of them are the record's key under a
+# fixed path, so the page builds them (web/item-adapter.js); sent whole they
+# were nearly half of the listing, which at 50,000 videos is seconds of
+# building, compressing and parsing on every full load.
+LISTING_ADDRESSES = {
+    "_media_url": "media", "_thumb_url": "thumb", "_seek_preview_url": "seek",
+    "_sponsorblock_url": "sponsorblock", "_comments_url": "comments",
+    "_details_url": "details", "_chat_url": "chat",
+}
+
+def listing_record(record: dict) -> dict:
+    """One record as /api/items sends it: the addresses above become the words
+    in ``_serves``, the subtitle tracks their languages, and the file's path
+    its name, which is all the page shows of it."""
+    slim = {field: value for field, value in record.items()
+            if field not in LISTING_ADDRESSES and field != "_subtitle_tracks"}
+    slim["_serves"] = " ".join(word for field, word in LISTING_ADDRESSES.items() if record.get(field))
+    languages = [track["language"] for track in record.get("_subtitle_tracks") or []]
+    if languages:
+        slim["_subtitles"] = languages
+    if record.get("filepath"):
+        slim["filepath"] = Path(record["filepath"]).name
     return slim
 
 class FolderListing(list):
@@ -422,6 +466,8 @@ class Archive:
         # The chat replay beside each stream that has one.
         self._chat: dict[str, Path] = {}
         self._chat_replays = ChatReplays()
+        # (revision, records as /api/items sends them); see listing_revision.
+        self._listing_cache: tuple[int, list[dict]] | None = None
         # sidecar -> (signature, slimmed comments, {comment id: (author id,
         # picture address)}), least recently used first. Parsed under the lock:
         # a browser asks for six pictures at once, and each would otherwise
@@ -689,6 +735,18 @@ class Archive:
 
     def scan(self) -> list[dict]:
         return self.scan_revision()[0]
+
+    def listing_revision(self) -> tuple[list[dict], int]:
+        """scan_revision's records as /api/items sends them (listing_record),
+        made once per revision rather than for every request."""
+        records, revision = self.scan_revision()
+        with self._lock:
+            if self._listing_cache is not None and self._listing_cache[0] == revision:
+                return list(self._listing_cache[1]), revision
+        listing = [listing_record(record) for record in records]
+        with self._lock:
+            self._listing_cache = (revision, listing)
+        return list(listing), revision
 
     def scan_revision(self) -> tuple[list[dict], int]:
         """The records with a number that changes whenever a later scan could
@@ -1101,11 +1159,13 @@ class Archive:
         # Counted under every folder on the way down, so a parent's figure
         # covers what its children hold. A folder named for one video's creator
         # is the creator's for all of them: see chosen_directory.
-        known = {(prefix, folder) for prefix, relative, raw in placements
-                 for folder in creator_folders(relative, raw)}
+        # Gathered per library once: rebuilt for each video, this set made a
+        # restart of a 50,000-video library spend 20 seconds here alone.
+        known: dict[str, set[str]] = {}
         for prefix, relative, raw in placements:
-            folder_path = chosen_directory(
-                relative, raw, {folder for known_prefix, folder in known if known_prefix == prefix})
+            known.setdefault(prefix, set()).update(creator_folders(relative, raw))
+        for prefix, relative, raw in placements:
+            folder_path = chosen_directory(relative, raw, known[prefix])
             chosen = folder_path.split("/") if folder_path else []
             for depth in range(len(chosen) + 1):
                 folder = (prefix, "/".join(chosen[:depth]))
@@ -1195,7 +1255,10 @@ class Archive:
         if not scanned:
             self.scan()
         with self._lock:
-            return self._details.get(key)
+            details = self._details.get(key)
+        if details and "heatmap" in details:
+            details = dict(details, heatmap=_unpack_heatmap(details["heatmap"]))
+        return details
 
     def _read_comments(self, key: str) -> tuple[list[dict], dict[str, tuple[str, str]]]:
         """The sidecar's comments, slimmed to COMMENT_FIELDS, and each one's

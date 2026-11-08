@@ -61,10 +61,12 @@ export function creatorsFrom(items) {
 }
 
 
+// Made once: localeCompare with options sets up the rules on every call.
+const byName = new Intl.Collator(undefined, {sensitivity: 'base', numeric: true});
+
 /** A to Z by name, ignoring case and accents. */
 export function alphabetical(creators) {
-  return [...creators].sort((left, right) =>
-    left.name.localeCompare(right.name, undefined, {sensitivity: 'base', numeric: true}));
+  return [...creators].sort((left, right) => byName.compare(left.name, right.name));
 }
 
 /**

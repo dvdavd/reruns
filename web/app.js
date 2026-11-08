@@ -10,7 +10,7 @@ import {createAccountsUI} from './accounts-ui.js';
 import {createActivityUI} from './activity-ui.js';
 import {showModalOverPage} from './drawer.js';
 import {post, request} from './api.js';
-import {chosenLanguage, createCustomisationUI} from './customisation.js';
+import {chosenLanguage, createCustomisationUI, previewsAutoplay} from './customisation.js';
 import {t, translateMarkup, useLocale} from './i18n.js';
 import {preferences} from './preferences.js';
 import {createLibrariesUI} from './libraries-ui.js';
@@ -411,6 +411,7 @@ createHoverPreview({
     const id = card.dataset.partId || card.dataset.id;
     return gallery.items().find(item => item.id === id);
   },
+  autoplay: previewsAutoplay,
 });
 player.setFavouriteToggle(gallery.toggleFavourite);
 if (account.role === 'admin') player.setDeleter(gallery.deleteVideo);

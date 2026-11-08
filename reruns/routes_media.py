@@ -14,6 +14,11 @@ import av
 
 from .remux import playback_plan, remux_command
 
+# A channel's portrait is drawn 88px across at most (the channel page), so
+# this covers a screen of three device pixels to the CSS pixel.
+PORTRAIT_WIDTH = 256
+FRAME_PORTRAIT_WIDTH = 480  # One of thumbnails.WIDTHS, as is the above
+
 
 def parse_byte_range(value: str | None, size: int) -> tuple[int, int] | None:
     """Parse one HTTP byte range, rejecting invalid or multipart requests."""
@@ -144,7 +149,7 @@ class MediaRoutes:
         state = self.channels.request(channel["id"], channel["url"])
         if state.get("state") == "ready":
             state = {**state,
-                     "imageUrl": f"/channel-image/{state['key']}/{state['imageName']}"}
+                     "imageUrl": f"/channel-image/{state['key']}/{state['imageName']}?w={PORTRAIT_WIDTH}"}
         elif state.get("state") == "failed":
             # Plenty of channels publish no portrait we can reach: Twitch and
             # TikTok both hide theirs behind a page yt-dlp will not read, and
@@ -153,8 +158,19 @@ class MediaRoutes:
             # person, and the page has somewhere to look instead of nowhere.
             thumbnail = self.archive.channel_thumbnail(channel["id"])
             if thumbnail:
-                state = {"state": "ready", "imageUrl": thumbnail, "fromVideo": True}
+                # Cropped to a circle, so the copy must be as tall as a
+                # portrait's, which a 16:9 frame is at this width.
+                state = {"state": "ready", "imageUrl": f"{thumbnail}?w={FRAME_PORTRAIT_WIDTH}",
+                         "fromVideo": True}
         self._send_json(state, head_only=head_only)
+
+    def _sized(self, path: Path | None) -> Path | None:
+        """The copy of a picture at the width the request's ``w`` asks for,
+        or the picture itself when it asks for none (see thumbnails.py)."""
+        width = parse_qs(self.path.partition("?")[2]).get("w", [""])[0]
+        if not self.thumbnails or not width.isdigit() or len(width) > 4:
+            return path
+        return self.thumbnails.sized(path, int(width))
 
     def _send_package(self, relative: str, *, head_only: bool) -> None:
         """Serve only the package directories declared as public files."""

@@ -8,16 +8,16 @@ import {toMediaItem} from '../web/item-adapter.js';
 // better, so these fixtures are the archive's real worst case: a playlist, a
 // channel and an uploader whose names are words that appear in other titles.
 const inPlaylist = toMediaItem({
-  _key: 'a', _media_url: '/a', title: 'These people walk towards mining disasters.',
+  _key: 'a', _serves: 'media', title: 'These people walk towards mining disasters.',
   channel: 'Tom Scott', channel_id: 'UCBa659', uploader: 'Tom Scott',
   playlist: 'show', playlist_id: 'show', playlist_index: 4,
 });
 const elsewhere = toMediaItem({
-  _key: 'b', _media_url: '/b', title: 'The Harry Hill Show - Matt Baker',
+  _key: 'b', _serves: 'media', title: 'The Harry Hill Show - Matt Baker',
   channel: 'HARRY HILL', channel_id: 'UCharry',
 });
 const guest = toMediaItem({
-  _key: 'c', _media_url: '/c', title: 'A guest spot',
+  _key: 'c', _serves: 'media', title: 'A guest spot',
   channel: 'Tom Scott', channel_id: 'UCBa659', uploader: 'Matt Gray',
   uploader_id: 'UCmatt',
 });

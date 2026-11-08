@@ -60,33 +60,6 @@ export class ColumnGallery extends VirtualGallery {
       this.updateWindow();
       return;
     }
-    // As the base method, with the chunk size above in place of rows per chunk.
-    const previousChunks = this.chunks;
-    const previousItems = this.items;
-    for (const chunk of previousChunks) this.dropChunk(chunk);
-    this.columns = template;
-    this.items = items;
-    this.chunks = [];
-    const columnCount = Math.max(1, template.split(' ').filter(Boolean).length);
-    const gap = parseFloat(style.rowGap) || 0;
-    const chunkSize = this.chunkSize(template);
-    const fragment = document.createDocumentFragment();
-    for (let start = 0; start < items.length; start += chunkSize) {
-      const end = Math.min(items.length, start + chunkSize);
-      const rows = Math.ceil((end - start) / columnCount);
-      const previous = sameGrid ? previousChunks.find(chunk =>
-        previousItems[chunk.start] === items[start]
-        && previousItems[chunk.end - 1] === items[end - 1]) : null;
-      const height = previous?.height || rows * this.estimatedCardHeight + (rows - 1) * gap;
-      const placeholder = document.createElement('div');
-      placeholder.className = 'gallery-spacer';
-      placeholder.setAttribute('aria-hidden', 'true');
-      placeholder.style.height = `${height}px`;
-      fragment.append(placeholder);
-      this.chunks.push({start, end, height, placeholder, mounted: false, host: null});
-    }
-    this.root.replaceChildren(fragment);
-    this.updateWindow();
+    this.rebuild(items, style, template, sameGrid);
   }
 }
-

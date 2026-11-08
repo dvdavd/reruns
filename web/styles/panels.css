@@ -448,7 +448,15 @@ body[data-popup-player-size="large"] { --popup-player-width: 720px; }
   bottom: var(--page-gutter);
   z-index: 30;
   display: block;
-  width: min(var(--popup-player-width, 520px), calc(100vw - 2 * var(--page-gutter)));
+  /* The size setting is the picture's longer side, not its width: held to the
+     width alone, a portrait video stood nearly twice as tall as the setting
+     and could run off the top of the window. A tall picture is narrowed to
+     keep its height to the setting (and to the window), a wide one is not. */
+  width: min(
+    var(--popup-player-width, 520px),
+    calc(var(--popup-player-width, 520px) * (var(--watch-aspect))),
+    calc(100vw - 2 * var(--page-gutter)),
+    calc((100dvh - 2 * var(--page-gutter)) * (var(--watch-aspect))));
   padding: 0;
   border-radius: 12px;
   box-shadow: 0 8px 28px #000a;
@@ -764,7 +772,12 @@ body.watch-open.is-player-immersive .archive-watch-actions > :is(button, a) {
 }
 body.watch-open.is-player-immersive .archive-watch-stage > .archive-ambient-glow {
   opacity: .7;
-  transform: scale(1.09);
+  /* The light blooms as the picture grows: the edges' reach alone kept it
+     to a rim the stage's own enlargement barely moved. Scaled rather than
+     reaching further, because the reach is drawn into the canvas and cannot
+     ease; the colours slide out a little from the centre, which a glow this
+     blurred does not show. */
+  transform: scale(1.055);
   transition: transform 900ms ease 350ms, opacity 900ms ease 350ms;
 }
 body.watch-open.is-player-immersive .archive-ambient-glow > canvas {
@@ -787,7 +800,6 @@ body.watch-open.is-player-immersive .media-player:not(:fullscreen) .media-player
   /* Keep the phone's control strip in the layout so the title, portrait and
      stats stay put when its controls fade away. */
   body.watch-open.is-player-immersive .archive-watch-stage { transform: none; }
-  body.watch-open.is-player-immersive .archive-watch-stage > .archive-ambient-glow { transform: scaleY(1.09); }
   body.watch-open.is-player-immersive .archive-watch-head { margin-top: 14px; }
   body.watch-open.is-player-immersive .archive-watch:not(.is-mini) .media-player:not(:fullscreen)[data-player-state="playing"].is-controls-hidden .media-player-controls {
     opacity: 0;

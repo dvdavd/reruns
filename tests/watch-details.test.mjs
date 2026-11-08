@@ -17,7 +17,7 @@ const format = {
 
 const raw = {
   _key: 'channel/clip.info.json',
-  _media_url: '/media/channel/clip.info.json',
+  _serves: 'media',
   filepath: '/archive/channel/clip.mkv',
   title: 'A clip',
   description: 'Line one\nLine two',

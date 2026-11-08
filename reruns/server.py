@@ -22,6 +22,8 @@ import sqlite3
 import sys
 import threading
 import time
+import weakref
+from collections import OrderedDict
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -44,6 +46,7 @@ from .sponsorblock import SponsorBlock
 from .version import DISPLAY_VERSION
 from .ytdlp_updates import YtDlpUpdates
 from .seekpreviews import SeekPreviews, ffmpeg_version
+from .thumbnails import Thumbnails
 from .subscriptions import Subscriptions
 from .oidc import OIDC
 from .routes_accounts import AccountRoutes
@@ -75,6 +78,10 @@ CHAT_SPAN_LIMIT_MS = 600_000
 # Kept out of /api/items and served per video by /api/item-details. Only the
 # watch page reads either, and together they were 73% of a listing.
 GZIP_MINIMUM = 1024
+# Gzipped bodies kept for responses whose ETag names what they are built from,
+# so browsers on the same library revision share one build. At 50k videos a
+# listing took 0.9 s to build and gzip, and is about 6 MB once compressed.
+ENCODED_BODY_LIMIT = 64 * 1024 * 1024
 # Seconds an unchanged set of folder mtimes is taken to mean an unchanged
 # library; see Archive.scan_revision.
 # Named rather than __name__, which is "__main__" when run as a script.
@@ -90,6 +97,49 @@ def default_package() -> Path:
 # link to their channel page, unlike its channel/live extractors — so there is
 # no `channel_url`/`uploader_url` to fetch a picture from. The login is the
 # same string the channel page lives at, so build the address ourselves.
+
+
+class EncodedBodies:
+    """The last few gzipped bodies by ETag, least recently used dropped first.
+    Kept per Archive (see _encoded_bodies) since an ETag's source names a
+    revision of one archive, and two servers in one process can share it."""
+
+    def __init__(self, limit: int = ENCODED_BODY_LIMIT) -> None:
+        self.limit = limit
+        self._bodies: OrderedDict[str, bytes] = OrderedDict()
+        self._size = 0
+        self._lock = threading.Lock()
+
+    def get(self, etag: str) -> bytes | None:
+        with self._lock:
+            body = self._bodies.get(etag)
+            if body is not None:
+                self._bodies.move_to_end(etag)
+            return body
+
+    def put(self, etag: str, body: bytes) -> None:
+        if len(body) > self.limit:
+            return
+        with self._lock:
+            if etag in self._bodies:
+                return
+            self._bodies[etag] = body
+            self._size += len(body)
+            while self._size > self.limit:
+                _, dropped = self._bodies.popitem(last=False)
+                self._size -= len(dropped)
+
+
+_ENCODED_BODIES: weakref.WeakKeyDictionary[Archive, EncodedBodies] = weakref.WeakKeyDictionary()
+_ENCODED_BODIES_LOCK = threading.Lock()
+
+
+def _encoded_bodies(archive: Archive) -> EncodedBodies:
+    with _ENCODED_BODIES_LOCK:
+        bodies = _ENCODED_BODIES.get(archive)
+        if bodies is None:
+            bodies = _ENCODED_BODIES[archive] = EncodedBodies()
+        return bodies
 
 
 class RequestBodyError(Exception):
@@ -108,6 +158,7 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
                  comment_avatars: CommentAvatars | None = None,
                  browser: Browser | None = None,
                  sponsorblock: SponsorBlock | None = None,
+                 thumbnails: Thumbnails | None = None,
                  settings: Settings | None = None,
                  tool_versions: dict[str, str | None] | None = None,
                  updates: YtDlpUpdates | None = None,
@@ -132,6 +183,7 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
         self.subscriptions = subscriptions
         self.browser = browser
         self.sponsorblock = sponsorblock
+        self.thumbnails = thumbnails
         # The Host names this server answers to, or None to answer to any.
         # A browser cannot forge the Host header, so pinning it stops a page
         # on another site reaching a server on the viewer's own machine by
@@ -354,7 +406,7 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
                                      head_only=head_only)
         elif path.startswith("/channel-image/"):
             key, _, name = path[len("/channel-image/"):].partition("/")
-            self._send_file(self.channels.image_path(key, name),
+            self._send_file(self._sized(self.channels.image_path(key, name)),
                             head_only=head_only, cache="max-age=86400")
         elif path == "/api/browse" and self.browser:
             self._send_browse(head_only=head_only)
@@ -388,22 +440,22 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
         elif path == "/api/orphans":
             self._send_orphans(head_only=head_only)
         elif path == "/api/jobs":
-            self._send_json(self._jobs_with_saved_thumbnails(), head_only=head_only)
+            self._send_jobs(head_only=head_only)
+        elif path.startswith("/api/jobs/") and "/" not in path[len("/api/jobs/"):]:
+            self._send_job(path[len("/api/jobs/"):], head_only=head_only)
         elif path == "/api/activity" and self.activity:
             after = parse_qs(self.path.partition("?")[2]).get("after", ["0"])[0]
             self._send_json(self.activity.since(int(after) if after.isdigit() else 0),
                             head_only=head_only)
         elif path == "/api/items":
-            records, revision = self.archive.scan_revision()
+            records, revision = self.archive.listing_revision()
             favourites = self.auth.personal(self.account["id"], "item") if self.auth else {}
 
             def items():
                 visible = self._visible_items(records)
                 if not self.auth:
                     return visible
-                return [dict(item, _favourite=bool(favourites.get(item["_key"])),
-                             filepath=Path(item["filepath"]).name if item.get("filepath") else "")
-                        for item in visible]
+                return [dict(item, _favourite=bool(favourites.get(item["_key"]))) for item in visible]
 
             # Everything the listing is built from, so an unchanged one is
             # answered before the (large) body is built and hashed.
@@ -489,7 +541,7 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
             if self.auth and not self._allowed_path(image):
                 self.send_error(HTTPStatus.NOT_FOUND)
             else:
-                self._send_file(image, head_only=head_only)
+                self._send_file(self._sized(image), head_only=head_only)
         elif path.startswith("/media-ui/"):
             self._send_package(path[len("/media-ui/"):], head_only=head_only)
         elif head_only:
@@ -528,12 +580,23 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
                 return
         else:
             headers["Cache-Control"] = "no-store"
-        if body is None:
-            body = json.dumps(payload(), separators=(",", ":")).encode("utf-8")
         accepted = self.headers.get("Accept-Encoding") or ""
-        if len(body) >= GZIP_MINIMUM and "gzip" in accepted.lower():
-            body = gzip.compress(body, compresslevel=6)
+        wants_gzip = "gzip" in accepted.lower()
+        # Only a body whose ETag came from its sources can be reused without
+        # building it, which is the whole saving.
+        bodies = _encoded_bodies(self.archive) if body is None and wants_gzip else None
+        cached = bodies.get(etag) if bodies is not None else None
+        if cached is not None:
+            body = cached
             headers["Content-Encoding"] = "gzip"
+        else:
+            if body is None:
+                body = json.dumps(payload(), separators=(",", ":")).encode("utf-8")
+            if len(body) >= GZIP_MINIMUM and wants_gzip:
+                body = gzip.compress(body, compresslevel=6)
+                headers["Content-Encoding"] = "gzip"
+                if bodies is not None:
+                    bodies.put(etag, body)
         self.send_response(HTTPStatus.OK)
         for name, value in headers.items():
             self.send_header(name, value)
@@ -569,6 +632,9 @@ def main() -> None:
     parser.add_argument("--channel-cache", type=Path,
                         default=default_cache_dir() / "channels",
                         help="Where fetched channel pictures are kept")
+    parser.add_argument("--thumbnail-cache", type=Path,
+                        default=default_cache_dir() / "thumbnails",
+                        help="Where the smaller copies of thumbnails sent to cards are kept")
     parser.add_argument("--browse-cache", type=Path,
                         default=default_cache_dir() / "browse",
                         help="Where pictures for the browse panel are kept")
@@ -745,6 +811,7 @@ def main() -> None:
                       channels=channels, subscriptions=subscriptions,
                       comment_avatars=comment_avatars, browser=browser,
                       sponsorblock=SponsorBlock(args.sponsorblock_cache.expanduser().resolve()),
+                      thumbnails=Thumbnails(args.thumbnail_cache.expanduser().resolve()),
                       settings=settings,
                       auth=auth, oidc=oidc,
                       public_url=os.environ.get("RERUNS_PUBLIC_URL", ""),

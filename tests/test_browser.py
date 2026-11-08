@@ -106,6 +106,7 @@ class _BrowserCase(unittest.TestCase):
              "--no-auth", "--config", str(base / "config"),
              "--cache", str(base / "cache"),
              "--channel-cache", str(base / "channels"),
+             "--thumbnail-cache", str(base / "thumbnails"),
              "--browse-cache", str(base / "browse"),
              "--sponsorblock-cache", str(base / "sponsorblock"),
              "--probe-cache", str(base / "probes"),
@@ -279,7 +280,12 @@ class BrowserSmokeTests(_BrowserCase):
 
 class GalleryScrollTests(_BrowserCase):
     """A library long enough that a jump to the bottom skips chunks, which
-    stay at their estimated height until scrolling back up mounts them."""
+    stay at their estimated height until scrolling back up mounts them.
+
+    The clips are all alike, and the gallery guesses a skipped chunk from the
+    row height it has measured, so its guesses would be exact and nothing
+    would ever need correcting. Cards drawn after the jump are made taller
+    instead, as cards of another shape would be."""
     @classmethod
     def fill_archive(cls, archive):
         make_clip(archive, "scroll000", "Scroll 0", video=True)
@@ -300,6 +306,13 @@ class GalleryScrollTests(_BrowserCase):
             scrollTo(0, document.documentElement.scrollHeight);
         }""")
         page.wait_for_timeout(300)
+        page.evaluate("""() => {
+            const drawn = [...document.querySelectorAll('.video-card')]
+                .map(card => `[data-id="${CSS.escape(card.dataset.id)}"]`);
+            const style = document.createElement('style');
+            style.textContent = `.video-card:not(${drawn.join(',')}) { padding-bottom: 40px; }`;
+            document.head.append(style);
+        }""")
         page.mouse.move(700, 450)
         # A card under the pointer should come down by exactly what the wheel
         # scrolled. When the gallery's correction and the browser's scroll

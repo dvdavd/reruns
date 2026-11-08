@@ -4,6 +4,7 @@
 /** @import {MediaItem} from './contracts.js' */
 import {t} from './i18n.js';
 import {uploadedAtOf} from './watch-details.js';
+import {thumbnailSrcset} from './thumbnail-sizes.js';
 
 function qualityOf(raw) {
   // A download with no picture has no quality to rank. yt-dlp's note for an
@@ -94,10 +95,46 @@ function basename(path) {
   return String(path || '').split('/').pop();
 }
 
+/**
+ * A key as a URL path, encoded exactly as the server's urllib quote does it
+ * (every character but letters, digits, "_.-~" and the slashes), so the
+ * addresses built here are the ones the server used to send byte for byte.
+ * yt-dlp titles can hold "#" or "?", which would otherwise end the path.
+ */
+function quotePath(value) {
+  return String(value || '').split('/').map(segment => encodeURIComponent(segment)
+    .replace(/[!'()*]/g, character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`))
+    .join('/');
+}
+
+/**
+ * What the server serves for an item, by address. /api/items names each in
+ * `_serves` rather than sending the address, since every one is the key under
+ * a fixed path (see LISTING_ADDRESSES in reruns/archive.py); a word missing
+ * from it is something the server has nothing to give, and its address is ''.
+ */
+function addressesOf(raw) {
+  const serves = new Set(String(raw._serves || '').split(' '));
+  const href = quotePath(raw._key);
+  const at = (word, path) => (serves.has(word) ? `${path}${href}` : '');
+  return {
+    href,
+    media: at('media', '/media/'),
+    thumb: at('thumb', '/thumb/'),
+    seek: at('seek', '/api/seek-preview/'),
+    sponsorBlock: at('sponsorblock', '/api/sponsorblock/'),
+    comments: at('comments', '/api/comments/'),
+    details: at('details', '/api/item-details/'),
+    chat: at('chat', '/api/chat/'),
+  };
+}
+
+// Made once: this runs for every item, and localeCompare with options sets up
+// the rules on each call.
+const nameMatcher = new Intl.Collator(undefined, {sensitivity: 'accent'});
+
 function sameName(left, right) {
-  return String(left || '').trim().localeCompare(String(right || '').trim(), undefined, {
-    sensitivity: 'accent',
-  }) === 0;
+  return nameMatcher.compare(String(left || '').trim(), String(right || '').trim()) === 0;
 }
 
 /**
@@ -156,18 +193,25 @@ function heatmapOf(raw) {
  * — "en-orig" and the like are its own — so an unrecognised tag is shown as
  * it was written rather than dropped.
  */
-function subtitleTracksOf(raw) {
-  let names = null;
-  try {
-    names = new Intl.DisplayNames(navigator.languages, {type: 'language'});
-  } catch { /* An environment without display names labels by tag. */ }
-  return (Array.isArray(raw._subtitle_tracks) ? raw._subtitle_tracks : []).map(track => {
-    let label = track.language;
+function subtitleTracksOf(raw, href) {
+  const languages = Array.isArray(raw._subtitles) ? raw._subtitles : [];
+  return languages.map(language => ({
+    language, label: languageName(language), url: `/subtitles/${quotePath(language)}/${href}`,
+  }));
+}
+
+// Made on the first track that needs naming, then kept: building one for
+// every item took a third of a second at 50,000 videos.
+let languageNames;
+function languageName(tag) {
+  if (languageNames === undefined) {
     try {
-      label = names?.of(track.language) || track.language;
-    } catch { /* Not a language tag this browser can name. */ }
-    return {language: track.language, label, url: track.url};
-  });
+      languageNames = new Intl.DisplayNames(navigator.languages, {type: 'language'});
+    } catch { languageNames = null; /* An environment without display names labels by tag. */ }
+  }
+  try {
+    return languageNames?.of(tag) || tag;
+  } catch { return tag; /* Not a language tag this browser can name. */ }
 }
 
 /**
@@ -237,11 +281,14 @@ function sourceOf(raw) {
 function titleOf(raw, filename) {
   const title = String(raw.title || '');
   if (!title) return filename || t('item.untitled');
+  // Checked before the address is parsed, which is most of the cost for a
+  // whole library, and only a title with a separator could need it.
+  if (!/[-_.]/.test(title)) return title;
   let named = '';
   try {
     named = decodeURIComponent(new URL(raw.webpage_url).pathname.split('/').pop() || '');
   } catch { /* No address to compare with. */ }
-  if (named.replace(/\.[a-z0-9]{2,4}$/i, '') !== title || !/[-_.]/.test(title)) return title;
+  if (named.replace(/\.[a-z0-9]{2,4}$/i, '') !== title) return title;
   const spaced = title.replace(/[-_.]+/g, ' ').trim();
   return spaced || title;
 }
@@ -265,12 +312,13 @@ export function toMediaItem(raw, originalOrder = 0) {
     : [{id: raw.uploader_id || creator, name: creator, favourite: false}];
   const filename = basename(raw.filepath);
   const title = titleOf(raw, filename);
-  const thumbnail = {url: raw._thumb_url || ''};
+  const addresses = addressesOf(raw);
+  const thumbnail = {url: addresses.thumb, srcset: thumbnailSrcset(addresses.thumb)};
   const container = raw.ext || filename.split('.').slice(1).pop() || '';
   const music = musicOf(raw);
   const part = {
     id: raw._key,
-    sourceRef: raw._media_url,
+    sourceRef: addresses.media,
     filename,
     title: '',
     durationSeconds: Number(raw.duration || 0),
@@ -287,13 +335,13 @@ export function toMediaItem(raw, originalOrder = 0) {
     watch: {},
     session: {},
     media: null,
-    seekPreviewUrl: raw._seek_preview_url || '',
-    subtitleTracks: subtitleTracksOf(raw),
+    seekPreviewUrl: addresses.seek,
+    subtitleTracks: subtitleTracksOf(raw, addresses.href),
     audioTrackCount: audioTrackCountOf(raw),
   };
   return {
     id: raw._key,
-    sourceRef: raw._media_url,
+    sourceRef: addresses.media,
     searchPath: [title, raw.title, creator, channel, raw.playlist, music?.artist, music?.album,
       raw.webpage_url]
       .filter(Boolean).join(' ').toLowerCase(),
@@ -337,7 +385,7 @@ export function toMediaItem(raw, originalOrder = 0) {
       webpageUrl: raw.webpage_url || '',
       // The channel's addresses, so a subscription can find its videos.
       channelUrls: [raw.channel_url, raw.uploader_url].filter(Boolean),
-      downloaded: Boolean(raw._media_url),
+      downloaded: Boolean(addresses.media),
       extractor: raw.extractor_key || raw.extractor || '',
       // The id the site gave the video, as opposed to the key of the file on
       // disk. Two downloads of the same video share it, which is how
@@ -360,17 +408,17 @@ export function toMediaItem(raw, originalOrder = 0) {
       automaticCaptionLanguages: [],
       chapters: chaptersOf(raw),
       heatmap: heatmapOf(raw),
-      detailsUrl: raw._details_url || '',
+      detailsUrl: addresses.details,
       // The number arrives with the details; the comments themselves are
       // fetched from commentsUrl only when the section is opened.
-      commentsUrl: raw._comments_url || '',
+      commentsUrl: addresses.comments,
       // The chat replay saved beside a stream, read a window at a time.
       chatHeld: Boolean(raw._chat_held),
-      chatUrl: raw._chat_url || '',
+      chatUrl: addresses.chat,
       // The site has a replay to give, so one not held can be fetched.
       chatOffered: Object.hasOwn(raw.subtitles || {}, 'live_chat'),
       commentCount: 0,
-      sponsorBlockUrl: raw._sponsorblock_url || '',
+      sponsorBlockUrl: addresses.sponsorBlock,
       // The position stays here rather than in facets.ordinal: the shared
       // ordinal renders beside the owner, and this belongs to the collection.
       playlist: raw.playlist_id || raw.playlist ? {

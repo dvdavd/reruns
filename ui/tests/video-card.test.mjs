@@ -403,3 +403,14 @@ test('every word the card says can be supplied, as text or as a function of its 
   // A label left out falls back to its default rather than to nothing.
   assert.match(said, /aria-label="Next part"/);
 });
+
+test('a thumbnail with a srcset lets the browser pick a copy the card\'s size', () => {
+  const thumbnail = {url: '/t', srcset: '/t?w=480 480w, /t?w=960 960w'};
+  const out = draw({item: baseItem({thumbnail}), thumbnailSizes: 'auto, 640px'});
+  assert.match(out, /srcset="\/t\?w=480 480w, \/t\?w=960 960w"/);
+  assert.match(out, /sizes="auto, 640px"/);
+  // A consumer naming its own picture has chosen it; the srcset would overrule it.
+  const chosen = draw({item: baseItem({thumbnail}), thumbnailUrlFor: () => '/other'});
+  assert.doesNotMatch(chosen, /srcset|sizes=/);
+  assert.doesNotMatch(draw({item: baseItem()}), /srcset|sizes=/);
+});

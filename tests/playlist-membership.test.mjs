@@ -6,7 +6,7 @@ import {playlistNav} from '../web/watch-details.js';
 import {matchesFacet} from '../web/facets.js';
 
 const video = (id, playlist, index, suffix = '') => toMediaItem({
-  id, extractor_key: 'Youtube', title: id, _key: id + suffix, _media_url: '/media/' + id,
+  id, extractor_key: 'Youtube', title: id, _key: id + suffix, _serves: 'media' + id,
   playlist_id: playlist, playlist_title: playlist, playlist_index: index,
 });
 

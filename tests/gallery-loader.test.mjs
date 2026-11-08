@@ -5,7 +5,7 @@ import {createLibraryLoader} from '../web/gallery-loader.js';
 import {groupFormats, selectFormat, toMediaItem} from '../web/item-adapter.js';
 
 const copies = [720, 1080].map(height => ({_key: `clip.${height}.info.json`,
-  _media_url: `/media/clip.${height}`, id: 'same', extractor_key: 'Youtube',
+  _serves: 'media', id: 'same', extractor_key: 'Youtube',
   title: 'Clip', width: height * 16 / 9, height, ext: 'mp4', vcodec: 'avc1'}));
 
 function harness(t, fetch) {
@@ -66,7 +66,7 @@ test('overlapping requests queue one follow-up scan instead of racing replacemen
 });
 
 test('rescan keeps sampled accents while the thumbnail is the same', async t => {
-  const pictured = copies.map(copy => ({...copy, _thumb_url: '/thumb/clip.jpg'}));
+  const pictured = copies.map(copy => ({...copy, _serves: 'media thumb'}));
   let served = pictured;
   const {store, loader} = harness(t, async path =>
     response(path === '/api/items' ? served : path === '/api/settings' ? {} : []));
@@ -80,8 +80,8 @@ test('rescan keeps sampled accents while the thumbnail is the same', async t => 
   assert.equal(item.accent, 'rgb(1, 2, 3)');
   assert.equal(item.parts[0].accent, 'rgb(1, 2, 3)');
 
-  // A new thumbnail is sampled afresh rather than wearing the old colour.
-  served = copies.map(copy => ({...copy, _thumb_url: '/thumb/clip.webp'}));
+  // A colour from a thumbnail that has gone is not kept for the video.
+  served = copies;
   await loader.load();
   item = store.allItems()[0];
   assert.equal(item.accent, undefined);

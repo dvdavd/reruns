@@ -6,6 +6,7 @@ import {applyCardAccent, CARD_SELECTOR, CARD_THUMBNAIL_SELECTOR, html, render,
         VideoCard} from 'media-ui';
 import {subscribedIdFor} from './subscription-target.js';
 import {cardLabels} from './card-labels.js';
+import {cardThumbnailSizes} from './thumbnail-sizes.js';
 import {plural, t} from './i18n.js';
 
 /**
@@ -161,6 +162,7 @@ export function createPlaylistCards({onPlay, onOpen, opensAsList = () => false, 
         labels=${labels}
         loadOwnerPortrait=${loadOwnerPortrait && (owner => loadOwnerPortrait(owner.id))}
         durationInCorner=${true}
+        thumbnailSizes=${cardThumbnailSizes()}
         channelMetadata=${[runtimeLabel(playlist.items)]}
         dataset=${{'data-playlist-card': playlist.id, 'data-part-id': showing?.id || '',
                    'data-favourite': String(item.favourite)}}

@@ -5,6 +5,7 @@ import {nextRepeat, REPEAT_MODES, shuffleOrder, stepFrom} from './track-order.js
 import {inPlaylist, isReversed} from './playlists.js';
 import {announcesNext, countdownAt, playlistNav} from './watch-details.js';
 import {t} from './i18n.js';
+import {ROW_THUMBNAIL_WIDTH, sizedThumbnail} from './thumbnail-sizes.js';
 
 export function createPlayerPlaylist({
   element, mediaPlayer, getItems, getActiveId,
@@ -214,7 +215,7 @@ export function createPlayerPlaylist({
       <${MediaRow} as="button" type="button" key=${entry.id} size="compact" lines=${2} divided=${false}
         class=${`playlist-entry${entry.id === nav.currentId ? ' is-current' : ''}`}
         data-target-id=${entry.id} lead=${partNumber(entry, nav.entries)}
-        thumbnail=${entry.thumbnail?.url || null}>
+        thumbnail=${sizedThumbnail(entry.thumbnail?.url, ROW_THUMBNAIL_WIDTH) || null}>
         <span class="media-row-title">${entry.title}</span>
       <//>`), playlistEntries);
   }

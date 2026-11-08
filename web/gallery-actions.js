@@ -5,6 +5,7 @@ import {deletionVersions, survivingFormatId} from './delete-dialog.js';
 import {selectFormat, sourceUrlFor} from './item-adapter.js';
 import {markPlaylistDirection} from './playlists.js';
 import {withoutStrayDividers} from './menu-items.js';
+import {cardThumbnailSizes} from './thumbnail-sizes.js';
 
 export function createGalleryActions({
   store, player, report, draw,
@@ -127,6 +128,7 @@ export function createGalleryActions({
       item, labels, hooks,
       loadOwnerPortrait: owner => channelImages(owner === item.facets?.owner ? owner.id : ''),
       durationInCorner: true,
+      thumbnailSizes: cardThumbnailSizes(),
       // A track's album says more than the day its upload was dated, which
       // for a label's catalogue is when the label got round to it.
       channelMetadata: [

@@ -1,5 +1,5 @@
 import {html, render} from 'media-ui';
-import {post, request} from './api.js';
+import {fetchJob, post, request} from './api.js';
 import {createDrawerControls, showModalOverPage} from './drawer.js';
 import {plural, t} from './i18n.js';
 import {icon} from './icon.js';
@@ -90,7 +90,7 @@ export function createOrphansUI({drawer, drawerClose, summary, list, fetchAll, c
       let job = await post('/api/orphans/fetch', {key});
       while (!FINISHED.has(job.state)) {
         await wait(POLL_MS);
-        job = (await request('/api/jobs')).find(entry => entry.id === job.id) || {...job, state: 'cancelled'};
+        job = await fetchJob(job.id) || {...job, state: 'cancelled'};
       }
       if (job.state !== 'done') throw new Error(job.error || job.state);
       rows.delete(key);

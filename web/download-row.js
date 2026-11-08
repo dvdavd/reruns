@@ -1,6 +1,7 @@
 import {html, MediaRow} from 'media-ui';
 import {icon} from './icon.js';
 import {t} from './i18n.js';
+import {ROW_THUMBNAIL_WIDTH, sizedThumbnail} from './thumbnail-sizes.js';
 import {formatDuration, stateLabel} from './download-model.js';
 
 function rowActions(row, onAction) {
@@ -36,7 +37,7 @@ function rowActions(row, onAction) {
  *  A listing supplies its known details until yt-dlp has inspected the job. */
 export function downloadRow(row, {onAction, entry = null, key = row.key, local = null} = {}) {
   const title = row.pendingMetadata && entry ? entry.title : row.title;
-  const thumbnail = row.thumbnail || entry?.thumbnail;
+  const thumbnail = sizedThumbnail(row.thumbnail || entry?.thumbnail, ROW_THUMBNAIL_WIDTH);
   const duration = row.duration || formatDuration(entry?.duration);
   const channel = row.channel || (row.pendingMetadata ? entry?.uploader : '');
   const known = row.percent !== null && row.state !== 'done';

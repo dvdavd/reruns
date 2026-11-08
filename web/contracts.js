@@ -1,5 +1,5 @@
 /**
- * @typedef {{url: string}} Thumbnail
+ * @typedef {{url: string, srcset?: string}} Thumbnail
  * @typedef {{language: string, label: string, url: string}} SubtitleTrack
  * @typedef {{name: string, contentType: string, width: number, height: number,
  *   framerate: number, bitrate: number}} Encoding

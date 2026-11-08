@@ -8,7 +8,7 @@ const format = {bytes: bytes => `${bytes} B`};
 
 const copyRaw = (key, extra) => ({
   _key: key,
-  _media_url: `/media/${key}`,
+  _serves: 'media',
   id: 'abc123',
   extractor_key: 'Youtube',
   title: 'A clip',
@@ -51,7 +51,7 @@ test('names a codec it knows as a viewer would', () => {
 });
 
 test('names a file that reports no quality at all', () => {
-  const item = toMediaItem({_key: 'bare.info.json', _media_url: '/media/bare', title: 'Bare'});
+  const item = toMediaItem({_key: 'bare.info.json', _serves: 'media', title: 'Bare'});
   assert.equal(deletionVersions(item, format)[0].label, 'The file');
 });
 

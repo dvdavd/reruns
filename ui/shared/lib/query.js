@@ -16,13 +16,15 @@ export function randomOrder(id, seed) {
 }
 
 const number = value => Number(value || 0);
+// One collator for every comparison: localeCompare with options sets up the
+// language's rules each time it is called, which made sorting 50,000 titles
+// take seconds rather than milliseconds.
+const byName = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
 const COMPARATORS = {
   latest: (left, right) => number(right.mtime) - number(left.mtime),
   played: (left, right) => number(right.watch?.lastPlayedAt) - number(left.watch?.lastPlayedAt),
   completed: (left, right) => number(right.watch?.lastCompletedAt) - number(left.watch?.lastCompletedAt),
-  name: (left, right) => displayLabel(left).localeCompare(
-    displayLabel(right), undefined, {numeric: true, sensitivity: 'base'},
-  ),
+  name: (left, right) => byName.compare(displayLabel(left), displayLabel(right)),
   watches: (left, right) => number(right.watch?.count) - number(left.watch?.count),
   size: (left, right) => number(right.sizeBytes) - number(left.sizeBytes),
   duration: (left, right) => number(right.durationSeconds) - number(left.durationSeconds),

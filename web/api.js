@@ -28,6 +28,18 @@ export function post(path, body = {}) {
   });
 }
 
+/** One job from the queue, or null once it has gone (cleared after
+ *  finishing, or never there). */
+export async function fetchJob(id) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(serverMessage(reason(await response.text()))
+      || `${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+
 const JOB_POLL_MS = 1000;
 const FINAL_STATES = new Set(['done', 'failed', 'cancelled']);
 
@@ -38,8 +50,7 @@ export async function jobFinished(job, {failure, giveUpMs = 5 * 60 * 1000}) {
   const started = Date.now();
   while (Date.now() - started < giveUpMs) {
     await new Promise(resolve => setTimeout(resolve, JOB_POLL_MS));
-    const jobs = await request('/api/jobs');
-    const current = jobs.find(entry => entry.id === job.id);
+    const current = await fetchJob(job.id);
     if (!current) return job;
     if (!FINAL_STATES.has(current.state)) continue;
     if (current.state !== 'done') throw new Error(serverMessage(current.error) || failure);

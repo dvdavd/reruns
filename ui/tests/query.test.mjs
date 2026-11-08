@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {filterItems} from '../shared/lib/query.js';
+import {filterItems, sortItems} from '../shared/lib/query.js';
 
 const video = {
   id: 'space', title: 'Exploring Mars',
@@ -28,4 +28,12 @@ test('exact facet and favourite filters still apply', () => {
   assert.deepEqual(filterItems([video], {exactPerson: {id: 'host'}}), [video]);
   assert.deepEqual(filterItems([video], {exactCollection: {id: 'other'}}), []);
   assert.deepEqual(filterItems([video], {query: 'mars science', favouriteItems: true}), []);
+});
+
+test('sorting by name ignores case and accents, and counts numbers by value', () => {
+  const titles = ['Part 10', 'part 2', 'Éclair', 'apple', 'Part 1'];
+  const sorted = sortItems(titles.map((title, index) => ({id: String(index), title})), {mode: 'name'});
+  assert.deepEqual(sorted.map(item => item.title), ['apple', 'Éclair', 'Part 1', 'part 2', 'Part 10']);
+  const reversed = sortItems(sorted, {mode: 'name', direction: 'desc'});
+  assert.deepEqual(reversed.map(item => item.title), ['Part 10', 'part 2', 'Part 1', 'Éclair', 'apple']);
 });

@@ -20,8 +20,8 @@ for (const scenario of ['failed only', 'partial playlist', 'active playlist', 's
     newFailures([{...failed, state: 'running'}, ...jobs.slice(1)]);
     const messages = [];
     const context = vm.createContext({
-      DEBUG_DOWNLOADS: false, request: async () => jobs, draw() {}, newFailures, t,
-      onJobs: () => false, ACTIVE_STATES, completedBefore: 0,
+      DEBUG_DOWNLOADS: false, jobFeed: {read: async () => jobs}, draw() {}, newFailures, t,
+      onJobs: () => false, ACTIVE_STATES, completedBefore: 0, arrivalWaiting: false, lastArrivalReload: 0, ARRIVAL_RELOAD_MS: 15000,
       pollFailures: 0, pollTimer: null, POLL_FAILURES_BEFORE_REPORT: 3,
       setTimeout: () => 1, clearTimeout() {},
       report: (message, options) => messages.push({message, options}),
@@ -45,9 +45,9 @@ test('a successful job completed before the next poll refreshes the archive once
   let scans = 0;
   const context = vm.createContext({
     DEBUG_DOWNLOADS: false, t,
-    request: async () => [{id: 'fast', state: 'done', counts: {completed: 1}}],
+    jobFeed: {read: async () => [{id: 'fast', state: 'done', counts: {completed: 1}}]},
     draw() {}, newFailures: createJobFailureTracker(), onJobs: () => false,
-    ACTIVE_STATES, completedBefore: 0, pollFailures: 0, pollTimer: null,
+    ACTIVE_STATES, completedBefore: 0, arrivalWaiting: false, lastArrivalReload: 0, ARRIVAL_RELOAD_MS: 15000, pollFailures: 0, pollTimer: null,
     POLL_FAILURES_BEFORE_REPORT: 3, setTimeout: () => 1, clearTimeout() {},
     report() {}, onSettled: async () => { scans++; },
   });
@@ -60,12 +60,44 @@ test('a comments-only refresh does not read the library again', async () => {
   let scans = 0;
   const context = vm.createContext({
     DEBUG_DOWNLOADS: false, t,
-    request: async () => [{id: 'talk', kind: 'refresh', commentsOnly: true, state: 'done', counts: {completed: 1}}],
+    jobFeed: {read: async () => [{id: 'talk', kind: 'refresh', commentsOnly: true, state: 'done', counts: {completed: 1}}]},
     draw() {}, newFailures: createJobFailureTracker(), onJobs: () => false,
-    ACTIVE_STATES, completedBefore: 0, pollFailures: 0, pollTimer: null,
+    ACTIVE_STATES, completedBefore: 0, arrivalWaiting: false, lastArrivalReload: 0, ARRIVAL_RELOAD_MS: 15000, pollFailures: 0, pollTimer: null,
     POLL_FAILURES_BEFORE_REPORT: 3, setTimeout: () => 1, clearTimeout() {},
     report() {}, onSettled: async () => { scans++; },
   });
   await vm.runInContext(`${poll}\npoll()`, context);
   assert.equal(scans, 0);
+});
+
+test('parts landing during a long job reload the gallery at most every 15 seconds, and once more at the end', async () => {
+  let scans = 0;
+  let clock = 100000;
+  let jobs = [];
+  const context = vm.createContext({
+    DEBUG_DOWNLOADS: false, t, Date: {now: () => clock},
+    jobFeed: {read: async () => jobs},
+    draw() {}, newFailures: createJobFailureTracker(), onJobs: () => false,
+    ACTIVE_STATES, completedBefore: null, arrivalWaiting: false, lastArrivalReload: 0,
+    ARRIVAL_RELOAD_MS: 15000, pollFailures: 0, pollTimer: null,
+    POLL_FAILURES_BEFORE_REPORT: 3, setTimeout: () => 1, clearTimeout() {},
+    report() {}, onSettled: async () => { scans++; },
+  });
+  const at = async (seconds, completed, state = 'running') => {
+    clock = 100000 + seconds * 1000;
+    jobs = [{id: 'list', state, counts: {completed}}];
+    await vm.runInContext('poll()', context);
+  };
+  await vm.runInContext(poll, context);
+  await at(0, 0);
+  await at(1, 1);
+  assert.equal(scans, 1, 'the first part shows straight away');
+  await at(5, 2);
+  await at(10, 3);
+  assert.equal(scans, 1, 'later parts wait');
+  await at(16, 3);
+  assert.equal(scans, 2, 'and are shown once the wait is up');
+  await at(18, 4);
+  await at(19, 4, 'done');
+  assert.equal(scans, 3, 'the end of the job shows what was still waiting');
 });

@@ -7,9 +7,7 @@ import {applyItemDetails, currentFormat, groupFormats, selectFormat, sourceUrlFo
 test('adapts yt-dlp metadata and persisted favourite state', () => {
   const item = toMediaItem({
     _key: 'channel/clip.info.json',
-    _media_url: '/media/channel/clip.info.json',
-    _thumb_url: '/thumb/channel/clip.info.json',
-    _seek_preview_url: '/api/seek-preview/channel/clip.info.json',
+    _serves: 'media thumb seek',
     _favourite: true,
     filepath: '/archive/channel/clip.mp4',
     title: 'A clip',
@@ -27,6 +25,9 @@ test('adapts yt-dlp metadata and persisted favourite state', () => {
   assert.equal(item.facets.people[0].name, 'Creator');
   assert.equal(item.facets.owner.name, 'Channel');
   assert.equal(item.parts[0].seekPreviewUrl, '/api/seek-preview/channel/clip.info.json');
+  assert.equal(item.sourceRef, '/media/channel/clip.info.json');
+  assert.equal(item.thumbnail.url, '/thumb/channel/clip.info.json');
+  assert.equal(item.filename, 'clip.mp4');
   assert.equal(sourceUrlFor(item), 'https://example.test/watch/1');
 });
 
@@ -37,7 +38,7 @@ test('source URL helper safely isolates missing archive metadata', () => {
 test('does not repeat a channel that yt-dlp also reports as the uploader', () => {
   const item = toMediaItem({
     _key: 'channel/clip.info.json',
-    _media_url: '/media/channel/clip.info.json',
+    _serves: 'media',
     title: 'A clip',
     uploader: 'Example Channel',
     channel: 'example channel',
@@ -50,7 +51,7 @@ test('does not repeat a channel that yt-dlp also reports as the uploader', () =>
 test('keeps a distinct creator alongside the channel', () => {
   const item = toMediaItem({
     _key: 'channel/clip.info.json',
-    _media_url: '/media/channel/clip.info.json',
+    _serves: 'media',
     title: 'A clip',
     uploader: 'Guest Creator',
     channel: 'Example Channel',
@@ -63,7 +64,7 @@ test('keeps a distinct creator alongside the channel', () => {
 test('does not chip a handle and a display name as two people', () => {
   const item = toMediaItem({
     _key: 'channel/clip.info.json',
-    _media_url: '/media/channel/clip.info.json',
+    _serves: 'media',
     title: 'A clip',
     uploader: 'xstinamendez',
     uploader_url: 'https://www.tiktok.com/@xstinamendez',
@@ -78,7 +79,7 @@ test('does not chip a handle and a display name as two people', () => {
 test('a guest on a channel is still their own person', () => {
   const item = toMediaItem({
     _key: 'channel/clip.info.json',
-    _media_url: '/media/channel/clip.info.json',
+    _serves: 'media',
     title: 'A clip',
     uploader: 'Guest Creator',
     uploader_url: 'https://www.youtube.com/@guest',
@@ -92,7 +93,7 @@ test('a guest on a channel is still their own person', () => {
 test('does not present a playlist position as a channel release number', () => {
   const item = toMediaItem({
     _key: 'channel/clip.info.json',
-    _media_url: '/media/channel/clip.info.json',
+    _serves: 'media',
     title: 'A clip',
     channel: 'Example Channel',
     playlist: 'Example Playlist',
@@ -109,8 +110,7 @@ test('does not present a playlist position as a channel release number', () => {
 test('leaves the watch page fields empty until their details arrive', () => {
   const item = toMediaItem({
     _key: 'clip.info.json',
-    _media_url: '/media/clip.info.json',
-    _details_url: '/api/item-details/clip.info.json',
+    _serves: 'media details',
     title: 'A clip',
   });
 
@@ -137,7 +137,7 @@ test('leaves the watch page fields empty until their details arrive', () => {
 });
 
 test('folding in details keeps what is already there when a field is absent', () => {
-  const item = toMediaItem({_key: 'clip.info.json', _media_url: '/media/x', title: 'A clip'});
+  const item = toMediaItem({_key: 'clip.info.json', _serves: 'media', title: 'A clip'});
   applyItemDetails(item, {description: 'Only the text'});
   assert.equal(item.archive.description, 'Only the text');
   assert.deepEqual(item.archive.heatmap, []);
@@ -150,8 +150,7 @@ test('folding in details keeps what is already there when a field is absent', ()
 
 const copyRaw = (key, extra) => ({
   _key: key,
-  _media_url: `/media/${key}`,
-  _seek_preview_url: `/api/seek-preview/${key}`,
+  _serves: 'media seek',
   id: 'abc123',
   extractor_key: 'Youtube',
   title: 'A clip',
@@ -164,7 +163,7 @@ test('shows one card for a video downloaded in several formats', () => {
   const items = groupFormats([
     toMediaItem(copyRaw('clip.1080p.info.json', {width: 1920, height: 1080, filesize: 900})),
     toMediaItem(copyRaw('clip.4k.info.json', {width: 3840, height: 2160, filesize: 5000, _favourite: true})),
-    toMediaItem({_key: 'other.info.json', _media_url: '/media/other', id: 'zzz',
+    toMediaItem({_key: 'other.info.json', _serves: 'media', id: 'zzz',
                  extractor_key: 'Youtube', title: 'Another'}),
   ]);
 
@@ -187,8 +186,8 @@ test('keeps separate videos apart, including ones with no source id', () => {
   const items = groupFormats([
     toMediaItem(copyRaw('a.info.json', {id: 'one'})),
     toMediaItem(copyRaw('b.info.json', {id: 'two'})),
-    toMediaItem({_key: 'c.info.json', _media_url: '/media/c', title: 'No id'}),
-    toMediaItem({_key: 'd.info.json', _media_url: '/media/d', title: 'No id either'}),
+    toMediaItem({_key: 'c.info.json', _serves: 'media', title: 'No id'}),
+    toMediaItem({_key: 'd.info.json', _serves: 'media', title: 'No id either'}),
   ]);
   assert.equal(items.length, 4);
 });
@@ -243,7 +242,7 @@ test('a rescan keeps the format the viewer chose', () => {
 
 test('names a small video for its lines, not for yt-dlp format note', () => {
   const quality = (width, height, format_note) =>
-    toMediaItem({_key: 'a', _media_url: '/media/a', title: 'T', width, height, format_note}).quality;
+    toMediaItem({_key: 'a', _serves: 'media', title: 'T', width, height, format_note}).quality;
 
   assert.equal(quality(854, 480, '480p+medium'), '480p');
   assert.equal(quality(640, 360, '360p, medium'), '360p');
@@ -271,15 +270,11 @@ test('the player button names the picture, the list tells copies apart', () => {
 test('names the subtitle tracks downloaded beside a video', () => {
   const item = toMediaItem({
     _key: 'clip.info.json',
-    _media_url: '/media/clip.info.json',
+    _serves: 'media',
     title: 'A clip',
-    _subtitle_tracks: [
-      {language: 'en', url: '/subtitles/en/clip.info.json'},
-      {language: 'pt-BR', url: '/subtitles/pt-BR/clip.info.json'},
-      // yt-dlp's own tag for the uploader's language, which is not BCP 47 and
-      // so has no display name to fall back on.
-      {language: 'en-orig', url: '/subtitles/en-orig/clip.info.json'},
-    ],
+    // en-orig is yt-dlp's own tag for the uploader's language, which is not
+    // BCP 47 and so has no display name to fall back on.
+    _subtitles: ['en', 'pt-BR', 'en-orig'],
   });
   assert.deepEqual(item.parts[0].subtitleTracks.map(track => track.language),
     ['en', 'pt-BR', 'en-orig']);
@@ -292,11 +287,11 @@ test('a format carries its own subtitles, so switching copies swaps them', () =>
   const [item] = groupFormats([
     toMediaItem(copyRaw('clip.1080p.info.json', {
       width: 1920, height: 1080, filesize: 900,
-      _subtitle_tracks: [{language: 'de', url: '/subtitles/de/clip.1080p.info.json'}],
+      _subtitles: ['de'],
     })),
     toMediaItem(copyRaw('clip.4k.info.json', {
       width: 3840, height: 2160, filesize: 5000,
-      _subtitle_tracks: [{language: 'en', url: '/subtitles/en/clip.4k.info.json'}],
+      _subtitles: ['en'],
     })),
   ]);
   assert.deepEqual(item.parts[0].subtitleTracks.map(track => track.language), ['en']);
@@ -467,10 +462,34 @@ test('commentsOf nests replies under their parent and drops orphans', async () =
 test('a file merged from several audio tracks says how many, so the player knows to offer a choice', () => {
   const merged = {vcodec: 'avc1', acodec: 'mp4a.40.2'};
   const tracks = count => Array.from({length: count}, () => ({vcodec: 'none', acodec: 'mp4a.40.2'}));
-  const part = requested => toMediaItem({_key: 'a.info.json', _media_url: '/media/a.info.json',
+  const part = requested => toMediaItem({_key: 'a.info.json', _serves: 'media',
     filepath: '/archive/a.mkv', title: 'A', ...(requested ? {requested_formats: requested} : {})}).parts[0];
   assert.equal(part(null).audioTrackCount, 0);
   assert.equal(part([{vcodec: 'avc1', acodec: 'none'}, ...tracks(1)]).audioTrackCount, 1);
   assert.equal(part([{vcodec: 'avc1', acodec: 'none'}, ...tracks(3)]).audioTrackCount, 3);
   assert.equal(part([merged]).audioTrackCount, 0);
+});
+
+test('builds the addresses the listing names in _serves, encoded as the server quotes a key', () => {
+  // Expected values are Python's urllib.parse.quote of the key, which is how
+  // the server built these addresses when it sent them whole.
+  const key = '05fdda55/Ch #1/a ?b% (live)! *é* ~x.info.json';
+  const href = '05fdda55/Ch%20%231/a%20%3Fb%25%20%28live%29%21%20%2A%C3%A9%2A%20~x.info.json';
+  const item = toMediaItem({_key: key, _serves: 'media thumb seek sponsorblock comments details chat',
+    _subtitles: ['pt-BR'], title: 'Awkward'});
+  assert.equal(item.sourceRef, `/media/${href}`);
+  assert.equal(item.thumbnail.url, `/thumb/${href}`);
+  assert.equal(item.parts[0].seekPreviewUrl, `/api/seek-preview/${href}`);
+  assert.equal(item.parts[0].subtitleTracks[0].url, `/subtitles/pt-BR/${href}`);
+  assert.equal(item.archive.sponsorBlockUrl, `/api/sponsorblock/${href}`);
+  assert.equal(item.archive.commentsUrl, `/api/comments/${href}`);
+  assert.equal(item.archive.detailsUrl, `/api/item-details/${href}`);
+  assert.equal(item.archive.chatUrl, `/api/chat/${href}`);
+
+  // What the server has nothing to give for has no address at all.
+  const bare = toMediaItem({_key: key, _serves: '', title: 'Bare'});
+  assert.equal(bare.archive.downloaded, false);
+  assert.deepEqual([bare.sourceRef, bare.thumbnail.url, bare.parts[0].seekPreviewUrl,
+    bare.archive.sponsorBlockUrl, bare.archive.commentsUrl, bare.archive.detailsUrl, bare.archive.chatUrl],
+  ['', '', '', '', '', '', '']);
 });

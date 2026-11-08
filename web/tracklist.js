@@ -5,6 +5,7 @@
 import {formatDuration, html, render} from 'media-ui';
 import {icon} from './icon.js';
 import {t} from './i18n.js';
+import {ROW_THUMBNAIL_WIDTH, sizedThumbnail} from './thumbnail-sizes.js';
 
 /**
  * Whether a playlist is shown as tracks. The viewer's choice for this
@@ -127,7 +128,7 @@ export function createTracklist({root, linkFor, onPlay, onToggle, onToggleFavour
 
   function Track({item, list}) {
     const byline = bylineOf(item, list);
-    const thumbnail = list.album ? '' : item.thumbnail?.url || '';
+    const thumbnail = list.album ? '' : sizedThumbnail(item.thumbnail?.url, ROW_THUMBNAIL_WIDTH);
     const number = trackNumberOf(item);
     return html`
       <li class="track" key=${item.id} data-id=${item.id}

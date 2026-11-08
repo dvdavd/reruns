@@ -5,7 +5,7 @@ import {createGalleryActions} from '../web/gallery-actions.js';
 import {groupFormats, toMediaItem} from '../web/item-adapter.js';
 
 const copies = [720, 1080].map(height => ({_key: `clip.${height}.info.json`,
-  _media_url: `/media/clip.${height}`, id: 'same', extractor_key: 'Youtube',
+  _serves: 'media', id: 'same', extractor_key: 'Youtube',
   title: 'Clip', width: height * 16 / 9, height, ext: 'mp4', vcodec: 'avc1'}));
 
 function harness(t, choose) {

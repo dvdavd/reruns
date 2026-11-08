@@ -6,6 +6,7 @@ import {escapeMarkup, html, MediaRow, render} from 'media-ui';
 import {icon, iconMarkup} from './icon.js';
 import {createAnchoredMenu} from './popover.js';
 import {plural, t} from './i18n.js';
+import {ROW_THUMBNAIL_WIDTH, sizedThumbnail} from './thumbnail-sizes.js';
 
 const node = (tag, text, className) => {
   const element = document.createElement(tag);
@@ -124,7 +125,7 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
   function videoRow(item, {as, lead, actions, ...rest}) {
     const creator = item.facets?.owner?.name || item.facets?.people?.[0]?.name;
     return html`<${MediaRow} as=${as} size="compact" lines=${1} lead=${lead} actions=${actions}
-      thumbnail=${item.thumbnail?.url || item.thumbnail?.src || null} fallback=${icon('video')} ...${rest}>
+      thumbnail=${sizedThumbnail(item.thumbnail?.url || item.thumbnail?.src, ROW_THUMBNAIL_WIDTH) || null} fallback=${icon('video')} ...${rest}>
       <span class="media-row-title">${item.title}</span>
       ${creator ? html`<span class="media-row-meta"><span>${creator}</span></span>` : null}
     <//>`;

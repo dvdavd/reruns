@@ -13,12 +13,14 @@ from functools import partial
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
+from urllib.parse import quote
 
 from reruns.downloads import Downloader, Job
 from reruns.mediaprobe import MediaProbes
+import reruns.archive as archive_module
 from reruns.archive import Archive, STATE_FILE, _slim_sidecar, _spoken_languages, chosen_directory, literal_directory
 from reruns.routes_media import PACKAGE_ROOTS, _as_vtt, parse_byte_range
-from reruns.server import Handler, default_package, main
+from reruns.server import EncodedBodies, Handler, default_package, main
 from reruns.settings import Settings, library_id
 from reruns.subscriptions import Subscriptions
 
@@ -654,6 +656,35 @@ class SparseSidecarTests(unittest.TestCase):
             self.assertEqual([item["thumbnail"] for item in job["items"]],
                              ["/thumb/clip.info.json", "https://fresh"])
 
+    def test_one_job_and_the_queues_changes_can_be_asked_for(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            downloader = mock.Mock()
+            downloader.jobs.return_value = [{"id": "job", "state": "running", "items": [
+                {"id": "1", "extractor": "Dropbox", "videoId": "x", "thumbnail": ""}]}]
+            handler = partial(Handler, archive=Archive(root), package=root, downloader=downloader,
+                              previews=None, channels=None, subscriptions=None)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+
+            def get(path):
+                connection = http.client.HTTPConnection(*server.server_address)
+                connection.request("GET", path)
+                response = connection.getresponse()
+                body = response.read()
+                connection.close()
+                return response.status, json.loads(body) if response.status == 200 else None
+            try:
+                self.assertEqual(get("/api/jobs/job")[1]["id"], "job")
+                self.assertEqual(get("/api/jobs/gone")[0], 404)
+                status, first = get("/api/jobs?since=")
+                self.assertTrue(first["full"])
+                status, second = get(f"/api/jobs?since={first['since']}")
+                self.assertEqual(second["jobs"], [{"id": "job", "unchanged": True}])
+            finally:
+                server.shutdown()
+                server.server_close()
+
 
 class SidecarFolderTests(unittest.TestCase):
     def test_sidecars_in_a_subfolder_pair_with_media_above_them(self):
@@ -997,6 +1028,65 @@ class UrlEncodingTests(unittest.TestCase):
             self.assertEqual(record["_media_url"], "/media/a%20%23tag%20%3F.info.json")
 
 
+class ListingTests(unittest.TestCase):
+    """/api/items sends words in place of addresses, and the page builds them
+    as its fixed path plus the quoted key (web/item-adapter.js addressesOf).
+    These hold the server to that: the words match what it serves, and every
+    address it would have sent is exactly that path and key."""
+    PATHS = {"_media_url": "/media/", "_thumb_url": "/thumb/", "_seek_preview_url": "/api/seek-preview/",
+             "_sponsorblock_url": "/api/sponsorblock/", "_comments_url": "/api/comments/",
+             "_details_url": "/api/item-details/", "_chat_url": "/api/chat/"}
+
+    def test_the_listing_names_what_is_served_and_the_page_can_build_each_address(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "Ch #1"
+            folder.mkdir()
+            stem = "a ?b% (live)! *é*"
+            (folder / f"{stem}.info.json").write_text(json.dumps({
+                "id": "dQw4w9WgXcQ", "extractor_key": "Youtube", "title": "clip",
+                "description": "words", "vcodec": "avc1"}), encoding="utf-8")
+            for suffix in (".mp4", ".webp", ".en.vtt", ".pt-BR.vtt", ".live_chat.json"):
+                (folder / f"{stem}{suffix}").write_text("{}", encoding="utf-8")
+            (root / "bare.info.json").write_text(json.dumps({"title": "no file"}), encoding="utf-8")
+            archive = Archive(root)
+            records = {record["_key"]: record for record in archive.scan()}
+            listing, revision = archive.listing_revision()
+            self.assertEqual(revision, archive.scan_revision()[1])
+            self.assertEqual(len(listing), len(records))
+            for item in listing:
+                record = records[item["_key"]]
+                served = set(item["_serves"].split())
+                for field, path in self.PATHS.items():
+                    self.assertNotIn(field, item)
+                    word = archive_module.LISTING_ADDRESSES[field]
+                    self.assertEqual(word in served, bool(record[field]), field)
+                    if record[field]:
+                        self.assertEqual(record[field], path + quote(item["_key"]))
+                self.assertNotIn("_subtitle_tracks", item)
+                self.assertEqual(item.get("_subtitles", []),
+                                 [track["language"] for track in record["_subtitle_tracks"]])
+                for track in record["_subtitle_tracks"]:
+                    self.assertEqual(track["url"], f"/subtitles/{quote(track['language'])}/{quote(item['_key'])}")
+            clip = next(item for item in listing if item["_key"].startswith("Ch #1/"))
+            self.assertEqual(clip["_serves"], "media thumb seek sponsorblock comments details chat")
+            self.assertEqual(clip["_subtitles"], ["en", "pt-BR"])
+            self.assertEqual(clip["filepath"], f"{stem}.mp4")
+            self.assertEqual(next(item for item in listing if item["_key"] == "bare.info.json")["_serves"], "")
+
+    def test_the_listing_is_made_once_per_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "clip.info.json").write_text("{}", encoding="utf-8")
+            (root / "clip.mp4").write_bytes(b"video")
+            archive = Archive(root)
+            with mock.patch.object(archive_module, "listing_record", wraps=archive_module.listing_record) as made:
+                first, revision = archive.listing_revision()
+                again, same = archive.listing_revision()
+            self.assertEqual((made.call_count, revision), (1, same))
+            self.assertEqual(first, again)
+
+
 class RescanCacheTests(unittest.TestCase):
     def test_unchanged_sidecars_are_not_read_again(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1309,6 +1399,29 @@ class JsonResponseTests(unittest.TestCase):
         self.assertIsNone(plain.getheader("Content-Encoding"))
         self.assertEqual(plain.getheader("ETag"), etag)
         self.assertEqual(len(json.loads(body)), 20)
+
+    def test_a_second_browser_gets_the_same_gzipped_listing_without_a_rebuild(self):
+        response, first = self.get("/api/items", {"Accept-Encoding": "gzip"})
+        with mock.patch.object(Handler, "_visible_items", side_effect=AssertionError):
+            again, second = self.get("/api/items", {"Accept-Encoding": "gzip"})
+        self.assertEqual(again.status, 200)
+        self.assertEqual(again.getheader("ETag"), response.getheader("ETag"))
+        self.assertEqual(again.getheader("Content-Encoding"), "gzip")
+        self.assertEqual(second, first)
+        # A browser without gzip still gets a body built for it.
+        plain, body = self.get("/api/items")
+        self.assertEqual(len(json.loads(body)), 20)
+
+    def test_encoded_bodies_drop_the_least_recently_used_past_their_limit(self):
+        bodies = EncodedBodies(limit=10)
+        bodies.put("a", b"12345")
+        bodies.put("b", b"12345")
+        bodies.get("a")
+        bodies.put("c", b"12345")
+        self.assertEqual(bodies.get("a"), b"12345")
+        self.assertIsNone(bodies.get("b"))
+        bodies.put("huge", b"x" * 11)
+        self.assertIsNone(bodies.get("huge"))
 
     def test_an_unchanged_listing_is_not_built_for_a_304_and_a_changed_one_is(self):
         response, _ = self.get("/api/items")

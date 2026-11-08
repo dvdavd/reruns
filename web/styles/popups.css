@@ -876,10 +876,6 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
     margin-inline: calc(var(--page-gutter) * -1);
     border-radius: 0;
   }
-  /* Edge to edge, there is nothing beside the stage for the glow to light,
-     and scaled both ways it reached a few pixels past the window and the
-     whole page scrolled sideways by that much, control bar and all. */
-  .archive-watch-stage > .archive-ambient-glow { transform: scaleY(1.035); }
 }
 /* Edge to edge, a portrait video's frame is as tall as the screen is wide
    times 16/9, which with the control strip under it ran past the bottom of
@@ -910,7 +906,6 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
        and rounded already, so the stage needs none. */
     background-color: transparent;
   }
-  .archive-watch:not(.is-mini, .has-chat-pinned) .archive-watch-stage > .archive-ambient-glow { transform: scale(1.035); }
 }
 /* A phone on its side works its stage height out with the strip taken off
    (cards.css), so dropping the strip there gained the picture nothing. */
