@@ -65,4 +65,7 @@ test('a channel profile sums what the archive holds for it', async () => {
     {durationSeconds: 1800, sizeBytes: 0, favourite: false, archive: {uploadedAt: 0}},
   ], [{id: 'PL1'}]);
   assert.deepEqual(stats, ['2 videos', '1 playlist', '1 h 30 min', '1.0 GB', '1 favourite']);
+  // The newest upload is dated as the cards date it, short enough to sit in the line.
+  const dated = channelStats([{archive: {uploadedAt: Date.UTC(2026, 9, 31) / 1000}}]);
+  assert.equal(dated.at(-1), 'Latest 31 Oct 2026');
 });

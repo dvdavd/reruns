@@ -65,7 +65,9 @@
   /* The page gutter: the inline padding the topbar carries, and so the line
      every page's own content aligns to. Consumers should lay out against this
      rather than repeating the number, since a page whose gutter differs from
-     the topbar's leaves the content out of line with the brand title. */
+     the topbar's leaves the content out of line with the brand title. The
+     same at every width: a phone's used to be 10px, and the logo and every
+     edge under it shifted in as the window crossed 600px. */
   --page-gutter: 14px;
 
   --space-1: 4px;
@@ -119,8 +121,3 @@
   --mono:    "SF Mono", "Cascadia Code", Consolas, monospace;
 }
 
-/* Narrow viewports tighten the gutter; the topbar follows the same token, so
-   content stays aligned with it at every width. */
-@media (max-width: 600px) {
-  :root { --page-gutter: 10px; }
-}

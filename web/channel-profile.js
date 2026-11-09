@@ -9,7 +9,7 @@ import {createSubscriptionControls, fillProfileMenu, starredProfile, subscriptio
   subscriptionProfileName}
   from './subscription-controls.js';
 import {channelSubscribeUrl, channelSubscriptionIdFor} from './subscription-target.js';
-import {formatDate} from './watch-details.js';
+import {formatShortDate} from './watch-details.js';
 import {plural, t} from './i18n.js';
 
 
@@ -33,7 +33,7 @@ export function channelStats(items, playlists = []) {
     runtime ? formatRuntime(runtime) : '',
     size ? formatBytes(size) : '',
     favourites ? plural('count.favourites', favourites) : '',
-    latest ? t('channel.latest', {date: formatDate(latest)}) : '',
+    latest ? t('channel.latest', {date: formatShortDate(latest)}) : '',
   ].filter(Boolean);
 }
 
@@ -110,7 +110,7 @@ export function createChannelProfile({section, loadImage, onToggleFavourite, onB
     // though the menu still sets the channel's.
     const owned = subscriptionOwnsProfile(subscription);
     const ownName = owned ? subscriptionProfileName(subscription, profiles, defaultProfile) : '';
-    profileLabel.textContent = owned ? ownName : override || t('profiles.downloadProfile');
+    profileLabel.textContent = t('profiles.profileNamed', {name: owned ? ownName : override || t('profiles.default')});
     profileTrigger.title = owned
       ? t('channel.subscriptionProfile', {name: ownName})
       : t('channel.profile', {name: override || t('channel.noOverride')});
@@ -162,7 +162,14 @@ export function createChannelProfile({section, loadImage, onToggleFavourite, onB
       current = channel;
       name.textContent = channel.name;
       initial.textContent = ([...String(channel.name || '').trim()][0] || '').toLocaleUpperCase();
-      stats.textContent = channelStats(items, playlists).join(' · ');
+      // Each figure is kept whole with the dot after it, so a narrow card
+      // wraps between figures rather than through a date or a size.
+      const figures = channelStats(items, playlists);
+      stats.replaceChildren(...figures.flatMap((figure, index) => {
+        const span = document.createElement('span');
+        span.textContent = index < figures.length - 1 ? `${figure} ·` : figure;
+        return index ? [' ', span] : [span];
+      }));
       setHeart(heart, channel.name, favourite);
       subscribeUrl = channelSubscribeUrl(items);
       subscriptionId = subscribeUrl

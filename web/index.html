@@ -160,7 +160,8 @@
       </button>
     </form>
     <button id="create-playlist" class="profile-add topbar-new-playlist" type="button"
-            aria-haspopup="dialog" aria-controls="playlist-editor" data-i18n="topbar.newPlaylist"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>New Playlist</button>
+            aria-haspopup="dialog" aria-controls="playlist-editor" aria-label="New Playlist" title="New Playlist"
+            data-i18n-attrs="aria-label:topbar.newPlaylist,title:topbar.newPlaylist"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg><span data-i18n="topbar.newPlaylist">New Playlist</span></button>
     <div class="topbar-actions">
       <button id="download-queue-toggle" class="icon-button" type="button" data-empty="true"
               aria-label="Open download queue" title="Downloads" aria-haspopup="dialog"
@@ -471,13 +472,13 @@
       <div id="channel-grid" class="creator-shelf-track channel-grid"></div>
     </section>
 
-    <section id="channel-profile" class="channel-profile" aria-live="polite" hidden>
+    <section id="channel-profile" class="channel-profile" aria-labelledby="channel-profile-heading" hidden>
       <span class="channel-profile-portrait">
         <span class="channel-profile-initial" data-channel-profile-initial aria-hidden="true"></span>
         <img data-channel-profile-image alt="" hidden>
       </span>
       <div class="channel-profile-copy">
-        <h2 data-channel-profile-name></h2>
+        <h2 id="channel-profile-heading" data-channel-profile-name></h2>
         <p data-channel-profile-stats></p>
         <div class="channel-profile-actions profile-actions">
           <button class="creator-card-favourite channel-profile-favourite" type="button"
@@ -505,7 +506,8 @@
                   aria-expanded="false" aria-haspopup="menu" aria-controls="channel-download-profile-menu"
                   popovertarget="channel-download-profile-menu">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-edit"/></svg>
-            <span data-channel-download-label data-i18n="profiles.downloadProfile">Download Profile</span>
+            <span class="profile-trigger-named" data-channel-download-label></span>
+            <span class="profile-trigger-short" data-i18n="profiles.profile">Profile</span>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
           </button>
           <div id="channel-download-profile-menu" class="menu-popover download-profile-menu channel-download-profile-menu"
@@ -514,7 +516,7 @@
       </div>
     </section>
 
-    <section id="playlist-profile" class="playlist-profile" aria-live="polite" hidden>
+    <section id="playlist-profile" class="playlist-profile" aria-labelledby="playlist-profile-heading" hidden>
       <div class="playlist-profile-art" aria-hidden="true">
         <img data-playlist-profile-image="0" alt="" hidden>
         <img data-playlist-profile-image="1" alt="" hidden>
@@ -522,7 +524,7 @@
         <img data-playlist-profile-image="3" alt="" hidden>
       </div>
       <div class="playlist-profile-copy">
-        <h2 data-playlist-profile-name></h2>
+        <h2 id="playlist-profile-heading" data-playlist-profile-name></h2>
         <p><span data-playlist-profile-byline hidden data-i18n="playlist.by">By <a data-playlist-profile-owner href="#"></a><span data-playlist-profile-uploader></span></span><span data-playlist-profile-year hidden></span><span data-playlist-profile-stats></span></p>
         <div class="profile-actions">
           <button class="creator-card-favourite channel-profile-favourite" type="button"
@@ -549,7 +551,8 @@
                   aria-expanded="false" aria-haspopup="menu" aria-controls="playlist-download-profile-menu"
                   popovertarget="playlist-download-profile-menu">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-edit"/></svg>
-            <span data-playlist-download-label data-i18n="profiles.downloadProfile">Download Profile</span>
+            <span class="profile-trigger-named" data-playlist-download-label></span>
+            <span class="profile-trigger-short" data-i18n="profiles.profile">Profile</span>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
           </button>
           <div id="playlist-download-profile-menu" class="menu-popover download-profile-menu channel-download-profile-menu"
@@ -603,15 +606,24 @@
       <div class="videos-heading-tools">
         <div id="gallery-layout" class="gallery-layout-control statistics-ranking" role="group" aria-label="Show this playlist as"
              data-i18n-attrs="aria-label:tracklist.layout" hidden>
-          <button type="button" data-layout="cards" aria-pressed="true">
+          <button type="button" data-layout="cards" aria-pressed="true" aria-label="Cards" title="Cards"
+                  data-i18n-attrs="aria-label:tracklist.cards,title:tracklist.cards">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#layout-grid"/></svg><span data-i18n="tracklist.cards">Cards</span>
           </button>
-          <button type="button" data-layout="tracks" aria-pressed="false">
+          <button type="button" data-layout="tracks" aria-pressed="false" aria-label="Tracklist" title="Tracklist"
+                  data-i18n-attrs="aria-label:tracklist.tracks,title:tracklist.tracks">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#list-numbers"/></svg><span data-i18n="tracklist.tracks">Tracklist</span>
           </button>
         </div>
         <div id="gallery-sort" class="gallery-sort-control statistics-ranking" role="group" aria-label="Sort videos" data-i18n-attrs="aria-label:sort.group">
         </div>
+        <button id="gallery-sort-trigger" class="library-row-action shelf-more gallery-sort-trigger" type="button" hidden
+                aria-haspopup="menu" aria-expanded="false" aria-controls="gallery-sort-menu"
+                popovertarget="gallery-sort-menu">
+          <span data-sort-trigger-label></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#chevron-down"/></svg>
+        </button>
+        <div id="gallery-sort-menu" class="menu-popover download-profile-menu channel-download-profile-menu gallery-sort-menu"
+             popover="auto" role="menu" aria-label="Sort videos" data-i18n-attrs="aria-label:sort.group"></div>
       </div>
     </div>
     <p id="archive-summary" class="archive-summary" aria-live="polite" data-i18n="common.loading">Loading…</p>

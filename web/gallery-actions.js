@@ -1,11 +1,12 @@
 import {cardLabels} from './card-labels.js';
-import {locale, plural, t} from './i18n.js';
+import {plural, t} from './i18n.js';
 import {post} from './api.js';
 import {deletionVersions, survivingFormatId} from './delete-dialog.js';
 import {selectFormat, sourceUrlFor} from './item-adapter.js';
 import {markPlaylistDirection} from './playlists.js';
 import {withoutStrayDividers} from './menu-items.js';
 import {cardThumbnailSizes} from './thumbnail-sizes.js';
+import {formatShortDate} from './watch-details.js';
 
 export function createGalleryActions({
   store, player, report, draw,
@@ -132,8 +133,7 @@ export function createGalleryActions({
       // A track's album says more than the day its upload was dated, which
       // for a label's catalogue is when the label got round to it.
       channelMetadata: [
-        item.music?.album || (item.archive?.uploadedAt ? new Date(item.archive.uploadedAt * 1000).toLocaleDateString(locale(),
-          {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}) : ''),
+        item.music?.album || formatShortDate(item.archive?.uploadedAt),
       ],
       menuItems: withoutStrayDividers([...playlistsRow, ...menuItems].filter(entry => entry.action === 'save-file'
         ? Boolean(item.sourceRef)

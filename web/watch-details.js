@@ -36,6 +36,14 @@ export function formatDate(seconds) {
   });
 }
 
+/** The day as cards give it, "31 Oct 2026", where a line of figures has no room for the month in full. */
+export function formatShortDate(seconds) {
+  if (!seconds) return '';
+  return new Date(seconds * 1000).toLocaleDateString(locale(), {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+  });
+}
+
 /**
  * The chips shown straight under the title: who, when, and how much of it was
  * watched by the world. Empty values drop out rather than render as blanks.

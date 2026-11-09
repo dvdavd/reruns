@@ -976,17 +976,22 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
   opacity: 0; scale: .6; visibility: hidden; pointer-events: none;
   transition-delay: 0s, 0s, 0s, 0s, 0s, 0s, 0s, 220ms;
 }
+/* Where the bar is narrow New playlist is its plus alone, named by its
+   tooltip: in words it left an empty field showing "Sear", and on a phone's
+   search row, beside the folder, field and buttons, the field shrank to
+   nothing. On a phone it sits on the logo's row instead. */
+@media (max-width: 860px) {
+  .topbar-new-playlist { justify-content: center; width: 36px; padding-inline: 0; }
+  .topbar-new-playlist > span { display: none; }
+}
 @media (max-width: 600px) {
-  .topbar .topbar-search { transition: flex-basis 220ms ease; }
-  body[data-view="playlists"]:not(.watch-open) .topbar .topbar-search { flex-basis: calc(100% - 160px); }
-  .topbar-new-playlist { order: 3; padding-inline: 8px 12px; }
   /* Hidden, the button still wrapped onto a row of its own under the search,
      and the topbar's row gap and padding left an empty strip below the field.
      Out of the flow it takes no row. */
   body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist { position: absolute; margin-inline-end: -6px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  body .topbar-new-playlist, .topbar .topbar-search { transition: none; }
+  body .topbar-new-playlist { transition: none; }
 }
 /* The title field's border reaches 9px past its text, so the gap is wider than
    the other drawers' to leave the buttons clear of it. */

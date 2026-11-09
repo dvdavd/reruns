@@ -158,19 +158,26 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
 .playlist-shelf .shelf-empty { padding-bottom: 11px; }
 .channel-playlists { padding-bottom: 11px; }
 
-/* A channel's page starts with its picture, name and statistics. The picture tints the ring around it. */
+/* A channel's page starts with its picture, name and statistics, in a grey
+   card as the watch page's panels are: left bare, the group sat loose in the
+   page's top corner. Only the ring takes the picture's colour, so the card
+   does not compete with the tinted video cards under it. */
 .channel-profile {
   --card-accent: var(--color-accent);
+  --portrait-size: 88px;
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 12px var(--page-gutter) 11px;
+  margin: 12px var(--page-gutter) 11px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--color-surface-raised);
 }
 .channel-profile[hidden] { display: none; }
 .channel-profile-portrait {
-  flex: 0 0 88px;
-  width: 88px;
-  height: 88px;
+  flex: 0 0 var(--portrait-size);
+  width: var(--portrait-size);
+  height: var(--portrait-size);
   overflow: hidden;
   border: 2px solid color-mix(in srgb, var(--card-accent) 58%, var(--shell-line));
   border-radius: 50%;
@@ -196,6 +203,7 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
 .channel-profile-copy { flex: 1; min-width: 0; }
 .channel-profile h2 { margin: 0 0 2px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 23px; }
 .channel-profile p { margin: 0; color: var(--shell-muted); }
+.channel-profile [data-channel-profile-stats] > span { white-space: nowrap; }
 .channel-profile-download-trigger {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   height: 36px; padding: 0 12px; border: 0; border-radius: 18px;
@@ -271,6 +279,14 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
   height: 36px; max-width: 100%; padding: 0 12px; gap: 6px; font: 600 var(--font-size-body)/1 var(--font); white-space: nowrap;
 }
 .channel-profile-download-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* "Profile: Best quality" names the choice where there is room; a phone's
+   row only has room to say what the button is for. */
+.profile-trigger-named { max-width: 220px; }
+.profile-trigger-short { display: none; }
+@media (max-width: 640px) {
+  .profile-trigger-named { display: none; }
+  .profile-trigger-short { display: inline; }
+}
 /* Why the button names a profile the menu has not ticked: the subscription
    chose its own. */
 .download-profile-menu-note {
@@ -285,9 +301,48 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
 .channel-profile-download-trigger .icon { flex: none; }
 .profile-actions .channel-profile-download-trigger .icon:first-child { width: 20px; height: 20px; }
 .profile-actions .channel-profile-download-trigger .icon:last-child { width: 16px; height: 16px; }
+/* With room, the buttons sit at the card's far end, as the watch page's do
+   beside a video's title, rather than under the name leaving the card's right
+   side empty. Below 900px a subscribed channel's full row would squeeze the
+   name, so they go back under it, and the picture stays at the top rather
+   than floating halfway down the taller card. A playlist's head is the same
+   card, except as a record's side column, which is laid out for its cover. */
+@media (min-width: 900px) {
+  :is(.channel-profile-copy, #archive-home:not(.is-tracklist-view) .playlist-profile-copy) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name actions" "stats actions";
+    column-gap: 24px;
+    align-items: center;
+  }
+  :is(.channel-profile-copy, .playlist-profile-copy) > h2 { grid-area: name; align-self: end; }
+  :is(.channel-profile-copy, .playlist-profile-copy) > p { grid-area: stats; align-self: start; }
+  :is(.channel-profile-copy, #archive-home:not(.is-tracklist-view) .playlist-profile-copy) > .profile-actions {
+    grid-area: actions; justify-content: flex-end; margin-top: 0;
+  }
+}
+@media (max-width: 899px) {
+  :is(.channel-profile, #archive-home:not(.is-tracklist-view) .playlist-profile) { align-items: flex-start; }
+}
+/* On a phone the buttons take the card's whole width under the picture,
+   rather than a column indented by it, which wrapped a subscription's row
+   to three lines. The copy's box steps aside so its lines join the grid.
+   A record's head in a tracklist too: its cover is only the side column's
+   from 900px. */
 @media (max-width: 640px) {
-  .channel-profile { gap: 12px; }
-  .channel-profile-portrait { flex-basis: 64px; width: 64px; height: 64px; }
+  /* Not while hidden: the ID in :is() outweighs [hidden]'s display: none. */
+  :is(.channel-profile, #archive-home .playlist-profile):not([hidden]) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "art name" "art stats" "actions actions";
+    align-items: center;
+  }
+  :is(.channel-profile-copy, #archive-home .playlist-profile-copy) { display: contents; }
+  :is(.channel-profile-portrait, #archive-home .playlist-profile-art) { grid-area: art; }
+  :is(.channel-profile-copy, #archive-home .playlist-profile-copy) > h2 { grid-area: name; align-self: end; }
+  :is(.channel-profile-copy, #archive-home .playlist-profile-copy) > p { grid-area: stats; align-self: start; }
+  :is(.channel-profile-copy, #archive-home .playlist-profile-copy) > .profile-actions { grid-area: actions; }
+  .channel-profile { --portrait-size: 64px; padding: 14px; gap: 0 12px; }
   .channel-profile h2 { font-size: 19px; }
 }
 /* A pill in the same neutral, borderless look as the other watch actions:
@@ -350,13 +405,20 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
 
 /* An individual playlist gets the same generous introduction as a creator,
    but its art is a small, offset run of the first four covers in the list. */
+/* The same grey card as a channel's head, as a record's side column too. */
 .playlist-profile {
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 12px var(--page-gutter) 11px;
+  margin: 12px var(--page-gutter) 11px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--color-surface-raised);
 }
 .playlist-profile[hidden] { display: none; }
+@media (max-width: 640px) {
+  .playlist-profile { padding: 14px; }
+}
 .playlist-profile-art {
   position: relative;
   flex: 0 0 132px;
@@ -371,7 +433,6 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
   border-radius: 7px;
   object-fit: cover;
   background: color-mix(in srgb, var(--shell-line) 62%, transparent);
-  box-shadow: 0 8px 18px rgba(0,0,0,.25);
 }
 .playlist-profile-art img:nth-of-type(1) { z-index: 4; left: 0; top: 0; }
 .playlist-profile-art img:nth-of-type(2) { z-index: 3; left: 6px; top: 7px; opacity: .9; }
@@ -390,7 +451,7 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
 .playlist-profile [data-playlist-profile-owner] { color: inherit; text-decoration: none; }
 .playlist-profile [data-playlist-profile-owner]:is(:hover, :focus-visible) { color: var(--shell-fg); }
 @media (max-width: 640px) {
-  .playlist-profile { gap: 12px; }
+  .playlist-profile { gap: 0 12px; }
   .playlist-profile-art { flex-basis: 88px; width: 88px; height: 62px; }
   .playlist-profile-art img { width: 76px; height: 43px; }
   .playlist-profile-art img:nth-of-type(2) { left: 4px; top: 5px; }
@@ -413,8 +474,8 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
 #archive-home.is-tracklist-view {
   --record-art: 136px;
 }
-#archive-home.is-tracklist-view .playlist-profile {
-  align-items: flex-end;
+@media (min-width: 641px) {
+  #archive-home.is-tracklist-view .playlist-profile { align-items: flex-end; }
 }
 #archive-home.is-tracklist-view .playlist-profile-art {
   flex: 0 0 var(--record-art);
@@ -495,8 +556,9 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
     flex-direction: column;
     align-items: stretch;
     gap: 18px;
-    /* The cover's top is level with the "Tracks" heading's line. */
-    padding: 8px 8px 16px var(--page-gutter);
+    /* The card's top is level with the "Tracks" heading's line. */
+    margin: 8px 8px 16px var(--page-gutter);
+    padding: 16px;
   }
   #archive-home.is-tracklist-view .playlist-profile-art { flex: none; }
   #archive-home.is-tracklist-view .playlist-profile:not([data-covers]) { --record-art: 100%; }
@@ -508,8 +570,20 @@ body:not([data-page="playlists"]) #playlists-sections-toggle { display: none; }
    ones (.statistics-ranking), which is display: flex, so hidden needs its say. */
 .gallery-layout-control[hidden] { display: none; }
 /* Icon and label side by side; the icon is the font's size so it reads as part of the word. */
-.gallery-layout-control button { display: inline-flex; align-items: center; gap: 6px; }
+.gallery-layout-control button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .gallery-layout-control .icon { width: 16px; height: 16px; }
+/* Where a playlist's row of sorts would wrap, it folds into a menu
+   (gallery-controller.js, whose matchMedia must agree with this width) and
+   the switch is its icons alone, named by their tooltips, so the heading
+   keeps to one line. The menu's pill is drawn for a playlist at any width
+   and only shown here. */
+#gallery-sort-trigger { display: none; }
+@media (max-width: 700px) {
+  #gallery-sort-trigger:not([hidden]) { display: grid; }
+  .gallery-sort-control.is-foldable { display: none; }
+  .gallery-layout-control button { padding-inline: 10px; }
+  .gallery-layout-control button > span { display: none; }
+}
 
 /* A playlist of music as its tracks: the number, the title and who it is by,
    and the length, a row each. A row is a pill, lit under the pointer and held
@@ -1077,10 +1151,20 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
 /* Once the search drops to a row of its own, the 20px gap between topbar
    items becomes a 20px gap above it, and the input's own 3px margin adds to
    that below, so the field floated in air. Closed up, it sits as close to
-   the buttons as they do to the top. */
+   the buttons as they do to the top. A phone's bar is always two rows, a
+   wider one's under 860px once its field holds something (topbar.css), and
+   both are spaced alike, so the logo and buttons stay put between the two:
+   each row's items sit 10px from the edge, and the logo keeps its 20px
+   from the pages. Only the logo's: at 20px apart the playlists page's row
+   (pages, New playlist, settings) lost settings to a third row at 360px. */
 @media (max-width: 600px) {
-  .topbar { gap: 10px; padding-block: 10px; }
+  .topbar { column-gap: 10px; row-gap: 8px; padding-block: 10px; }
+  .topbar-brand { margin-right: 10px; }
   .topbar .topbar-search input { margin: 0; }
+}
+@media (max-width: 860px) {
+  .topbar:has(.topbar-search[data-filled="true"]) { row-gap: 8px; padding-block: 10px; }
+  .topbar:has(.topbar-search[data-filled="true"]) .topbar-search input { margin: 0; }
 }
 /* The bar's own bottom padding is the space above the edge-to-edge player
    (700px and under), so the page's 12px on top of it was a second gap. */

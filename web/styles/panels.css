@@ -252,7 +252,9 @@
 .topbar-directory > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-directory[data-filtered="true"] { color: var(--shell-fg); }
 .topbar-directory:is(:hover, :focus-visible), .topbar-directory[aria-expanded="true"] { border-color: transparent; background: rgba(255,255,255,.16); color: var(--shell-fg); }
-@media (max-width: 700px) {
+/* Its icon alone from well before the bar gets tight, as the field is what
+   needs the room. */
+@media (max-width: 1024px) {
   .topbar-directory { margin-right: 6px; padding: 0 9px; }
   .topbar-directory > span, .topbar-directory-chevron { display: none; }
 }

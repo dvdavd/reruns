@@ -84,7 +84,7 @@ export function createPlaylistProfile({section, subscriptions, onOpenOwner, onTo
     }
     const selection = choiceFor(subscription.profileSelection ?? 'manual', defaultProfile);
     const profileName = subscriptionProfileName(subscription, profiles, defaultProfile);
-    profileLabel.textContent = selection === '' ? t('profiles.downloadProfile') : profileName;
+    profileLabel.textContent = t('profiles.profileNamed', {name: selection === '' ? t('profiles.default') : profileName});
     profileTrigger.title = t('playlist.subscriptionProfile', {name: profileName});
     if (profileMenu.matches(':popover-open')) return;
     const id = subscription.id;
@@ -102,7 +102,7 @@ export function createPlaylistProfile({section, subscriptions, onOpenOwner, onTo
       defaultProfile = settings.defaultProfile || '';
       drawProfileChoice();
     },
-    update(playlist, {favourite = false, tracks = null} = {}) {
+    update(playlist, {favourite = false, tracks = null, art = null} = {}) {
       section.hidden = !playlist;
       current = playlist;
       if (!playlist) return;
@@ -134,9 +134,10 @@ export function createPlaylistProfile({section, subscriptions, onOpenOwner, onTo
       // would be four of one; the album shows it once, square and larger.
       section.toggleAttribute('data-album', Boolean(tracks?.album));
       section.toggleAttribute('data-covers', Boolean(tracks?.covers));
+      const covers = art || playlist.items;
       images.forEach((image, index) => {
         const thumbnail = tracks?.album && index ? ''
-          : playlist.items[index]?.thumbnail?.url || playlist.items[index]?.thumbnail?.src || '';
+          : covers[index]?.thumbnail?.url || covers[index]?.thumbnail?.src || '';
         image.hidden = !thumbnail;
         if (thumbnail) image.src = thumbnail;
         else image.removeAttribute('src');

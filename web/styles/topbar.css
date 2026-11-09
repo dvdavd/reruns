@@ -84,16 +84,22 @@ body.is-leaving-watch .topbar-shell { transition: none; }
    gaps around them would otherwise leave a dead strip after the field. */
 .topbar-search:not([data-mode="link"]) { gap: 0; }
 @media (max-width: 600px) { .topbar-subscribe { padding: 0 12px; font-size: var(--font-size-body); } }
-/* A link puts Download, its arrow and Subscribe in the row, and the field is
-   the only part that can give: at 700px it was down to 134px, less of an
-   address than a domain. Under this width they take a line of their own,
-   ending where the field ends. Only for a link, since the search field alone
-   never needs the room and the collapsed buttons would leave an empty 36px
-   line behind them. */
+/* Under this width, once the field holds something, the search takes a row
+   of its own under the logo, pages, downloads and settings: folder, field and
+   its buttons side by side. Sharing the top row, the field shrank until the
+   result count covered what was typed, and a link's Download wrapped it onto
+   lines of its own, folder above and Download below. An empty field has none
+   of those buttons and fits beside the pages, so the bar stays one row until
+   the first letter. A phone's is always two rows (chrome.css), but as a row,
+   not the column that stacked folder, field and Download. */
 @media (max-width: 860px) {
-  .topbar-search[data-mode="link"] { flex-wrap: wrap; row-gap: 8px; }
-  .topbar-search[data-mode="link"] .topbar-search-field { flex: 1 1 100%; }
-  .topbar-search[data-mode="link"] .topbar-go { margin-left: auto; }
+  .topbar-shell > .topbar:has(.topbar-search[data-filled="true"]) { flex-wrap: wrap; row-gap: 8px; }
+  .topbar:has(.topbar-search[data-filled="true"]) .topbar-search { order: 3; flex: 1 1 100%; }
+  .topbar .topbar-search { flex-direction: row; align-items: center; }
+  .topbar .topbar-actions { margin-left: auto; }
+}
+@media (max-width: 600px) {
+  .topbar-shell > .topbar { row-gap: 8px; }
 }
 .topbar-search-field { position: relative; display: flex; flex: 1; min-width: 0; }
 .topbar-go { display: flex; flex-shrink: 0; height: 36px; }

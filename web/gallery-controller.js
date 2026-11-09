@@ -4,6 +4,7 @@ import {createLibraryLoader} from './gallery-loader.js';
 import {createGalleryNavigation} from './gallery-navigation.js';
 import {createItemStore, filterItems, formatBytes, html, render, sortItems, VideoCard} from 'media-ui';
 import {t} from './i18n.js';
+import {anchorPopover} from './popover.js';
 import {setPageTitle} from './page-title.js';
 import {preferences} from './preferences.js';
 import {applyPlaybackPositions} from './playback-position.js';
@@ -41,7 +42,7 @@ export function createGalleryController({
   playlistShelf, pageVideoShelf, pagePlaylistShelf, viewPlaylistShelf,
   playlistsRoot, playlistsHeading,
   channelPlaylists: channelPlaylistsShelf, channelProfile: profileSection, playlistProfile: playlistProfileSection, channels,
-  navButtons, heading, sortControl, layoutControl, tracklist: tracklistRoot, deleteDialog, player, report,
+  navButtons, heading, sortControl, sortTrigger, sortMenu, layoutControl, tracklist: tracklistRoot, deleteDialog, player, report,
   directory,
 }) {
   const store = createItemStore([]);
@@ -174,8 +175,35 @@ export function createGalleryController({
     if (!player.activeId()) setPageTitle(facet?.kind === 'playlist' || facet?.kind === 'source'
       ? nameOf(facet) : creatorOfView());
   }
+  anchorPopover(sortTrigger, sortMenu);
+  // A playlist's heading also holds the cards-or-tracklist switch, beside
+  // which the row of sorts wrapped to several lines on a narrow window. There
+  // (library.css decides where) the sorts fold into a menu under one pill
+  // naming the current order, so a playlist draws both and CSS shows one.
+  // Elsewhere the row has the heading to itself at any width.
+  const sortFolds = matchMedia('(max-width: 700px)');
+  sortFolds.addEventListener('change', () => {
+    if (!sortFolds.matches && sortMenu.matches(':popover-open')) sortMenu.hidePopover();
+  });
   function drawSort(playlist, playlistReversed) {
-    render(sortButtons({sort, directions, playlist, playlistReversed}).map(button => html`
+    const buttons = sortButtons({sort, directions, playlist, playlistReversed});
+    sortControl.hidden = false;
+    sortControl.classList.toggle('is-foldable', playlist);
+    sortTrigger.hidden = !playlist;
+    if (playlist) {
+      const active = buttons.find(button => button.pressed);
+      sortTrigger.querySelector('[data-sort-trigger-label]').textContent = active.text;
+      sortTrigger.setAttribute('aria-label', t('sort.menu', {label: active.label}));
+      render(buttons.map(button => html`
+        <button type="button" role="menuitemradio" key=${button.mode}
+                aria-checked=${String(button.pressed)} aria-label=${button.ariaLabel}
+                onClick=${() => { sortMenu.hidePopover(); chooseSort(button, playlist); }}>
+          <span>${button.text}</span></button>`), sortMenu);
+    } else {
+      if (sortMenu.matches(':popover-open')) sortMenu.hidePopover();
+      render(null, sortMenu);
+    }
+    render(buttons.map(button => html`
       <button type="button" key=${button.mode} aria-pressed=${String(button.pressed)}
               aria-label=${button.ariaLabel}
               onClick=${() => chooseSort(button, playlist)}>${button.text}</button>`),
@@ -436,6 +464,8 @@ export function createGalleryController({
     // Nothing to sort in a tracklist: it is the album's order, and the
     // heading is left with the cards-or-tracks switch alone.
     sortControl.hidden = asTracks;
+    sortTrigger.hidden = asTracks;
+    if (asTracks && sortMenu.matches(':popover-open')) sortMenu.hidePopover();
     if (!asTracks) drawSort(Boolean(playlist), isReversed(shown));
     root.classList.toggle('is-playlist-view', Boolean(playlist));
     // The count sits in the search box, and only
@@ -508,8 +538,13 @@ export function createGalleryController({
       favourite: favouriteChannels.has(owner?.id || facet?.id),
     });
     const playlistOwner = playlist && !playlist.manual ? shown.map(item => item.facets?.owner).find(Boolean) : null;
+    // The cover is the playlist's, from its own first videos in its own order
+    // as its card's is, so a sort or a search on the page does not change it.
+    const playlistArt = playlist
+      ? allPlaylists(pool).find(entry => entry.id === String(playlist.id))?.items || shown : [];
     playlistProfile.update(playlist ? {...playlist, items: shown, owner: playlistOwner} : null,
-      {favourite: favouritePlaylists.has(String(playlist?.id)), tracks: asTracks ? tracklistOf(shown) : null});
+      {favourite: favouritePlaylists.has(String(playlist?.id)), tracks: asTracks ? tracklistOf(shown) : null,
+        art: playlistArt});
     // The whole views take their rows only while unfiltered, as home's give
     // way to a search. The videos view's favourites row is the exception: it
     // stays through a search, narrowed to the favourites that match, so a

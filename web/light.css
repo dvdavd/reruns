@@ -193,7 +193,7 @@
   color: oklch(from var(--watch-accent) .32 c h);
 }
 :root[data-theme="light"] :is(.archive-comment-replies summary, .archive-comment-time, .archive-comment-more) { color: var(--color-accent); }
-:root[data-theme="light"] :is(.archive-watch-facts, .archive-watch-description, .archive-watch-comments, .archive-watch-chat:not(.is-overlay, .is-beside, .is-pinned)) { box-shadow: var(--light-card-shadow); }
+:root[data-theme="light"] :is(.channel-profile, .playlist-profile, .archive-watch-facts, .archive-watch-description, .archive-watch-comments, .archive-watch-chat:not(.is-overlay, .is-beside, .is-pinned)) { box-shadow: var(--light-card-shadow); }
 
 /* Person chips wear the same light chip as the channel's. They are rare -
    most sidecars name one person, who is the channel - so they went without,
@@ -279,10 +279,11 @@
   box-shadow: none;
   color: var(--highlight-foreground);
 }
-/* A coloured glow reads as a smudge on a light page; the portrait sits on it
-   with the same soft shadow as a playlist's stacked covers, and keeps the
-   accent in its ring. */
-:root[data-theme="light"] .channel-profile-portrait { box-shadow: 0 8px 18px rgba(0,0,0,.25); }
+/* A coloured glow reads as a smudge on a light page, and so did a dark drop
+   shadow under the portrait once it sat on a white card: the ring alone
+   carries the accent. A record's cover in a tracklist sits on the same card,
+   and its shadow smudged past the card's edge. */
+:root[data-theme="light"] :is(.channel-profile-portrait, #archive-home.is-tracklist-view .playlist-profile-art) { box-shadow: none; }
 :root[data-theme="light"] .profile-actions .channel-profile-favourite[aria-pressed="true"],
 :root[data-theme="light"] .profile-actions .channel-profile-favourite[aria-pressed="true"]:is(:hover, :focus-visible) {
   background: var(--highlight-fill);

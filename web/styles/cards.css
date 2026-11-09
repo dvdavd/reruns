@@ -242,6 +242,12 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
   --watch-aspect: 16 / 9;
   --watch-stage-height: calc(100dvh - 8rem - 56px);
 }
+/* The topbar is two rows under this width while its field holds something
+   (topbar.css). :where keeps this as light as the rule above, so the phone
+   rules below still win. */
+@media (max-width: 860px) {
+  :where(body:has(.topbar-search[data-filled="true"])) .archive-watch { --watch-stage-height: calc(100dvh - 8rem - 102px); }
+}
 /* The room a wide stage may take is the page's, not the column's. A container
    unit resolves against the nearest container to the element using it, which
    for the stage is the column, so the page's width is taken where the column
@@ -270,10 +276,14 @@ body[data-player-rounding="off"] { --player-rounding: 0px; }
   /* Allow for the watch page's 18px top padding even on wider phones. */
   .archive-watch:not(.is-mini) { --watch-stage-height: calc(100dvh - 56px - 24px); }
 }
-/* The topbar wraps to two rows below this width, and below it the control bar
-   takes a strip under the picture as well - the same width at which the player
-   runs edge to edge (see the 700px block further down), so the two change
-   together. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 860px) {
+  :where(body:has(.topbar-search[data-filled="true"])) .archive-watch:not(.is-mini) { --watch-stage-height: calc(100dvh - 102px - 24px); }
+}
+/* Below this width the control bar takes a strip under the picture as well -
+   the same width at which the player runs edge to edge (see the 700px block
+   further down), so the two change together. The topbar is counted as two
+   rows, as a phone's always is; between 600 and 700px with an empty field it
+   is one, and the picture just has a little room to spare. */
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
   .archive-watch:not(.is-mini) { --watch-stage-height: calc(100dvh - 102px - 1rem - 48px); }
 }

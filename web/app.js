@@ -152,6 +152,8 @@ const gallery = createGalleryController({
   navButtons: [...document.querySelectorAll('[data-main-view]')],
   heading: document.querySelector('#archive-heading'),
   sortControl: document.querySelector('#gallery-sort'),
+  sortTrigger: document.querySelector('#gallery-sort-trigger'),
+  sortMenu: document.querySelector('#gallery-sort-menu'),
   layoutControl: document.querySelector('#gallery-layout'),
   tracklist: document.querySelector('#playlist-tracklist'),
   deleteDialog: document.querySelector('#delete-dialog'),
