@@ -391,8 +391,10 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
     });
     const divider = node('div', '', 'menu-divider');
     divider.setAttribute('role', 'separator');
-    // The card's own button keeps its aria-expanded to itself.
-    if (menu.open(from, [...rows, ...(rows.length ? [divider] : []), name, problem], {reflect: false, side})
+    // A card menu's row says its submenu is open, which is also what keeps
+    // the row lit while the pointer is in it; any other opener keeps its
+    // aria-expanded to itself.
+    if (menu.open(from, [...rows, ...(rows.length ? [divider] : []), name, problem], {reflect: side, side})
         && focus) {
       (rows[0] || name).focus({preventScroll: true});
     }

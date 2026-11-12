@@ -98,10 +98,12 @@
   pointer-events: none;
 }
 
+/* The duration sits at the bottom right, where the progress bar ends, and the
+   heart takes the top right corner, as it does on a channel card. */
 .thumbnail-chip-row {
   position: absolute;
-  top: 8px;
   right: 8px;
+  bottom: 10px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -189,7 +191,7 @@
 .external-play-details svg { width: 18px; height: 18px; fill: currentColor; }
 .external-play-details[data-open-details] { left: 4px; bottom: 9px; width: 28px; height: 28px; }
 .external-play-details[data-open-details] svg { fill: none; }
-.video-favourite-button { position: absolute; right: 9px; bottom: 9px; z-index: 5; width: 34px; height: 34px; }
+.video-favourite-button { position: absolute; top: 5px; right: 5px; z-index: 5; width: 34px; height: 34px; }
 .external-play-details:hover, .external-play-details:focus-visible,
 .video-favourite-button:hover, .video-favourite-button:focus-visible,
 .part-navigation button:hover, .part-navigation button:focus-visible { background: #0009; outline: none; }
@@ -315,9 +317,9 @@
 .menu-trigger:hover, .menu-trigger[aria-expanded="true"] { border-color: #ffffff1f; background: #ffffff1a; color: white; }
 .menu-popover { position: absolute; right: 0; bottom: calc(100% + 5px); z-index: 20; width: 208px; padding: 5px; border: 1px solid #ffffff1f; border-radius: 8px; background: var(--media-card-menu-bg); box-shadow: 0 14px 34px #0009; }
 .card-menu > .menu-popover { width: 240px; overflow-y: auto; }
-.menu-popover button[role="menuitem"] { display: flex; width: 100%; align-items: center; gap: 9px; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--media-card-text); cursor: pointer; }
+.menu-popover button[role="menuitem"] { display: flex; width: 100%; min-height: var(--menu-row-height, 34px); align-items: center; gap: 9px; padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--media-card-text); cursor: pointer; }
 .menu-popover button[role="menuitem"]:is(:hover, :focus-visible):not([aria-expanded="true"]),
-.menu-popover:not(:has(> button[role="menuitem"]:is(:hover, :focus-visible):not([aria-expanded="true"]))) > button[role="menuitem"][aria-expanded="true"] { outline: none; background: var(--highlight-fill, var(--color-menu-item-hover)); color: var(--highlight-foreground, var(--color-text-strong)); }
+.menu-popover:not(:has(> button[role="menuitem"]:is(:hover, :focus-visible, [data-pointer-row]):not([aria-expanded="true"]))) > button[role="menuitem"][aria-expanded="true"] { outline: none; background: var(--highlight-fill, var(--color-menu-item-hover)); color: var(--highlight-foreground, var(--color-text-strong)); }
 .menu-popover button[aria-haspopup] { padding-right: 14px; }
 .menu-popover button[aria-haspopup] .icon:last-child { width: 14px; height: 14px; margin-left: auto; }
 .menu-popover .menu-divider { height: 1px; margin: 5px 9px; background: var(--menu-border, var(--color-menu-border)); }

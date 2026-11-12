@@ -160,6 +160,21 @@ export function animateResize(panel, change) {
 }
 
 /**
+ * Gives the highlight back to the row a submenu hangs from, for a pointer
+ * that has just come into the submenu. VideoCard lights an open submenu's row
+ * only while no other row carries `data-pointer-row`, the mark of the last row
+ * the pointer entered; a pointer cutting across another row on its way in left
+ * that row marked, and the submenu's own row dark the whole time it was in use.
+ */
+export function claimSubmenuRow(row) {
+  if (!row?.closest('.card-menu')) return;
+  for (const other of row.parentElement.querySelectorAll(':scope > [data-pointer-row]')) {
+    other.removeAttribute('data-pointer-row');
+  }
+  row.setAttribute('data-pointer-row', '');
+}
+
+/**
  * One menu hung from whichever button opens it, for the menus that stand in
  * for a card's own: built once, filled and placed on each `open`. It sits
  * above its button when there is room, as a card's menu does, and lines up
@@ -200,6 +215,7 @@ export function createAnchoredMenu({label, className = '', prefer = 'up', align 
   document.addEventListener('pointerdown', event => {
     pressed = opener && menu.matches(':popover-open') && opener.contains(event.target) ? opener : null;
   }, true);
+  menu.addEventListener('pointerenter', () => { if (side) claimSubmenuRow(opener); });
   menu.addEventListener('toggle', event => {
     const open = event.newState === 'open';
     if (reflected) opener?.setAttribute('aria-expanded', String(open));

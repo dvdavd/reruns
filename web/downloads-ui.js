@@ -8,7 +8,7 @@ import {ACTIVE_STATES, createJobFailureTracker, flattenDownloads, isDownloadUrl,
 import {downloadRow} from './download-row.js';
 import {audioCodecChoices, codecChoices, downloadBody, formatChoices, grantedLocationChoices, locationChoices, profileMenuItems, resolveSelection} from './download-profiles.js';
 import {createDrawerControls} from './drawer.js';
-import {animateResize, followButton} from './popover.js';
+import {animateResize, claimSubmenuRow, followButton} from './popover.js';
 import {audioLanguagePicker, languageName, parseLanguageTags, subtitleLanguagePicker} from './subtitle-languages.js';
 import {defaultMark} from './default-mark.js';
 import {preferences as account} from './preferences.js';
@@ -440,7 +440,10 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     }
     closeAdvancedPanel();
   }
-  advancedPanel.addEventListener('pointerenter', cancelSubmenuClose);
+  advancedPanel.addEventListener('pointerenter', () => {
+    cancelSubmenuClose();
+    if (watch?.submenu) claimSubmenuRow(opener);
+  });
   advancedPanel.addEventListener('keydown', event => {
     if (!watch?.submenu || event.key !== 'ArrowLeft'
         || !event.target.closest('#download-profile-menu')) return;

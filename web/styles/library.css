@@ -1098,7 +1098,10 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
   box-shadow: none;
 }
 /* Menu highlights match selected Appearance tiles. Hover, keyboard focus,
-   checked items and open submenus share the same fill and foreground. */
+   checked items and open submenus share the same fill and foreground. An
+   open submenu's row gives way to the last row the pointer entered
+   (data-pointer-row, set by VideoCard), even once the pointer has
+   left the menu, so it does not relight while its submenu waits to close. */
 :is(.settings-menu, .menu-popover, .thumbnail-type-menu) button[role^="menuitem"] {
   transition: none;
 }
@@ -1109,7 +1112,7 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
   color: var(--highlight-foreground);
 }
 :is(.settings-menu, .thumbnail-type-menu) button[role^="menuitem"][aria-expanded="true"],
-.menu-popover:not(:has(> button[role="menuitem"]:is(:hover, :focus-visible):not([aria-expanded="true"]))) > button[role="menuitem"][aria-expanded="true"],
+.menu-popover:not(:has(> button[role="menuitem"]:is(:hover, :focus-visible, [data-pointer-row]):not([aria-expanded="true"]))) > button[role="menuitem"][aria-expanded="true"],
 .settings-menu button[role="menuitemcheckbox"][aria-checked="true"] {
   background: var(--highlight-fill);
   box-shadow: none;

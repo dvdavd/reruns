@@ -159,29 +159,18 @@ export function createGalleryActions({
         setCardMenu(wasOpen ? {surface: null, id: null} : {surface, id: target.id});
       },
       onMenuItemHover: (entry, target, event) => {
+        const row = event.currentTarget;
+        const keyboard = event.type === 'keydown' || (event.type === 'click' && event.detail === 0);
+        const pointer = event.type === 'pointerenter';
+        cancelSubmenuOpen();
         // Each submenu row opens its own and lets the other go, after a beat
         // so a pointer cutting across a row on its way into one keeps it.
-        const keyboard = event.type === 'keydown' || (event.type === 'click' && event.detail === 0);
         if (entry.action !== 'add-playlist') playlistEditor?.closeSubmenu({delay: 150});
         if (entry.action !== 'show-playlists') openCollections?.closeSubmenu?.({delay: 150});
-        if (entry.action === 'show-playlists' && entry.submenu) {
-          closeFormatDownload?.();
-          openCollections(target.facets?.collections || [], event.currentTarget, {side: true, focus: keyboard});
-          return;
-        }
-        if (entry.action === 'add-playlist') {
-          closeFormatDownload?.();
-          playlistEditor?.add(target, event.currentTarget, {side: true, focus: keyboard});
-          return;
-        }
-        if (entry.action !== 'download-format') {
-          closeFormatDownload?.({delay: 150});
-          return;
-        }
-        const sourceUrl = sourceUrlFor(target);
-        if (sourceUrl) openFormatDownload?.(event.currentTarget, {
-          url: sourceUrl, side: true, focus: keyboard,
-        });
+        if (entry.action !== 'download-format') closeFormatDownload?.({delay: 150});
+        if (!entry.submenu) return;
+        if (pointer) settleThenOpen(row, () => openSubmenu(entry, target, row, false));
+        else openSubmenu(entry, target, row, keyboard);
       },
       onMenuAction: async (action, target) => {
         closeSubmenus();
@@ -245,7 +234,52 @@ export function createGalleryActions({
     }
   }
 
+  /* A submenu waits for the pointer to settle on its row before opening:
+     opened on entry, every row a pointer swept across on its way down the
+     menu flashed its submenu up and away again. Settled is a short spell
+     without movement, or a slightly longer one on the row however it moves,
+     so a pointer drifting along the row towards the submenu still opens it. */
+  const SUBMENU_SETTLE = 90;
+  const SUBMENU_DWELL = 260;
+  let pendingOpen = null;
+  function cancelSubmenuOpen() {
+    if (!pendingOpen) return;
+    pendingOpen.stop();
+    pendingOpen = null;
+  }
+  function settleThenOpen(row, open) {
+    let settle = null;
+    const fire = () => { cancelSubmenuOpen(); if (row.isConnected) open(); };
+    const moved = () => { clearTimeout(settle); settle = setTimeout(fire, SUBMENU_SETTLE); };
+    const dwell = setTimeout(fire, SUBMENU_DWELL);
+    row.addEventListener('pointermove', moved);
+    row.addEventListener('pointerleave', cancelSubmenuOpen);
+    moved();
+    pendingOpen = {stop() {
+      clearTimeout(settle);
+      clearTimeout(dwell);
+      row.removeEventListener('pointermove', moved);
+      row.removeEventListener('pointerleave', cancelSubmenuOpen);
+    }};
+  }
+  function openSubmenu(entry, target, row, focus) {
+    if (entry.action === 'show-playlists') {
+      closeFormatDownload?.();
+      openCollections(target.facets?.collections || [], row, {side: true, focus});
+      return;
+    }
+    if (entry.action === 'add-playlist') {
+      closeFormatDownload?.();
+      playlistEditor?.add(target, row, {side: true, focus});
+      return;
+    }
+    if (entry.action !== 'download-format') return;
+    const sourceUrl = sourceUrlFor(target);
+    if (sourceUrl) openFormatDownload?.(row, {url: sourceUrl, side: true, focus});
+  }
+
   function closeSubmenus() {
+    cancelSubmenuOpen();
     closeFormatDownload?.();
     openCollections?.closeSubmenu?.();
     playlistEditor?.closeSubmenu();

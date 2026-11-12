@@ -391,6 +391,11 @@ body[data-can-delete="false"] [data-watch-subscribe-channel],
   cursor: pointer;
   touch-action: none;
 }
+/* The readout is held inside the card, so at the right end it parks over the
+   duration chip. Moving it would part it from the pointer; the chips step
+   aside instead while the bar is in use. */
+.thumbnail-chip-row { transition: opacity .15s ease; }
+.thumbnail-area:has(> .hover-preview-seek:is(:hover, .is-dragging)) .thumbnail-chip-row { opacity: 0; }
 .hover-preview-seek-track {
   display: block;
   width: 100%;

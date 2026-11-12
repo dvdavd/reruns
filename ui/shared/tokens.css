@@ -61,6 +61,12 @@
   /* Dialogs sit a step off the page rather than being ringed: lighter in dark. */
   --color-dialog-bg: #262626;
   --color-menu-item-hover: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  /* Every menu's rows are one height, whatever they hold: sized by their
+     content, a text-only row came out at 30px, one with an icon at 34 and
+     the player settings' larger icons at 36, so menus side by side, or a
+     submenu beside its menu, did not line up. Tall enough for the largest
+     icon; a row whose text wraps still grows. */
+  --menu-row-height: 34px;
 
   /* The page gutter: the inline padding the topbar carries, and so the line
      every page's own content aligns to. Consumers should lay out against this

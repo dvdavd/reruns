@@ -143,6 +143,7 @@ select { cursor: pointer; }
 
   select option {
     gap: 8px;
+    min-height: var(--menu-row-height);
     padding: var(--menu-item-padding, 7px 10px);
     border-radius: 6px;
     background: transparent;
@@ -234,7 +235,8 @@ select { cursor: pointer; }
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: var(--menu-item-padding, 9px 10px);
+  min-height: var(--menu-row-height);
+  padding: var(--menu-item-padding, 7px 10px);
   border: 0;
   border-radius: 6px;
   background: transparent;

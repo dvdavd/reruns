@@ -52,6 +52,19 @@ export const DEFAULT_MENU_ITEMS = [
   {action: 'delete', label: 'Delete', danger: true},
 ];
 
+/* The row a submenu hangs from stays lit while the pointer is out in the
+   submenu, but not once the pointer has gone on to another row: in the beat
+   before that submenu closed, or after the pointer had left the menu, the row
+   relit behind a pointer already elsewhere. The stylesheet lights it only
+   when no other row carries this mark; a data attribute, because Preact owns
+   the row's class. A key clears it, so the row a keyboard opens is the lit one. */
+function markPointerRow(row, pointer) {
+  for (const other of row.parentElement?.querySelectorAll(':scope > [data-pointer-row]') || []) {
+    if (other !== row) other.removeAttribute('data-pointer-row');
+  }
+  row.toggleAttribute('data-pointer-row', pointer);
+}
+
 // A video with no picture, or a picture that will not load, shows a quiet
 // frame with a glyph rather than the browser's broken-image icon and border.
 // The glyph is drawn by the stylesheet, not an <svg>: a card's SVG count is
@@ -335,12 +348,16 @@ export function VideoCard({
                         aria-haspopup=${entry.submenu ? (entry.popupRole || 'menu') : undefined}
                         aria-expanded=${entry.submenu ? 'false' : undefined}
                         aria-controls=${entry.submenu ? entry.controls : undefined}
-                        onPointerEnter=${onMenuItemHover && (event => onMenuItemHover(entry, item, event))}
-                        onKeyDown=${entry.submenu && onMenuItemHover && (event => {
-                          if (event.key !== 'ArrowRight') return;
+                        onPointerEnter=${event => {
+                          markPointerRow(event.currentTarget, true);
+                          onMenuItemHover?.(entry, item, event);
+                        }}
+                        onKeyDown=${event => {
+                          markPointerRow(event.currentTarget, false);
+                          if (!entry.submenu || !onMenuItemHover || event.key !== 'ArrowRight') return;
                           event.preventDefault();
                           onMenuItemHover(entry, item, event);
-                        })}
+                        }}
                         onClick=${entry.submenu
                           ? onMenuItemHover && (event => onMenuItemHover(entry, item, event))
                           : onMenuAction && (event => onMenuAction(entry.action, item, view.partIndex, event))}>

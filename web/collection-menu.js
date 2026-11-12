@@ -34,8 +34,7 @@ export function createCollectionMenu({choose}) {
       row.addEventListener('click', () => { menu.close(); choose(collection); });
       return row;
     });
-    // The card's own button keeps its aria-expanded to itself.
-    if (menu.open(from, rows, {reflect: !side, side}) && focus) rows[0]?.focus({preventScroll: true});
+    if (menu.open(from, rows, {side}) && focus) rows[0]?.focus({preventScroll: true});
   }
   // Left closes a submenu back to the row it came from, as the others do.
   menu.element.addEventListener('keydown', event => {
