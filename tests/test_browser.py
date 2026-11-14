@@ -387,6 +387,126 @@ class AutoplayTests(_BrowserCase):
         self.assertFalse(toggle.is_visible())
         self.assertEqual(self.failures, [])
 
+    def test_each_menu_page_settles_at_its_own_height(self):
+        # The menu's width animates between pages, and each page was once
+        # measured at the width it was leaving: Playlist only cropped the
+        # switch under it, and the main page came back with a gap below. The
+        # pages below the main one also carried padding of their own, so the
+        # last row's highlight sat further from the foot than the sides.
+        page = self.open_page(autoplay="playlist")
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        page.wait_for_timeout(400)
+        names = page.evaluate("""() => [...document.querySelectorAll(
+            '#watch-settings-popup [data-settings-page="main"] [data-settings-go]')]
+            .filter(button => button.offsetParent).map(button => button.dataset.settingsGo)""")
+        self.assertIn("autoplay", names)
+        fit = """name => {
+            const pages = document.querySelector('[data-settings-pages]');
+            const active = pages.querySelector(`[data-settings-page="${name}"]`);
+            const popup = document.querySelector('#watch-settings-popup');
+            // The pages share one grid row, so each box is as tall as the
+            // tallest; what the page needs is where its last row ends. The
+            // menu's own padding is the only space below that, as at its
+            // sides, so a page's padding is not counted.
+            const top = active.getBoundingClientRect().top;
+            const bottom = Math.max(...[...active.children].filter(child => child.offsetParent)
+                .map(child => child.getBoundingClientRect().bottom + parseFloat(getComputedStyle(child).marginBottom)));
+            return {menu: pages.getBoundingClientRect().height,
+                    page: bottom - top,
+                    scrolls: popup.scrollHeight > popup.clientHeight + 1};
+        }"""
+        for name in names:
+            for shown in (name, "main"):
+                with self.subTest(page=name, shown=shown):
+                    if shown == "main":
+                        page.click(f'[data-settings-page="{name}"] [data-settings-back]')
+                    else:
+                        page.click(f'[data-settings-go="{name}"]')
+                    page.wait_for_timeout(400)
+                    sizes = page.evaluate(fit, shown)
+                    self.assertAlmostEqual(sizes["menu"], sizes["page"], delta=1, msg=sizes)
+                    self.assertFalse(sizes["scrolls"], sizes)
+        self.assertEqual(self.failures, [])
+
+    def test_reopening_the_menu_lands_on_the_main_page_without_sliding(self):
+        # The popover is styled on the page it was closed on before it is
+        # sent back to the main one, so it used to slide back across and
+        # ease its height down each time it was opened again.
+        page = self.open_page(autoplay="playlist")
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        page.click('[data-settings-go="autoplay"]')
+        page.wait_for_timeout(400)
+        page.evaluate("document.querySelector('#watch-settings-popup').hidePopover()")
+        moving = page.evaluate("""() => new Promise(resolve => {
+            const popup = document.querySelector('#watch-settings-popup');
+            popup.addEventListener('toggle', () => requestAnimationFrame(() => resolve({
+                page: popup.dataset.page,
+                animations: popup.getAnimations({subtree: true})
+                    .map(animation => animation.transitionProperty || 'width')
+                    .filter(name => ['width', 'height', 'transform'].includes(name)),
+            })), {once: true});
+            document.querySelector('[data-settings-open]').click();
+        })""")
+        self.assertEqual(moving, {"page": "", "animations": []})
+        self.assertEqual(self.failures, [])
+
+    def test_the_immersive_switch_turns_back_on_with_the_last_delay(self):
+        page = self.open_page()
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        switch = page.locator("[data-immersive-switch]")
+        summary = page.locator("[data-immersive-summary]")
+        self.assertEqual((switch.get_attribute("aria-checked"), summary.inner_text()), ("true", "20s"))
+        page.click('[data-settings-go="immersive"]')
+        # Off is the switch's to say, so it is not one of the delays.
+        self.assertEqual(page.locator("[data-immersive-seconds]").all_inner_texts(),
+                         ["2 seconds", "5 seconds", "10 seconds", "20 seconds", "30 seconds"])
+        page.click('[data-immersive-seconds="5"]')
+        page.click('[data-settings-page="immersive"] [data-settings-back]')
+        switch.click()
+        self.assertEqual((switch.get_attribute("aria-checked"), summary.inner_text()), ("false", ""))
+        self.assertEqual(page.evaluate("localStorage.getItem('archive-immersive-delay')"), "0")
+        switch.click()
+        self.assertEqual((switch.get_attribute("aria-checked"), summary.inner_text()), ("true", "5s"))
+        self.assertEqual(self.failures, [])
+
+    def test_the_channel_sponsorblock_choice_is_a_list_of_rows(self):
+        page = self.open_page()
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        page.click('[data-settings-go="sponsorblock"]')
+        rows = page.locator("[data-sponsorblock-channel]")
+        self.assertEqual(rows.all_inner_texts(), ["Use global setting", "Always enable", "Always disable"])
+        checked = lambda: [row.get_attribute("aria-checked") for row in rows.all()]
+        self.assertEqual(checked(), ["true", "false", "false"])
+        rows.last.click()
+        self.assertEqual(checked(), ["false", "false", "true"])
+        saved = json.loads(page.evaluate("localStorage.getItem('ytdlp-sponsorblock-channels-v1')"))
+        self.assertEqual([value["enabled"] for value in saved.values()], [False])
+        # The choices replace the note that said where the setting came from,
+        # so nothing is left below them but the menu's own padding.
+        page.wait_for_timeout(400)
+        menu, end = page.evaluate("""() => {
+            const pages = document.querySelector('[data-settings-pages]');
+            return [pages.getBoundingClientRect().bottom, pages.querySelector(
+                '[data-sponsorblock-channel="off"]').getBoundingClientRect().bottom]; }""")
+        self.assertAlmostEqual(menu, end, delta=1)
+        rows.first.click()
+        self.assertEqual(checked(), ["true", "false", "false"])
+        self.assertEqual(json.loads(page.evaluate(
+            "localStorage.getItem('ytdlp-sponsorblock-channels-v1')")), {})
+        self.assertEqual(self.failures, [])
+
     def test_the_menu_switch_turns_autoplay_back_on_as_it_was(self):
         page = self.open_page(autoplay="1")
         page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')

@@ -82,7 +82,7 @@ test('background shelf redraws do not postpone or exit immersion, while menu cha
 
 });
 
-test('immersion supports Off and every offered inactivity delay', () => {
+test('immersion keeps reading Off, stored as 0, and every offered inactivity delay', () => {
   for (const seconds of [0, 2, 5, 10, 20, 30]) {
     assert.equal(immersiveDelayMs(String(seconds)), seconds * 1000);
   }

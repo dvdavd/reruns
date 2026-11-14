@@ -2,6 +2,7 @@ import {preferences} from './preferences.js';
 import {plural, t} from './i18n.js';
 
 const DELAY_KEY = 'archive-immersive-delay';
+const ON_KEY = 'archive-immersive-delay-on';
 export function immersiveDelayMs(value) {
   const seconds = value == null || value === '' ? 20 : Number(value);
   return [0, 2, 5, 10, 20, 30].includes(seconds) ? seconds * 1000 : 20_000;
@@ -62,28 +63,45 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
   const body = document.body;
   const options = page.querySelector('[data-immersive-options]');
   const summary = page.querySelector('[data-immersive-summary]');
-  const delayLabel = seconds => seconds === 0 ? t('common.off') : plural('count.seconds', seconds);
+  const toggle = page.querySelector('[data-immersive-switch]');
+  // What the switch turns immersion back on with: the delay chosen last.
+  // Off is still stored as a delay of 0, as it was when Off was one of the
+  // delays, so an account that chose it then still has it off.
+  let onSeconds = idleMs ? idleMs / 1000 : 20;
+  if (!idleMs) {
+    try { onSeconds = immersiveDelayMs(preferences.getItem(ON_KEY)) / 1000 || 20; } catch {}
+  }
   function drawDelay() {
-    if (summary) summary.textContent = delayLabel(idleMs / 1000);
+    // The switch says on or off; the summary only says after how long, and
+    // shortly, since it shares the row with the switch and the chevron.
+    if (summary) summary.textContent = idleMs ? t('count.secondsShort', {count: idleMs / 1000}) : '';
+    toggle?.setAttribute('aria-checked', String(idleMs > 0));
     options?.querySelectorAll('[data-immersive-seconds]').forEach(row => {
       row.setAttribute('aria-checked', String(Number(row.dataset.immersiveSeconds) * 1000 === idleMs));
     });
   }
+  function chooseDelay(seconds) {
+    idleMs = seconds * 1000;
+    try { preferences.setItem(DELAY_KEY, String(seconds)); } catch {}
+    if (seconds) {
+      onSeconds = seconds;
+      try { preferences.setItem(ON_KEY, String(seconds)); } catch {}
+    }
+    drawDelay();
+    restore();
+  }
+  toggle?.addEventListener('click', () => chooseDelay(idleMs ? 0 : onSeconds));
   if (options) {
-    options.replaceChildren(...[0, 2, 5, 10, 20, 30].map(seconds => {
+    options.replaceChildren(...[2, 5, 10, 20, 30].map(seconds => {
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'settings-option';
       row.setAttribute('role', 'radio');
       row.dataset.immersiveSeconds = String(seconds);
       row.innerHTML = '<svg class="settings-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg><span></span><span></span>';
-      row.children[1].textContent = delayLabel(seconds);
-      row.addEventListener('click', () => {
-        idleMs = seconds * 1000;
-        try { preferences.setItem(DELAY_KEY, String(seconds)); } catch {}
-        drawDelay();
-        restore();
-      });
+      row.children[1].textContent = plural('count.seconds', seconds);
+      // Choosing a delay while immersion is off turns it on with that delay.
+      row.addEventListener('click', () => chooseDelay(seconds));
       return row;
     }));
   }
@@ -96,8 +114,11 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
   const pressed = new Set();
   // The search form's own controls (folders, field, go, subscribe) are
   // separate steps in the wave; treating the form as one node moved them together.
+  // The page buttons are the opposite: they sit in one pill with the current
+  // page's disc behind them, so the pill leaves as one piece rather than
+  // buttons lifting off a pill left behind.
   const chrome = header?.querySelectorAll(
-    '.topbar-navigation > *, .topbar-search > :not(.menu-popover), .topbar-actions > *') || [];
+    '.topbar-navigation, .topbar-search > :not(.menu-popover), .topbar-actions > *') || [];
   chrome.forEach(node => node.classList.add('immersive-chrome'));
 
   function eligible() {

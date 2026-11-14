@@ -157,11 +157,14 @@
 :root[data-theme="light"] .search-clear-button:is(:hover, :focus-visible) { border-color: #c9cbd5; background: #e5e7ee; color: #1e2230; }
 :root[data-theme="light"] #download-queue-toggle[data-progress="true"]::after { inset: 2px; }
 :root[data-theme="light"] .status-toast { color: #292037; box-shadow: var(--shadow-menu); }
+:root[data-theme="light"] .topbar .topbar-navigation { background: rgb(32 35 59 / .055); }
+:root[data-theme="light"] .topbar .topbar-navigation > .icon-button:not(:hover, :focus-visible) { background: transparent; }
 :root[data-theme="light"] .topbar .topbar-navigation .icon-button[aria-pressed="true"],
 :root[data-theme="light"] .topbar .topbar-navigation .icon-button[aria-pressed="true"]:is(:hover, :focus-visible) {
-  background: var(--highlight-fill);
+  background: transparent;
   color: var(--highlight-foreground);
 }
+:root[data-theme="light"] .topbar-navigation-thumb { box-shadow: none; }
 
 /* Cards, labels and menus take their text from the light surfaces. */
 :root[data-theme="light"] .card-name { color: var(--color-text-strong); }
@@ -470,7 +473,7 @@
    hue at full chroma and lightness. Only a hue too light for white text is
    still pulled down, to the luminance cap the foreground was chosen for, and
    yellow keeps its source lightness as before. */
-:root[data-theme="light"] :is(.topbar-navigation .icon-button, .archive-watch-action,
+:root[data-theme="light"] :is(.topbar-navigation .icon-button, .topbar-navigation-thumb, .archive-watch-action,
     .channel-profile-favourite, .playlist-popup-reverse,
     .customisation-choices label,
     .library-row-action, .libraries-add, .profile-add, .profile-save,
@@ -481,11 +484,11 @@
   --highlight-accent: oklch(from var(--highlight-hue) l c h);
   --highlight-base-fill: var(--highlight-accent);
 }
-:root[data-theme="light"] :is(.topbar .topbar-navigation .icon-button,
+:root[data-theme="light"] :is(.topbar .topbar-navigation .icon-button, .topbar .topbar-navigation-thumb,
     .customisation-choices .customisation-preview .preview-button) {
   --highlight-accent: oklch(from var(--highlight-hue) l calc(c * 1.15) h);
 }
-:root[data-theme="light"] :is(.topbar-navigation .icon-button, .customisation-choices label,
+:root[data-theme="light"] :is(.topbar-navigation .icon-button, .topbar-navigation-thumb, .customisation-choices label,
     .archive-watch-action, .channel-profile-favourite,
     .sponsorblock-modes button, .playlist-popup-reverse,
     .statistics-ranking button,

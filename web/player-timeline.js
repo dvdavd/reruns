@@ -15,7 +15,7 @@ import {
 
 export function createPlayerTimeline({
   page, element, mediaPlayer, seekInput,
-  chapterMarkers, halfThumb, onAspect,
+  chapterMarkers, halfThumb, onAspect, refitSettings = () => {},
 }) {
   let chapters = [];
   let chapterDuration = 0;
@@ -173,9 +173,8 @@ export function createPlayerTimeline({
   // The menu's row and its SponsorBlock page each have the switch for this
   // video, and both say the same.
   const sponsorVideoToggles = page.querySelectorAll('[data-sponsorblock-video-toggle]');
-  const sponsorChannelSelect = page.querySelector('[data-sponsorblock-channel-select]');
+  const sponsorChannelOptions = page.querySelectorAll('[data-sponsorblock-channel]');
   const sponsorChannelLabel = page.querySelector('[data-sponsorblock-channel-label]');
-  const sponsorSource = page.querySelector('[data-sponsorblock-source]');
 
   const inheritedSponsorEnabled = () => sponsorBlockEnabledFor(
     sponsorChannelKey, sponsorGlobalEnabled, sponsorChannelOverrides,
@@ -218,11 +217,13 @@ export function createPlayerTimeline({
     sponsorOptions.disabled = !sponsorGlobalEnabled;
     for (const toggle of sponsorVideoToggles) toggle.setAttribute('aria-checked', String(sponsorEnabled));
     const channel = sponsorChannelOverrides.get(sponsorChannelKey);
-    sponsorChannelSelect.value = channel ? (channel.enabled ? 'on' : 'off') : 'default';
+    const choice = channel ? (channel.enabled ? 'on' : 'off') : 'default';
+    for (const option of sponsorChannelOptions) {
+      option.setAttribute('aria-checked', String(option.dataset.sponsorblockChannel === choice));
+    }
     sponsorChannelLabel.textContent = t('sponsor.channelDefault', {name: sponsorChannelName || t('sponsor.this')});
-    sponsorSource.textContent = sponsorVideoOverride !== null ? t('sponsor.overriddenVideo')
-      : channel ? t('sponsor.channelOverride', {state: t(channel.enabled ? 'common.onLower' : 'common.offLower')})
-        : t('sponsor.globalSetting', {state: t(sponsorGlobalEnabled ? 'common.onLower' : 'common.offLower')});
+    // A long channel name can wrap the heading over the choices.
+    refitSettings('sponsorblock');
     if (!sponsorEnabled) hideSponsorPrompt();
   }
   function applySponsorPreference() {
@@ -242,16 +243,19 @@ export function createPlayerTimeline({
       applySponsorPreference();
     });
   }
-  sponsorChannelSelect.addEventListener('change', () => {
-    if (sponsorChannelSelect.value === 'default') sponsorChannelOverrides.delete(sponsorChannelKey);
-    else sponsorChannelOverrides.set(sponsorChannelKey, {
-      enabled: sponsorChannelSelect.value === 'on', name: sponsorChannelName || sponsorChannelKey,
+  for (const option of sponsorChannelOptions) {
+    option.addEventListener('click', () => {
+      const choice = option.dataset.sponsorblockChannel;
+      if (choice === 'default') sponsorChannelOverrides.delete(sponsorChannelKey);
+      else sponsorChannelOverrides.set(sponsorChannelKey, {
+        enabled: choice === 'on', name: sponsorChannelName || sponsorChannelKey,
+      });
+      saveChannelOverrides(sponsorChannelOverrides);
+      sponsorVideoOverride = null;
+      drawChannelOverrides();
+      applySponsorPreference();
     });
-    saveChannelOverrides(sponsorChannelOverrides);
-    sponsorVideoOverride = null;
-    drawChannelOverrides();
-    applySponsorPreference();
-  });
+  }
   sponsorDrawer.querySelector('[data-sponsorblock-close]').addEventListener('click', sponsorDrawerControls.close);
   sponsorOverrideSearch.addEventListener('input', drawChannelOverrides);
   drawChannelOverrides();

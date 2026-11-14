@@ -88,6 +88,7 @@
       </svg>
     </a>
     <nav class="topbar-navigation" aria-label="Archive views" data-i18n-attrs="aria-label:nav.label">
+      <span class="topbar-navigation-thumb" aria-hidden="true"></span>
       <button class="icon-button" type="button" data-main-view="home" aria-label="Home" title="Home" aria-pressed="false"
               data-i18n-attrs="aria-label:nav.home,title:nav.home">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#home"/></svg>
@@ -1547,16 +1548,21 @@
             <button class="settings-split-more" type="button" data-settings-go="background"
                     aria-label="Background play options" data-i18n-attrs="aria-label:player.backgroundMore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button>
           </div>
-          <button class="settings-row settings-link" type="button" data-settings-go="immersive">
-            <span class="settings-menu-icon" aria-hidden="true">
-              <svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 20h16"/>
-                <path d="M20 16v-10a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v10l4 -6c2.667 1.333 5.333 1.333 8 0l4 6"/>
-              </svg>
-            </span>
-            <span data-i18n="player.immersive">Immersive mode</span><span data-immersive-summary>20 seconds</span><span class="settings-row-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg></span>
-          </button>
+          <div class="settings-split">
+            <button class="settings-row settings-link autoplay-row" type="button" role="switch" aria-checked="false" data-immersive-switch>
+              <span class="settings-menu-icon" aria-hidden="true">
+                <svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 20h16"/>
+                  <path d="M20 16v-10a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v10l4 -6c2.667 1.333 5.333 1.333 8 0l4 6"/>
+                </svg>
+              </span>
+              <span data-i18n="player.immersive">Immersive mode</span><span class="settings-split-summary" data-immersive-summary></span>
+              <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+            </button>
+            <button class="settings-split-more" type="button" data-settings-go="immersive"
+                    aria-label="Immersive mode options" data-i18n-attrs="aria-label:player.immersiveMore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button>
+          </div>
           <!-- The warning is its own button, so it sits over the row rather than in the switch. -->
           <div class="settings-glow" data-glow-setting>
             <button class="settings-row settings-link autoplay-row" type="button" role="switch"
@@ -1676,13 +1682,12 @@
             <span data-i18n="sponsor.enableVideo">Enable for this video</span>
             <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
           </button>
-          <label class="settings-field sponsorblock-channel-setting">
-            <span data-sponsorblock-channel-label>This Channel Default</span>
-            <select data-sponsorblock-channel-select aria-label="SponsorBlock setting for this channel" data-i18n-attrs="aria-label:sponsor.channelLabel">
-              <option value="default" data-i18n="sponsor.useGlobal">Use global setting</option><option value="on" data-i18n="sponsor.alwaysEnable">Always enable</option><option value="off" data-i18n="sponsor.alwaysDisable">Always disable</option>
-            </select>
-          </label>
-          <p class="settings-note" data-sponsorblock-source></p>
+          <h3 class="settings-heading" data-sponsorblock-channel-label>This Channel Default</h3>
+          <div class="settings-list" role="radiogroup" aria-label="SponsorBlock setting for this channel" data-i18n-attrs="aria-label:sponsor.channelLabel">
+            <button class="settings-option" type="button" role="radio" aria-checked="false" data-sponsorblock-channel="default"><svg class="settings-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg><span data-i18n="sponsor.useGlobal">Use global setting</span><span></span></button>
+            <button class="settings-option" type="button" role="radio" aria-checked="false" data-sponsorblock-channel="on"><svg class="settings-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg><span data-i18n="sponsor.alwaysEnable">Always enable</span><span></span></button>
+            <button class="settings-option" type="button" role="radio" aria-checked="false" data-sponsorblock-channel="off"><svg class="settings-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg><span data-i18n="sponsor.alwaysDisable">Always disable</span><span></span></button>
+          </div>
         </section>
       </div>
     </div>

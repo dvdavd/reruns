@@ -101,7 +101,11 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     return `${url.pathname}${url.search}${url.hash}`;
   };
 
-  const timeline = createPlayerTimeline({page, element, mediaPlayer, seekInput, chapterMarkers, halfThumb, onAspect: setAspect});
+  // The settings menu is put together further down; until then there is no
+  // page showing to refit.
+  let refitSettingsPage = null;
+  const timeline = createPlayerTimeline({page, element, mediaPlayer, seekInput, chapterMarkers, halfThumb, onAspect: setAspect,
+    refitSettings: name => refitSettingsPage?.(name)});
 
   const watchPage = createWatchPage({page, element, mediaPlayer,
     getActiveItem: () => getItems().find(entry => entry.id === activeId), getItems: () => getItems(),
@@ -169,23 +173,46 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const subtitleDownloadOffers = page.querySelector('[data-subtitle-download]');
 
   let repositionSettings = null;
+  // The menu takes each page's width at once, so the page is measured at the
+  // width it will be shown at, and only then is the change of width animated.
+  let widthAnimation = null;
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   // Each page's width is the stylesheet's to choose, keyed off this attribute,
   // so the menu's proportions are not split between two files.
   const fitSettingsPage = name => {
     const activePage = settingsPopup.querySelector(`[data-settings-page="${name}"]`);
     if (!activePage) return;
+    // A note that changes length mid-slide is refitted too, and must be
+    // measured at the width the slide ends on, not the one it has reached.
+    const sliding = widthAnimation?.playState === 'running' ? widthAnimation : null;
+    const slidTo = sliding?.currentTime;
+    sliding?.finish();
     // The sliding pages overlap in one grid row; measure only the active
     // page so a taller subtitle page cannot leave blank space on the menu.
+    // As a grid item the page keeps its first row's top margin inside it;
+    // laid out as a plain block that margin collapsed out of the page, and
+    // every page but the main one came up two pixels short.
     const pages = [...settingsPages.querySelectorAll('.settings-page')];
     const previousContainerDisplay = settingsPages.style.display;
     const previousDisplays = pages.map(page => page.style.display);
     settingsPages.style.display = 'block';
-    pages.forEach(page => { page.style.display = page === activePage ? 'block' : 'none'; });
+    pages.forEach(page => { page.style.display = page === activePage ? 'flow-root' : 'none'; });
     settingsPages.style.height = `${activePage.scrollHeight}px`;
     settingsPages.style.display = previousContainerDisplay;
     pages.forEach((page, index) => { page.style.display = previousDisplays[index]; });
+    if (sliding) { sliding.currentTime = slidTo; sliding.play(); }
   };
-  const showSettingsPage = name => {
+  const showSettingsPage = (name, {instant = false} = {}) => {
+    // Read before cancelling, so a change of mind mid-slide carries on from
+    // where the menu is rather than jumping back to where it started.
+    const fromWidth = settingsPopup.getBoundingClientRect().width;
+    widthAnimation?.cancel();
+    widthAnimation = null;
+    // The popover is first styled while still on the page it was closed on,
+    // so reopening would otherwise slide back across to the main page and
+    // ease its height down to it. Turning the transitions off until the new
+    // page's styles have been taken in lands it there at once.
+    if (instant) settingsPages.dataset.instant = '';
     settingsPopup.dataset.page = settingsPages.dataset.page = name === 'main' ? '' : name;
     const activePage = settingsPopup.querySelector(`[data-settings-page="${name}"]`);
     if (activePage) {
@@ -195,8 +222,20 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
       // viewer cannot see.
       for (const page of settingsPages.querySelectorAll('.settings-page')) page.inert = page !== activePage;
     }
+    const toWidth = settingsPopup.getBoundingClientRect().width;
+    // Opening starts at the main page's width rather than sliding from the
+    // width the menu was closed at.
+    if (!instant && !reducedMotion.matches && fromWidth && Math.abs(fromWidth - toWidth) > 0.5) {
+      widthAnimation = settingsPopup.animate(
+        {width: [`${fromWidth}px`, `${toWidth}px`]}, {duration: 180, easing: 'ease'});
+    }
+    if (instant) {
+      void settingsPages.offsetHeight;
+      delete settingsPages.dataset.instant;
+    }
     repositionSettings?.();
   };
+  refitSettingsPage = name => { if (settingsPages.dataset.page === name) fitSettingsPage(name); };
   settingsPopup.querySelectorAll('[data-settings-go]').forEach(button => {
     button.addEventListener('click', () => showSettingsPage(button.dataset.settingsGo));
   });
@@ -500,7 +539,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     settingsPopup.style.right = `${Math.max(POPUP_INSET, Math.min(window.innerWidth - gear.right, furthest))}px`;
   };
   repositionSettings = placeSettings;
-  followOpener(settingsPopup, settingsOpen, placeSettings, () => showSettingsPage('main'));
+  followOpener(settingsPopup, settingsOpen, placeSettings, () => showSettingsPage('main', {instant: true}));
 
   /**
    * Calls `ready` once the video shows the frame it opens on. A video that

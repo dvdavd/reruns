@@ -137,9 +137,11 @@
 .format-entry-detail { color: var(--shell-muted); font-size: var(--font-size-control); }
 /* The main page is wider than the pages it leads to, since its rows carry a
    switch or a stepper as well as a chevron. On a phone it takes what the
-   screen has, less the inset the menu is placed with. */
-.settings-popup { width: 372px; max-width: calc(100vw - 20px); box-sizing: border-box; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transition: width 180ms ease; }
-@media (prefers-reduced-motion: reduce) { .settings-popup { transition: none; } }
+   screen has, less the inset the menu is placed with. The change of width is
+   animated from player-controller.js, not transitioned here: a transition
+   left the menu at the old width when the new page was measured, so each page
+   took the height it would have had at the width of the one it came from. */
+.settings-popup { width: 372px; max-width: calc(100vw - 20px); box-sizing: border-box; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
 .settings-popup:is([data-page="autoplay"], [data-page="background"]) { width: 280px; }
 .settings-popup[data-page="subtitles"] { width: 320px; }
 .settings-popup[data-page="sponsorblock"] { width: 300px; }
@@ -153,19 +155,21 @@
      auto column overflowed those pages and cropped their right edge. */
   grid-template-columns: minmax(0, 1fr);
   width: 100%;
-  overflow: hidden;
+  /* Clip rather than hidden: a hidden box can still be scrolled, and a row
+     scrolled into view mid-slide left the page shifted up inside it. */
+  overflow: clip;
   transition: height 180ms ease;
 }
 .settings-page {
   grid-area: 1 / 1;
   box-sizing: border-box;
   width: 100%;
-  padding-bottom: 7px;
   transform: translateX(100%);
   transition: transform 180ms ease;
 }
-.settings-page[data-settings-page="main"] { padding-bottom: 0; }
 .settings-page[data-settings-page="main"] { transform: translateX(0); }
+/* Set for one style pass while reopening, from player-controller.js. */
+.settings-pages[data-instant], .settings-pages[data-instant] .settings-page { transition: none; }
 .settings-pages[data-page="subtitles"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="immersive"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="chat"] .settings-page[data-settings-page="main"],
@@ -229,8 +233,27 @@
 }
 .sponsorblock-toggle-row > .settings-toggle { justify-self: end; }
 .sponsorblock-toggle-row:hover { border-color: transparent; background: none; color: inherit; }
-.sponsorblock-toggle-row:focus-visible { outline: 2px solid #ffffff80; outline-offset: 2px; }
-.settings-menu-icon { display: grid; width: 20px; height: 20px; place-items: center; color: var(--shell-muted); }
+/* Inside the row: the pages clip at their edges, which are the row's, so a
+   ring drawn outside it lost its sides, and its foot on a page's last row. */
+.sponsorblock-toggle-row:focus-visible { outline: 2px solid #ffffff80; outline-offset: -2px; }
+.settings-menu-icon { display: grid; width: 20px; height: 20px; place-items: center; color: var(--shell-muted); transition: color 140ms ease; }
+/* Each setting has its own tint, kept soft against the dark glass: the
+   icon takes it on hover. Hues are spread round the wheel so neighbouring
+   rows never share one; SponsorBlock keeps something of its own red. */
+.settings-speed-row { --settings-tint: oklch(0.78 0.12 135); }
+[data-subtitle-switch] { --settings-tint: oklch(0.78 0.12 245); }
+[data-audio-row] { --settings-tint: oklch(0.78 0.12 175); }
+[data-autoplay-switch] { --settings-tint: oklch(0.78 0.12 315); }
+[data-background-switch] { --settings-tint: oklch(0.78 0.12 210); }
+[data-immersive-switch] { --settings-tint: oklch(0.78 0.12 280); }
+[data-glow-toggle] { --settings-tint: oklch(0.84 0.12 90); }
+[data-chat-settings-row] { --settings-tint: oklch(0.78 0.12 345); }
+[data-stats-toggle] { --settings-tint: oklch(0.78 0.12 55); }
+[data-sponsorblock-player-row] { --settings-tint: oklch(0.7 0.15 22); }
+.settings-row:is(:hover, :focus-visible) > .settings-menu-icon,
+.settings-split:has(> .settings-split-more:is(:hover, :focus-visible)) .settings-menu-icon {
+  color: var(--settings-tint, var(--shell-muted));
+}
 .settings-menu-icon svg { width: 18px; height: 18px; fill: currentColor; }
 .settings-menu-icon svg.settings-menu-outline { fill: none; stroke: currentColor; }
 .settings-link:not(.autoplay-row) > span:nth-child(2) { min-width: 0; }
@@ -295,7 +318,7 @@
    beside it still leads to what can be fetched. */
 .settings-split > .autoplay-row:disabled { cursor: default; }
 .settings-split > .autoplay-row:disabled:hover { background: none; }
-.settings-split > .autoplay-row:disabled .settings-toggle { opacity: .4; }
+.settings-split > .autoplay-row:is(:disabled, [data-empty]) .settings-toggle { opacity: .4; }
 /* Only what the switch alone cannot say: which kind of on it is. */
 .settings-split-summary {
   justify-self: end;
@@ -617,7 +640,6 @@ button.archive-watch-action { padding: 0; background: none; cursor: pointer; }
 .sponsorblock-override-row small { color: var(--shell-muted); }
 .sponsorblock-override-row button { border: 0; background: none; color: var(--shell-muted); font: inherit; font-size: var(--font-size-control); cursor: pointer; }
 .sponsorblock-override-row button:hover { color: var(--shell-fg); }
-.sponsorblock-channel-setting { margin-top: 8px; }
 .sponsorblock-icon { fill: currentColor; stroke: none; }
 .sponsorblock-options { display: grid; gap: 2px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .sponsorblock-options > div { display: grid; gap: 2px; }

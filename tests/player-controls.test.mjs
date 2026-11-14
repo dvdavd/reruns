@@ -18,6 +18,9 @@ class Element extends EventTarget {
     };
   }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  removeAttribute(name) { this.attributes.delete(name); }
+  hasAttribute(name) { return this.attributes.has(name); }
+  toggleAttribute(name, on) { if (on) this.attributes.set(name, ''); else this.attributes.delete(name); }
   querySelector() { return new Element(); }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
@@ -114,6 +117,30 @@ test('caption language follows regional variants and disabling captions redraws 
   assert.equal(subtitleSwitch.attributes.get('aria-checked'), 'true');
   assert.equal(subtitleSummary.textContent, 'English');
   assert.equal(values.get('archive-subtitle-language'), 'en-US');
+});
+
+test('with no subtitles downloaded the menu row leads to the languages instead of switching', t => {
+  environment(t);
+  const video = new Element();
+  video.textTracks = [];
+  const subtitleSwitch = new Element();
+  let opened = 0;
+  const chevron = new Element();
+  chevron.click = () => opened++;
+  subtitleSwitch.parentElement = {querySelector: selector =>
+    selector === '[data-settings-go="subtitles"]' ? chevron : null};
+  const controls = createTrackControls({mediaPlayer: {video},
+    getActiveItem: () => ({parts: [{subtitleTracks: []}]}),
+    subtitleList: new Element(), subtitleSummary: new Element(), subtitleToggle: new Element(), subtitleSwitch,
+    subtitleEmpty: new Element(), subtitleDownloadOffers: new Element(), subtitleDownloads: new Element()});
+  controls.applySubtitles();
+  // Not disabled, so the row is not greyed out, and not a switch either.
+  assert.equal(subtitleSwitch.disabled, undefined);
+  assert.equal(subtitleSwitch.hasAttribute('data-empty'), true);
+  assert.equal(subtitleSwitch.attributes.get('role'), 'button');
+  assert.equal(subtitleSwitch.hasAttribute('aria-checked'), false);
+  subtitleSwitch.dispatchEvent(new Event('click'));
+  assert.equal(opened, 1);
 });
 
 test('the speed row steps through every rate, stops at the ends, and its figure goes back to normal', t => {

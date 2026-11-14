@@ -63,10 +63,18 @@ export function createTrackControls({
     subtitleSummary.textContent = chosen?.label || '';
     subtitleToggle.hidden = subtitleTracks().length === 0;
     subtitleToggle.setAttribute('aria-pressed', String(Boolean(chosen)));
-    // With nothing downloaded there is nothing to turn on; the chevron still
-    // leads to the languages that can be fetched.
-    subtitleSwitch.disabled = subtitleTracks().length === 0;
-    subtitleSwitch.setAttribute('aria-checked', String(Boolean(chosen)));
+    // With nothing downloaded there is nothing to turn on, so the row leads
+    // where the chevron does, to the languages that can be fetched. Disabled,
+    // it read as greyed out and did nothing when pressed.
+    const empty = subtitleTracks().length === 0;
+    subtitleSwitch.toggleAttribute('data-empty', empty);
+    if (empty) {
+      subtitleSwitch.setAttribute('role', 'button');
+      subtitleSwitch.removeAttribute('aria-checked');
+    } else {
+      subtitleSwitch.setAttribute('role', 'switch');
+      subtitleSwitch.setAttribute('aria-checked', String(Boolean(chosen)));
+    }
   }
 
   function languageName(language) {
@@ -197,7 +205,11 @@ export function createTrackControls({
     event.stopPropagation();
     toggleSubtitles();
   });
-  subtitleSwitch.addEventListener('click', toggleSubtitles);
+  subtitleSwitch.addEventListener('click', () => {
+    if (subtitleSwitch.hasAttribute('data-empty')) {
+      subtitleSwitch.parentElement.querySelector('[data-settings-go="subtitles"]')?.click();
+    } else toggleSubtitles();
+  });
   for (const type of ['dblclick']) subtitleToggle.addEventListener(type, event => event.stopPropagation());
   async function fetchSubtitles(row, language, automatic) {
     const item = getActiveItem();
