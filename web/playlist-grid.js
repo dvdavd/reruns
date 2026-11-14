@@ -84,7 +84,10 @@ export function playlistItem(playlist, {favourite = false} = {}) {
 function paintAccents(root, videosFor) {
   root.querySelectorAll(`${CARD_SELECTOR}[data-playlist-card]`).forEach(card => {
     const showing = card.dataset.partIndex || '0';
-    if (card.dataset.accentPart === showing) return;
+    // Painted already, unless a draw since took it off again: the gallery
+    // keeps its cards through a rescan, and the playlist's videos can come
+    // back from it without the accent the card is drawn with.
+    if (card.dataset.accentPart === showing && card.style.getPropertyValue('--card-accent')) return;
     card.dataset.accentPart = showing;
     const image = card.querySelector(CARD_THUMBNAIL_SELECTOR);
     whenImageLoaded(image, () => {

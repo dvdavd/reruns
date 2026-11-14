@@ -15,6 +15,41 @@ export function immersiveOverlapsLogo(rect, logo, scale, drop) {
     && top < logo.bottom && top + rect.height * scale > logo.top;
 }
 
+/**
+ * How far the stage grows (`extra` pixels of height, as `scale`) and comes
+ * down (`drop`) for a stage at `rect` in a window `width` by `height`.
+ * `headBottom` is the foot of the title block as laid out before immersion,
+ * or null where there is none; the title comes down by `drop` too, so it
+ * stays as far under the picture as it was.
+ */
+export function immersiveLayout(rect, {width, height, landscape = false, desktop = true, headBottom = null}) {
+  // On a short landscape screen, use the faded header's space and centre
+  // the picture in the viewport. The text below keeps its layout position.
+  const below = landscape ? 0 : 18;
+  const widthRoom = rect.height * ((width - 24) / rect.width - 1);
+  const heightRoom = Math.min(rect.top + below - 20, landscape ? Infinity : 96);
+  let extra = Math.max(0, Math.min(heightRoom, widthRoom));
+  let drop = Math.min(below, extra);
+  // The picture and the title under it are centred in the window together.
+  // A picture that runs out of height first grows on down into the room
+  // under the title while it has width to; whatever is left either way is
+  // shared out above and below. Centring the picture alone left the title
+  // in a band as wide as the one above or none, and growing from the foot
+  // alone left a wider band under the title than over the picture.
+  if (desktop && headBottom != null) {
+    let top = rect.top - extra + drop;
+    let bottom = height - (headBottom + drop);
+    if (bottom > top) {
+      const grow = Math.max(0, Math.min(bottom - top, widthRoom - extra, 96 - extra));
+      extra += grow;
+      drop += grow;
+      bottom -= grow;
+    }
+    drop += (bottom - top) / 2;
+  }
+  return {extra, scale: 1 + extra / rect.height, drop};
+}
+
 /** Keep immersion local to the watch page; fullscreen and the mini player
  * already have their own layout and control visibility. */
 export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
@@ -98,30 +133,16 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
     [...page.querySelectorAll('.archive-watch-actions > button, .archive-watch-actions > a')]
       .filter(node => node.getClientRects().length)
       .forEach((node, index) => node.style.setProperty('--immersive-delay', `${index * 65}ms`));
-    // On a short landscape screen, use the faded header's space and centre
-    // the picture in the viewport. The text below keeps its layout position.
     const landscape = matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-    const below = landscape ? 0 : 18;
-    const widthRoom = rect.height * ((window.innerWidth - 24) / rect.width - 1);
-    const heightRoom = Math.min(rect.top + below - 20, landscape ? Infinity : 96);
-    const extra = Math.max(0, Math.min(heightRoom, widthRoom));
-    const scale = 1 + extra / rect.height;
-    // A film wider than the window's shape runs out of width before height,
-    // and grown from its foot it sat at the top with a band of empty page
-    // under the title. Such a picture comes down to the middle of the window
-    // instead, the title following it, so long as the title stays in view.
-    let centring = 0;
     const desktop = !landscape && !matchMedia('(max-width: 700px)').matches;
     const head = page.querySelector('.archive-watch-head');
-    if (desktop && widthRoom < heightRoom && head) {
-      const top = rect.top - extra + Math.min(below, extra);
-      const room = window.innerHeight - 16 - (head.getBoundingClientRect().bottom + below);
-      centring = Math.max(0, Math.min((window.innerHeight - rect.height - extra) / 2 - top, room));
-    }
-    const drop = Math.min(below, extra) + centring;
+    const {extra, scale, drop} = immersiveLayout(rect, {
+      width: window.innerWidth, height: window.innerHeight, landscape, desktop,
+      headBottom: head?.getBoundingClientRect().bottom ?? null,
+    });
     stage.style.setProperty('--immersive-scale', String(scale));
     stage.style.setProperty('--immersive-drop', `${drop}px`);
-    head?.style.setProperty('--immersive-centring', `${centring}px`);
+    head?.style.setProperty('--immersive-drop', `${drop}px`);
     const offset = landscape
       ? (window.innerHeight - rect.height - extra) / 2 - (rect.top - extra)
       : 0;

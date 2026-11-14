@@ -8,7 +8,7 @@ const SUBTITLE_KEY = 'archive-subtitle-language';
 export function createTrackControls({
   mediaPlayer, provider, getActiveItem, onFormatChange,
   report, settingsPopup, subtitleList, subtitleSummary,
-  subtitleEmpty, subtitleDownloads, subtitleDownloadOffers, subtitleToggle,
+  subtitleEmpty, subtitleDownloads, subtitleDownloadOffers, subtitleToggle, subtitleSwitch,
   audioRow, audioList, audioSummary, formatPopup,
   formatEntries, formatOpen, formatLabelNode,
 }) {
@@ -59,9 +59,14 @@ export function createTrackControls({
     for (const row of subtitleList.children) {
       row.setAttribute('aria-checked', String(row.dataset.language === (chosen?.language || '')));
     }
-    subtitleSummary.textContent = chosen?.label || t('common.off');
+    // The switch says on or off, so the summary only names the language.
+    subtitleSummary.textContent = chosen?.label || '';
     subtitleToggle.hidden = subtitleTracks().length === 0;
     subtitleToggle.setAttribute('aria-pressed', String(Boolean(chosen)));
+    // With nothing downloaded there is nothing to turn on; the chevron still
+    // leads to the languages that can be fetched.
+    subtitleSwitch.disabled = subtitleTracks().length === 0;
+    subtitleSwitch.setAttribute('aria-checked', String(Boolean(chosen)));
   }
 
   function languageName(language) {
@@ -181,12 +186,18 @@ export function createTrackControls({
     const item = getActiveItem();
     drawSubtitles(item);
   }
-  subtitleToggle.addEventListener('click', event => {
-    event.stopPropagation();
+  /** Off, or back on in the language last chosen, as the bar's CC button
+   *  and the menu's switch both do. */
+  function toggleSubtitles() {
     const tracks = subtitleTracks();
     const on = Boolean(chosenTrack(tracks));
     chooseSubtitles(on ? '' : chosenTrack(tracks, lastSubtitleLanguage)?.language || tracks[0]?.language || '');
+  }
+  subtitleToggle.addEventListener('click', event => {
+    event.stopPropagation();
+    toggleSubtitles();
   });
+  subtitleSwitch.addEventListener('click', toggleSubtitles);
   for (const type of ['dblclick']) subtitleToggle.addEventListener(type, event => event.stopPropagation());
   async function fetchSubtitles(row, language, automatic) {
     const item = getActiveItem();

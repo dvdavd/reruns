@@ -762,7 +762,8 @@ body.watch-open.is-player-immersive .archive-watch-stage {
 }
 body.watch-open.is-player-immersive .archive-watch-head {
   opacity: .45;
-  margin-top: calc(32px + var(--immersive-centring, 0px));
+  /* Its own 14px, and as far again as the picture's foot comes down. */
+  margin-top: calc(14px + var(--immersive-drop, 18px));
   transition: opacity 800ms ease, margin-top 900ms cubic-bezier(.22,.8,.25,1) 350ms;
 }
 body.watch-open.is-player-immersive .archive-watch-actions {

@@ -85,6 +85,8 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     submenuCloseTimer = null;
   }
   function cancelHide() {
+    // A close taken back leaves the panel open, so its row says so again.
+    if (hideTimer !== null && advancedPanel.matches(':popover-open')) opener.setAttribute('aria-expanded', 'true');
     if (hideTimer !== null) clearTimeout(hideTimer);
     hideTimer = null;
     advancedPanel.classList.remove('is-closing');
@@ -100,6 +102,10 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     if (hideTimer !== null) return;
     advancedPanel.classList.add('is-closing');
     advancedPanel.inert = true;
+    // The row stops saying it is open as the panel starts to fade, not after:
+    // a card menu lights every expanded row once the hovered one is expanded
+    // too, so moving on to another submenu relit this row until the fade ended.
+    opener.setAttribute('aria-expanded', 'false');
     hideTimer = setTimeout(() => {
       advancedPanel.hidePopover();
       cancelHide();

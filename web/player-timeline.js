@@ -170,8 +170,9 @@ export function createPlayerTimeline({
   const sponsorOverrideEmpty = sponsorDrawer.querySelector('[data-sponsorblock-overrides-empty]');
   const sponsorOverrideSearch = sponsorDrawer.querySelector('[data-sponsorblock-overrides-search]');
   const sponsorPlayerRow = page.querySelector('[data-sponsorblock-player-row]');
-  const sponsorVideoToggle = page.querySelector('[data-sponsorblock-video-toggle]');
-  const sponsorSummary = page.querySelector('[data-sponsorblock-summary]');
+  // The menu's row and its SponsorBlock page each have the switch for this
+  // video, and both say the same.
+  const sponsorVideoToggles = page.querySelectorAll('[data-sponsorblock-video-toggle]');
   const sponsorChannelSelect = page.querySelector('[data-sponsorblock-channel-select]');
   const sponsorChannelLabel = page.querySelector('[data-sponsorblock-channel-label]');
   const sponsorSource = page.querySelector('[data-sponsorblock-source]');
@@ -215,8 +216,7 @@ export function createPlayerTimeline({
   function drawSponsorEnabled() {
     sponsorGlobalToggle.setAttribute('aria-checked', String(sponsorGlobalEnabled));
     sponsorOptions.disabled = !sponsorGlobalEnabled;
-    sponsorVideoToggle.setAttribute('aria-checked', String(sponsorEnabled));
-    sponsorSummary.textContent = sponsorEnabled ? t('common.on') : t('common.off');
+    for (const toggle of sponsorVideoToggles) toggle.setAttribute('aria-checked', String(sponsorEnabled));
     const channel = sponsorChannelOverrides.get(sponsorChannelKey);
     sponsorChannelSelect.value = channel ? (channel.enabled ? 'on' : 'off') : 'default';
     sponsorChannelLabel.textContent = t('sponsor.channelDefault', {name: sponsorChannelName || t('sponsor.this')});
@@ -236,10 +236,12 @@ export function createPlayerTimeline({
     saveSponsorBlockEnabled(sponsorGlobalEnabled);
     applySponsorPreference();
   });
-  sponsorVideoToggle.addEventListener('click', () => {
-    sponsorVideoOverride = !sponsorEnabled;
-    applySponsorPreference();
-  });
+  for (const toggle of sponsorVideoToggles) {
+    toggle.addEventListener('click', () => {
+      sponsorVideoOverride = !sponsorEnabled;
+      applySponsorPreference();
+    });
+  }
   sponsorChannelSelect.addEventListener('change', () => {
     if (sponsorChannelSelect.value === 'default') sponsorChannelOverrides.delete(sponsorChannelKey);
     else sponsorChannelOverrides.set(sponsorChannelKey, {

@@ -148,18 +148,22 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const settingsPopup = page.querySelector('#watch-settings-popup');
   const settingsPages = page.querySelector('[data-settings-pages]');
   const subtitleList = page.querySelector('[data-subtitle-list]');
-  const speedSlider = page.querySelector('[data-playback-speed]');
-  const speedValue = page.querySelector('[data-speed-value]');
-  const speedPresets = page.querySelector('[data-speed-presets]');
   const speedSummary = page.querySelector('[data-speed-summary]');
+  const speedSteps = page.querySelectorAll('[data-speed-step]');
   const subtitleSummary = page.querySelector('[data-subtitle-summary]');
+  const subtitleSwitch = page.querySelector('[data-subtitle-switch]');
   const audioRow = page.querySelector('[data-audio-row]');
   const audioList = page.querySelector('[data-audio-list]');
   const audioSummary = page.querySelector('[data-audio-summary]');
   const subtitleEmpty = page.querySelector('[data-subtitle-empty]');
-  const autoplayToggle = page.querySelector('[data-autoplay-toggle]');
+  const autoplayOptions = page.querySelector('[data-autoplay-options]');
+  const autoplaySummary = page.querySelector('[data-autoplay-summary]');
+  const autoplaySwitch = page.querySelector('[data-autoplay-switch]');
+  const autoplayNote = page.querySelector('[data-autoplay-note]');
+  const autoplayFromStart = page.querySelector('[data-autoplay-from-start]');
   const backgroundOptions = page.querySelector('[data-background-options]');
   const backgroundSummary = page.querySelector('[data-background-summary]');
+  const backgroundSwitch = page.querySelector('[data-background-switch]');
   const backgroundNote = page.querySelector('[data-background-note]');
   const subtitleDownloads = page.querySelector('[data-subtitle-downloads]');
   const subtitleDownloadOffers = page.querySelector('[data-subtitle-download]');
@@ -292,7 +296,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const trackControls = createTrackControls({
     mediaPlayer, provider, getActiveItem: () => getItems().find(entry => entry.id === activeId),
     onFormatChange: drawFileFacts, report, settingsPopup,
-    subtitleList, subtitleSummary, subtitleEmpty, subtitleDownloads, subtitleDownloadOffers, subtitleToggle,
+    subtitleList, subtitleSummary, subtitleEmpty, subtitleDownloads, subtitleDownloadOffers, subtitleToggle, subtitleSwitch,
     audioRow, audioList, audioSummary, formatPopup, formatEntries, formatOpen, formatLabelNode,
   });
   const {drawFormats, drawSubtitles, applySubtitles} = trackControls;
@@ -320,7 +324,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     event.stopPropagation();
   }, {capture: true});
 
-  const playbackSpeed = createPlaybackSpeed({element, mediaPlayer, speedSlider, speedValue, speedPresets, speedSummary});
+  const playbackSpeed = createPlaybackSpeed({element, mediaPlayer, speedSummary, speedSteps});
 
   const inAudioBar = () => page.classList.contains('is-audio-bar') && Boolean(miniItem);
   const playlistController = createPlayerPlaylist({
@@ -328,15 +332,19 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     getPlaylistId: () => activePlaylistId, getMiniItem: () => miniItem,
     inAudioBar, advanceMini, open,
     togglePlaylistDirection: (...args) => togglePlaylistDirection?.(...args),
-    autoplayToggle, playlistPopup, playlistTitle, playlistNote, playlistEntries,
+    autoplayOptions, autoplaySummary, autoplaySwitch, autoplayNote, autoplayFromStart, fitSettingsPage, settingsPages,
+    playlistPopup, playlistTitle, playlistNote, playlistEntries,
     playlistReverse, playlistOpen, playlistPosition,
   });
   const {drawPlaylist, stopCountdown, audioStep} = playlistController;
 
-  /** Autoplay's step for the corner player: the next video, still in the corner. */
-  async function advanceMini(entry) {
+  /**
+   * Autoplay's step for the corner player: the next video, still in the
+   * corner. `fromStart` sets aside where it was left off, as open's does.
+   */
+  async function advanceMini(entry, {fromStart = false} = {}) {
     if (entry.id === miniItem?.id) return;
-    await loadIntoCorner(entry);
+    await loadIntoCorner(entry, {fromStart});
   }
 
   /**
@@ -346,7 +354,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
    * and the next song of an album picking up where it was once left off would
    * be a jolt halfway into it.
    */
-  async function loadIntoCorner(entry) {
+  async function loadIntoCorner(entry, {fromStart = false} = {}) {
     miniItem = entry;
     page.classList.toggle('is-audio-bar', inBar(entry));
     timeline.setItem(entry);
@@ -355,7 +363,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     drawRelated(entry);
     applyAspect(aspectOf(entry));
     drawAudioBar(entry);
-    if (isListened(entry)) provider.resumeFrom(0);
+    if (fromStart || isListened(entry)) provider.resumeFrom(0);
     try {
       const loaded = await mediaPlayer.load(entry, 0);
       if (loaded && miniItem === entry) mediaPlayer.play();
@@ -393,33 +401,50 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   // the flow it is written in. It sits inside the player like a panel of the
   // control bar: the bar's own 10px inset from the player's edges, the same
   // gap above the bar, lined up under its button as far as the player's
-  // edges allow, and never taller than the room above the bar.
+  // edges allow, and never taller than the room beside the bar.
   const POPUP_INSET = 10;
-  const placePopup = (popup, opener, widest) => () => {
+  /**
+   * Puts a bar popup against the bar, on the side with more room. Above it as
+   * a rule; but with the bar under the picture (a phone, see the stylesheet)
+   * the player sits near the top of the screen, leaving a cramped strip above
+   * and the page's height free below, so there it opens downwards instead.
+   * Either way it is held by the edge against the bar: held by the other, a
+   * popup that changed height while open drifted off the bar.
+   */
+  const placeAgainstBar = popup => {
     const player = element.getBoundingClientRect();
     const bar = controlBar.getBoundingClientRect();
+    // With the bar under the picture there is no reason to stop at the
+    // picture's top edge: the panel may rise over the page above it, as far
+    // as the viewport allows.
+    const barBelow = window.matchMedia('(max-width: 700px)').matches
+      && document.fullscreenElement !== element;
+    const roomAbove = bar.top - (barBelow ? 0 : player.top);
+    const roomBelow = window.innerHeight - bar.bottom;
+    if (barBelow && roomBelow > roomAbove) {
+      popup.style.maxHeight = `${Math.max(0, roomBelow - 2 * POPUP_INSET)}px`;
+      popup.style.bottom = 'auto';
+      popup.style.top = `${bar.bottom + POPUP_INSET}px`;
+    } else {
+      popup.style.maxHeight = `${Math.max(0, roomAbove - 2 * POPUP_INSET)}px`;
+      popup.style.top = 'auto';
+      popup.style.bottom = `${Math.max(POPUP_INSET, window.innerHeight - bar.top + POPUP_INSET)}px`;
+    }
+  };
+  const placePopup = (popup, opener, widest) => () => {
+    const player = element.getBoundingClientRect();
     const anchor = opener.getBoundingClientRect();
     const room = player.width - 2 * POPUP_INSET;
     // A popup that resizes as it is used declares each width in CSS and is
     // given no width here, only the player's edges as a limit.
     if (widest) popup.style.width = `${Math.min(widest, room)}px`;
     popup.style.maxWidth = `${room}px`;
-    // With the bar under the picture (a phone, see the stylesheet) there is
-    // no reason to stop at the picture's top edge: the panel may rise over
-    // the page above it, as far as the viewport allows.
-    const barBelow = window.matchMedia('(max-width: 700px)').matches
-      && document.fullscreenElement !== element;
-    const ceiling = barBelow ? 0 : player.top;
-    popup.style.maxHeight = `${Math.max(0, bar.top - ceiling - 2 * POPUP_INSET)}px`;
+    placeAgainstBar(popup);
     const {width} = popup.getBoundingClientRect();
     popup.style.left = `${Math.max(player.left + POPUP_INSET, Math.min(
       player.right - width - POPUP_INSET,
       anchor.left + anchor.width / 2 - width / 2,
     ))}px`;
-    // Held by the bottom edge, the one against the bar: held by its top, a
-    // popup that changed height while open drifted off the bar.
-    popup.style.top = 'auto';
-    popup.style.bottom = `${window.innerHeight - bar.top + POPUP_INSET}px`;
   };
   /**
    * Keeps a bar popover against the button it opened from, and follows it
@@ -464,12 +489,15 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const placeSettingsBase = placePopup(settingsPopup, settingsOpen, null);
   const placeSettings = () => {
     placeSettingsBase();
-    const player = element.getBoundingClientRect();
-    const bar = controlBar.getBoundingClientRect();
+    // The menu's right edge lines up with the gear's rather than the
+    // player's. Firefox's picture-in-picture button sits on the video's right
+    // edge and takes clicks there through anything translucent over it, so a
+    // menu reaching the edge had its chevrons open picture-in-picture
+    // instead. A narrow screen still gives the menu the width it needs.
+    const gear = settingsOpen.getBoundingClientRect();
+    const furthest = window.innerWidth - settingsPopup.offsetWidth - POPUP_INSET;
     settingsPopup.style.left = 'auto';
-    settingsPopup.style.right = `${Math.max(POPUP_INSET, window.innerWidth - player.right + POPUP_INSET)}px`;
-    settingsPopup.style.top = 'auto';
-    settingsPopup.style.bottom = `${Math.max(POPUP_INSET, window.innerHeight - bar.top + POPUP_INSET)}px`;
+    settingsPopup.style.right = `${Math.max(POPUP_INSET, Math.min(window.innerWidth - gear.right, furthest))}px`;
   };
   repositionSettings = placeSettings;
   followOpener(settingsPopup, settingsOpen, placeSettings, () => showSettingsPage('main'));
@@ -599,6 +627,9 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     page.classList.remove('is-holding-poster');
     if (switching) fadeInWhenReady(item.id);
     else if (!history) holdPosterUntilReady(item.id);
+    // Autoplay can ask for the top of the video, whatever was saved for it,
+    // so a run watched hands-free never drops in partway through one.
+    if (options.fromStart) provider.resumeFrom(0);
     try {
       const loaded = await mediaPlayer.load(item, 0);
       if (!loaded) releaseZoom();
@@ -741,7 +772,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const background = createBackgroundPlayer({
     page, mediaPlayer, audioBar, getMiniItem: () => miniItem, getPlaylistId: () => activePlaylistId,
     playlistController, inAudioBar, advanceMini, restoreMini, closeMini, close, urlFor, linkTo, leaveBar,
-    fitSettingsPage, settingsPages, backgroundOptions, backgroundSummary, backgroundNote, backgroundButton,
+    fitSettingsPage, settingsPages, backgroundOptions, backgroundSummary, backgroundSwitch, backgroundNote, backgroundButton,
   });
   const {inBar, drawMiniControls, drawAudioBar} = background;
 

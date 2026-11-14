@@ -1504,33 +1504,49 @@
          aria-label="Playback settings" data-i18n-attrs="aria-label:player.settingsLabel">
       <div class="settings-pages" data-settings-pages>
         <section class="settings-page" data-settings-page="main">
-          <button class="settings-row settings-link" type="button" data-settings-go="speed">
-            <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"/><path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"/></svg></span>
-            <span data-i18n="player.speed">Playback speed</span><span data-speed-summary>Normal</span>
-          </button>
-          <button class="settings-row settings-link" type="button" data-settings-go="subtitles">
-            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3l12 0"/><path d="M7 15h5"/><path d="M15 15h2"/><path d="M17 12h-3"/><path d="M11 12h-1"/></svg></span>
-            <span data-i18n="player.subtitles">Subtitles</span><span data-subtitle-summary>Off</span>
-          </button>
+          <div class="settings-split">
+            <div class="settings-row settings-speed-row">
+              <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"/><path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"/></svg></span>
+              <span data-i18n="player.speed">Playback speed</span>
+              <span class="settings-stepper">
+                <button type="button" data-speed-step="-1" aria-label="Slower" data-i18n-attrs="aria-label:player.slower"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+                <button class="settings-stepper-value" type="button" data-speed-summary
+                        title="Drag to change, or click for normal speed" data-i18n-attrs="title:player.speedDrag">Normal</button>
+                <button type="button" data-speed-step="1" aria-label="Faster" data-i18n-attrs="aria-label:player.faster"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+              </span>
+            </div>
+          </div>
+          <div class="settings-split">
+            <button class="settings-row settings-link autoplay-row" type="button" role="switch" aria-checked="false" data-subtitle-switch>
+              <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3l12 0"/><path d="M7 15h5"/><path d="M15 15h2"/><path d="M17 12h-3"/><path d="M11 12h-1"/></svg></span>
+              <span data-i18n="player.subtitles">Subtitles</span><span class="settings-split-summary" data-subtitle-summary></span>
+              <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+            </button>
+            <button class="settings-split-more" type="button" data-settings-go="subtitles"
+                    aria-label="Subtitle languages" data-i18n-attrs="aria-label:player.subtitlesMore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button>
+          </div>
           <button class="settings-row settings-link" type="button" data-settings-go="audio" data-audio-row hidden>
             <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8a5 5 0 0 1 0 8"/><path d="M17.7 5a9 9 0 0 1 0 14"/><path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"/></svg></span>
-            <span data-i18n="player.audio">Audio</span><span data-audio-summary></span>
+            <span data-i18n="player.audio">Audio</span><span data-audio-summary></span><span class="settings-row-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg></span>
           </button>
-          <button class="settings-row settings-link autoplay-row" type="button" role="switch"
-                  aria-checked="false" aria-label="Autoplay the next part" data-i18n-attrs="aria-label:player.autoplayLabel"
-                  data-autoplay-setting data-autoplay-toggle>
-            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8h-14"/><path d="M5 12h7"/><path d="M10 16h-5"/><circle cx="18" cy="17" r="4.5" fill="currentColor" stroke="none"/><text x="18" y="19.2" text-anchor="middle" font-size="6.5" font-weight="700" font-family="Arial, sans-serif" fill="#171717" stroke="none">A</text></svg></span>
-            <span data-i18n="player.autoplay">Autoplay</span>
-            <span class="archive-autoplay settings-toggle" aria-hidden="true">
-              <span class="archive-autoplay-track" aria-hidden="true">
-                <span class="archive-autoplay-knob"></span>
-              </span>
-            </span>
-          </button>
-          <button class="settings-row settings-link" type="button" data-settings-go="background">
-            <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4"/><path d="M14 15a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1l0 -3"/></svg></span>
-            <span data-i18n="player.background">Background play</span><span data-background-summary>Off</span>
-          </button>
+          <div class="settings-split">
+            <button class="settings-row settings-link autoplay-row" type="button" role="switch" aria-checked="false" data-autoplay-switch>
+              <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8h-14"/><path d="M5 12h7"/><path d="M10 16h-5"/><circle cx="18" cy="17" r="4.5" fill="currentColor" stroke="none"/><text x="18" y="19.2" text-anchor="middle" font-size="6.5" font-weight="700" font-family="Arial, sans-serif" fill="#171717" stroke="none">A</text></svg></span>
+              <span data-i18n="player.autoplay">Autoplay</span><span class="settings-split-summary" data-autoplay-summary></span>
+              <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+            </button>
+            <button class="settings-split-more" type="button" data-settings-go="autoplay"
+                    aria-label="Autoplay options" data-i18n-attrs="aria-label:player.autoplayMore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button>
+          </div>
+          <div class="settings-split">
+            <button class="settings-row settings-link autoplay-row" type="button" role="switch" aria-checked="false" data-background-switch>
+              <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4"/><path d="M14 15a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1l0 -3"/></svg></span>
+              <span data-i18n="player.background">Background play</span><span class="settings-split-summary" data-background-summary></span>
+              <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+            </button>
+            <button class="settings-split-more" type="button" data-settings-go="background"
+                    aria-label="Background play options" data-i18n-attrs="aria-label:player.backgroundMore"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button>
+          </div>
           <button class="settings-row settings-link" type="button" data-settings-go="immersive">
             <span class="settings-menu-icon" aria-hidden="true">
               <svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1539,7 +1555,7 @@
                 <path d="M20 16v-10a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v10l4 -6c2.667 1.333 5.333 1.333 8 0l4 6"/>
               </svg>
             </span>
-            <span data-i18n="player.immersive">Immersive mode</span><span data-immersive-summary>20 seconds</span>
+            <span data-i18n="player.immersive">Immersive mode</span><span data-immersive-summary>20 seconds</span><span class="settings-row-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg></span>
           </button>
           <!-- The warning is its own button, so it sits over the row rather than in the switch. -->
           <div class="settings-glow" data-glow-setting>
@@ -1562,7 +1578,7 @@
           </div>
           <button class="settings-row settings-link" type="button" data-settings-go="chat" data-chat-settings-row hidden>
             <span class="settings-menu-icon" aria-hidden="true"><svg class="settings-menu-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"/><path d="M15 4l0 16"/></svg></span>
-            <span data-i18n="watch.chat">Chat replay</span><span data-chat-position-summary>Automatic</span>
+            <span data-i18n="watch.chat">Chat replay</span><span data-chat-position-summary>Automatic</span><span class="settings-row-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg></span>
           </button>
           <button class="settings-row settings-link autoplay-row" type="button" role="switch"
                   aria-checked="false" aria-label="Show playback statistics" data-i18n-attrs="aria-label:stats.toggleLabel"
@@ -1575,22 +1591,15 @@
               </span>
             </span>
           </button>
-          <button class="settings-row settings-link" type="button" data-settings-go="sponsorblock" data-sponsorblock-player-row hidden>
-            <span class="settings-menu-icon" aria-hidden="true"><svg class="sponsorblock-icon" viewBox="0 0 512 512"><use href="#sponsorblock-icon"/></svg></span>
-            <span>SponsorBlock</span><span data-sponsorblock-summary>On</span>
-          </button>
-        </section>
-        <section class="settings-page" data-settings-page="speed" aria-label="Playback speed" data-i18n-attrs="aria-label:player.speed">
-          <div class="playlist-popup-head settings-page-head">
-            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+          <div class="settings-split" data-sponsorblock-player-row hidden>
+            <button class="settings-row settings-link autoplay-row" type="button" role="switch" aria-checked="false" data-sponsorblock-video-toggle>
+              <span class="settings-menu-icon" aria-hidden="true"><svg class="sponsorblock-icon" viewBox="0 0 512 512"><use href="#sponsorblock-icon"/></svg></span>
+              <span>SponsorBlock</span><span class="settings-split-summary"></span>
+              <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
             </button>
-            <h2 data-i18n="player.speed">Playback speed</h2>
+            <button class="settings-split-more" type="button" data-settings-go="sponsorblock"
+                    aria-label="SponsorBlock options" data-i18n-attrs="aria-label:sponsor.more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button>
           </div>
-          <output class="settings-speed-value" data-speed-value>Normal</output>
-          <input class="settings-speed-slider" type="range" data-playback-speed
-                 min="0" max="0" step="1" value="0" aria-label="Playback speed" data-i18n-attrs="aria-label:player.speed">
-          <div class="settings-speed-presets" data-speed-presets></div>
         </section>
         <section class="settings-page" data-settings-page="subtitles" aria-label="Subtitles" data-i18n-attrs="aria-label:player.subtitles">
           <div class="playlist-popup-head settings-page-head">
@@ -1632,6 +1641,21 @@
             <h2 data-i18n="watch.chat">Chat replay</h2>
           </div>
           <div class="settings-list" data-chat-position-options role="radiogroup" aria-label="Where the chat replay goes" data-i18n-attrs="aria-label:watch.chat.position"></div>
+        </section>
+        <section class="settings-page" data-settings-page="autoplay" aria-label="Autoplay" data-i18n-attrs="aria-label:player.autoplay">
+          <div class="playlist-popup-head settings-page-head">
+            <button type="button" aria-label="Back to settings" data-i18n-attrs="aria-label:player.back" data-settings-back>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7l7 7"/></svg>
+            </button>
+            <h2 data-i18n="player.autoplay">Autoplay</h2>
+          </div>
+          <div class="settings-list" data-autoplay-options role="radiogroup" aria-label="Play another video when this one ends" data-i18n-attrs="aria-label:player.autoplayLabel"></div>
+          <p class="settings-note" data-autoplay-note></p>
+          <button class="settings-row autoplay-row sponsorblock-toggle-row" type="button" role="switch"
+                  aria-checked="false" data-autoplay-from-start>
+            <span data-i18n="player.autoplayFromStart">Play from start</span>
+            <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+          </button>
         </section>
         <section class="settings-page" data-settings-page="background" aria-label="Background play" data-i18n-attrs="aria-label:player.background">
           <div class="playlist-popup-head settings-page-head">

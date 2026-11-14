@@ -472,7 +472,7 @@
    yellow keeps its source lightness as before. */
 :root[data-theme="light"] :is(.topbar-navigation .icon-button, .archive-watch-action,
     .channel-profile-favourite, .playlist-popup-reverse,
-    .settings-speed-presets button, .customisation-choices label,
+    .customisation-choices label,
     .library-row-action, .libraries-add, .profile-add, .profile-save,
     .topbar-go button, .topbar-browse, .sponsorblock-modes button, .gallery-layout-control button,
     .statistics-ranking button,
@@ -487,7 +487,7 @@
 }
 :root[data-theme="light"] :is(.topbar-navigation .icon-button, .customisation-choices label,
     .archive-watch-action, .channel-profile-favourite,
-    .sponsorblock-modes button, .settings-speed-presets button, .playlist-popup-reverse,
+    .sponsorblock-modes button, .playlist-popup-reverse,
     .statistics-ranking button,
     .library-row-action, .libraries-add, .profile-add, .profile-save,
     .topbar-go button, .topbar-browse,

@@ -135,9 +135,12 @@
 }
 .format-entry-name { overflow: hidden; font-size: var(--font-size-body); text-overflow: ellipsis; white-space: nowrap; }
 .format-entry-detail { color: var(--shell-muted); font-size: var(--font-size-control); }
-.settings-popup { width: 280px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transition: width 180ms ease; }
+/* The main page is wider than the pages it leads to, since its rows carry a
+   switch or a stepper as well as a chevron. On a phone it takes what the
+   screen has, less the inset the menu is placed with. */
+.settings-popup { width: 372px; max-width: calc(100vw - 20px); box-sizing: border-box; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transition: width 180ms ease; }
 @media (prefers-reduced-motion: reduce) { .settings-popup { transition: none; } }
-.settings-popup[data-page="speed"] { width: 236px; }
+.settings-popup:is([data-page="autoplay"], [data-page="background"]) { width: 280px; }
 .settings-popup[data-page="subtitles"] { width: 320px; }
 .settings-popup[data-page="sponsorblock"] { width: 300px; }
 .settings-popup[data-page="immersive"] { width: 236px; }
@@ -145,6 +148,10 @@
 .settings-popup .playlist-popup-head { margin-bottom: 4px; }
 .settings-pages {
   display: grid;
+  /* One column the menu's width, not the widest page's: the pages share it,
+     and the main page's rows cannot shrink to a narrower page's width, so an
+     auto column overflowed those pages and cropped their right edge. */
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
   overflow: hidden;
   transition: height 180ms ease;
@@ -159,20 +166,19 @@
 }
 .settings-page[data-settings-page="main"] { padding-bottom: 0; }
 .settings-page[data-settings-page="main"] { transform: translateX(0); }
-.settings-pages[data-page="speed"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="subtitles"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="immersive"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="chat"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="background"] .settings-page[data-settings-page="main"],
+.settings-pages[data-page="autoplay"] .settings-page[data-settings-page="main"],
 .settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="main"] { transform: translateX(-100%); }
-.settings-pages[data-page="speed"] .settings-page[data-settings-page="speed"] { transform: translateX(0); }
-.settings-pages[data-page="subtitles"] .settings-page[data-settings-page="speed"] { transform: translateX(-100%); }
 .settings-pages[data-page="subtitles"] .settings-page[data-settings-page="subtitles"] { transform: translateX(0); }
-.settings-pages[data-page="sponsorblock"] :is(.settings-page[data-settings-page="speed"], .settings-page[data-settings-page="subtitles"]) { transform: translateX(-100%); }
+.settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="subtitles"] { transform: translateX(-100%); }
 .settings-pages[data-page="sponsorblock"] .settings-page[data-settings-page="sponsorblock"] { transform: translateX(0); }
 .settings-pages[data-page="immersive"] .settings-page[data-settings-page="immersive"] { transform: translateX(0); }
 .settings-pages[data-page="chat"] .settings-page[data-settings-page="chat"] { transform: translateX(0); }
 .settings-pages[data-page="background"] .settings-page[data-settings-page="background"] { transform: translateX(0); }
+.settings-pages[data-page="autoplay"] .settings-page[data-settings-page="autoplay"] { transform: translateX(0); }
 /* The heading needs air under it, or the first control reads as part of the
    head rather than as the page's answer to it. */
 .settings-popup .settings-page-head { margin-bottom: 14px; }
@@ -228,7 +234,7 @@
 .settings-menu-icon svg { width: 18px; height: 18px; fill: currentColor; }
 .settings-menu-icon svg.settings-menu-outline { fill: none; stroke: currentColor; }
 .settings-link:not(.autoplay-row) > span:nth-child(2) { min-width: 0; }
-.settings-row[hidden], .settings-field[hidden], .settings-note[hidden], .settings-list[hidden], [data-subtitle-download][hidden] { display: none; }
+.settings-split[hidden], .settings-row[hidden], .settings-field[hidden], .settings-note[hidden], .settings-list[hidden], [data-subtitle-download][hidden] { display: none; }
 .settings-link { width: 100%; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
 .autoplay-row { appearance: none; font: inherit; }
 /* The glow's warning lies over its row, just before the switch (the row's
@@ -255,8 +261,121 @@
 .settings-glow-warning .icon { width: 18px; height: 18px; }
 .settings-glow-warning:is(:hover, :focus-visible) { background: #ffffff1f; }
 .settings-glow-warning:focus-visible { outline: 2px solid #ffffff80; outline-offset: 1px; }
-.settings-link:not(.autoplay-row) > span:last-child { color: var(--shell-muted); }
-.settings-link:not(.autoplay-row) > span:last-child::after { content: '  ›'; color: inherit; }
+/* A row that only leads to its page keeps its value in the column the
+   switches stand in, and its chevron in the split rows' chevron column. */
+.settings-link:not(.autoplay-row) { position: relative; padding-right: 46px; }
+.settings-link:not(.autoplay-row) > span:nth-child(3) {
+  overflow: hidden;
+  color: var(--shell-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-row-chevron {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 38px;
+  place-items: center;
+  color: var(--shell-muted);
+}
+.settings-row-chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* A row that does its commonest job in place, and keeps the rest of its
+   choices a page away behind the chevron. The switch and the chevron are
+   sibling buttons, since a switch cannot hold another button, and each runs
+   the row's full height so either is easy to hit by touch. */
+.settings-split { display: flex; align-items: stretch; }
+.settings-split > .settings-row { flex: 1; min-width: 0; }
+/* The divider only separates the two buttons at rest; a hovered row's own
+   rounded fill, or the chevron's circle, says which is which instead. */
+.settings-split:has(> :is(.settings-link, .settings-split-more):is(:hover, :focus-visible)) > .settings-split-more::before { opacity: 0; }
+.settings-split > .autoplay-row { grid-template-columns: 24px auto minmax(0, 1fr) 44px; }
+/* Subtitles with none downloaded: nothing to turn on, though the chevron
+   beside it still leads to what can be fetched. */
+.settings-split > .autoplay-row:disabled { cursor: default; }
+.settings-split > .autoplay-row:disabled:hover { background: none; }
+.settings-split > .autoplay-row:disabled .settings-toggle { opacity: .4; }
+/* Only what the switch alone cannot say: which kind of on it is. */
+.settings-split-summary {
+  justify-self: end;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--shell-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-split-more {
+  position: relative;
+  display: grid;
+  flex: none;
+  width: 38px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--shell-muted);
+  cursor: pointer;
+}
+/* Hovered, the chevron sits in a circle of its own rather than filling its
+   strip of the row, so it reads as a button beside the row, not part of it. */
+.settings-split-more::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff1f;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 140ms ease;
+}
+.settings-split-more svg { position: relative; z-index: 1; }
+.settings-split-more::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 1px;
+  background: #ffffff24;
+  transition: opacity 140ms ease;
+}
+.settings-split-more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.settings-split-more:is(:hover, :focus-visible) { background: none; box-shadow: none; color: #fff; }
+.settings-split-more:is(:hover, :focus-visible)::after { opacity: 1; }
+.settings-split-more:focus-visible { outline: none; }
+.settings-split-more:focus-visible::after { outline: 2px solid #ffffff80; outline-offset: 1px; }
+/* Speed has no page to lead to, so its stepper takes the chevron column too
+   and ends where the chevrons do. */
+.settings-split > .settings-speed-row { grid-template-columns: 24px minmax(0, 1fr) auto; padding-right: 6px; }
+/* The switches without a chevron keep its width free, so every switch on
+   the page stands in one column; the glow's warning moves in with its own. */
+[data-settings-page="main"] > .autoplay-row,
+[data-settings-page="main"] > .settings-glow > .autoplay-row { padding-right: 46px; }
+[data-settings-page="main"] .settings-glow-warning { right: 100px; }
+.settings-stepper { display: flex; align-items: center; gap: 2px; }
+.settings-stepper button {
+  display: grid;
+  min-width: 26px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  cursor: pointer;
+}
+.settings-stepper button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.settings-stepper button:is(:hover, :focus-visible):not(:disabled) { background: #ffffff1f; box-shadow: none; color: #fff; }
+.settings-stepper button:disabled { opacity: .35; cursor: default; }
+/* Wide enough for "Normal", so stepping past it does not shift the buttons. */
+.settings-stepper .settings-stepper-value { min-width: 64px; padding: 0 8px; cursor: ew-resize; touch-action: none; user-select: none; font: 600 var(--font-size-body)/1 var(--font); font-variant-numeric: tabular-nums; }
 .settings-field select { width: 100%; }
 /* A native list is drawn on the system's white, so its text has to be dark;
    one drawn as a menu takes the menu's colours instead. */
@@ -264,76 +383,6 @@
   .settings-field select option, .settings-field select optgroup { color: #111; }
 }
 .settings-field { display: grid; gap: 5px; padding: 0 8px 6px; }
-.settings-speed-value { display: block; padding: 0 8px 8px; font: 600 var(--font-size-body)/1 var(--font); }
-/* The same bar the player seeks with, so a speed reads as a position on a
-   scale rather than a form control: accent behind the thumb, and the thumb
-   itself the accent inside a white ring. */
-.settings-speed-slider {
-  --speed-fill: 0%;
-  width: calc(100% - 16px);
-  height: 18px;
-  margin: 0 8px;
-  appearance: none;
-  background: transparent;
-}
-/* The filled part is inset by half a thumb at each end, the way the seek bar
-   is, so the colour stops under the thumb rather than beyond it at 0.25x. */
-.settings-speed-slider::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 999px;
-  background:
-    linear-gradient(to right, var(--watch-accent) 0 var(--speed-fill), transparent var(--speed-fill) 100%)
-      no-repeat 7px 0 / calc(100% - 14px) 100%,
-    linear-gradient(var(--watch-accent), var(--watch-accent)) no-repeat 0 0 / 7px 100%,
-    linear-gradient(#ffffff38, #ffffff38);
-}
-.settings-speed-slider::-moz-range-track { height: 4px; border-radius: 999px; background: #ffffff38; }
-.settings-speed-slider::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--watch-accent); }
-.settings-speed-slider::-webkit-slider-thumb {
-  width: 14px;
-  height: 14px;
-  margin-top: -5px;
-  appearance: none;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: var(--watch-accent);
-  box-shadow: 0 1px 4px #0008;
-}
-.settings-speed-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: var(--watch-accent);
-  box-shadow: 0 1px 4px #0008;
-}
-.settings-speed-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 14px 8px 2px; }
-.settings-speed-presets button {
-  display: grid;
-  min-height: 28px;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.08));
-  box-shadow: none;
-  color: rgba(255,255,255,.72);
-  font: 600 var(--font-size-control)/1 var(--font);
-  cursor: pointer;
-  transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
-}
-.settings-speed-presets button:is(:hover, :focus-visible) {
-  background: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16));
-  box-shadow: none;
-  color: #fff;
-}
-/* The chosen rate wears the page's accent, the colour the slider fills in
-   and the video's own card carries, rather than the buttons' hue. */
-.settings-speed-presets button[aria-pressed="true"] {
-  background: var(--highlight-fill);
-  box-shadow: none;
-  color: var(--highlight-foreground);
-}
 .settings-field > span { color: var(--shell-muted); font-size: var(--font-size-helper); }
 .settings-toggle {
   display: grid;
@@ -386,6 +435,9 @@
 .settings-option[role="radio"]:not([aria-checked="true"]) .settings-option-icon { visibility: hidden; }
 .settings-note { margin: 0; padding: 0 8px 6px; color: var(--shell-muted); font-size: var(--font-size-control); }
 .settings-note[data-background-note] { padding-top: 8px; padding-bottom: 0; }
+/* As the background note sits off its options; the switch under it keeps
+   the usual gap below. */
+.settings-note[data-autoplay-note] { padding-top: 8px; }
 
 /* The middle column's card. Neutral rather than the accent's tint the facts
    wear: a block of prose reads best on plain grey. */

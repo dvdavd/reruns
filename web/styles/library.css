@@ -946,7 +946,7 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
    where black and white offer equal contrast (both about 4.58:1). */
 :where(.topbar-navigation .icon-button, .archive-watch-action,
     .channel-profile-favourite, .playlist-popup-reverse, .archive-chat-overlay-toggle,
-    .settings-speed-presets button, .customisation-choices label,
+    .customisation-choices label,
     .library-row-action, .libraries-add, .profile-add, .profile-save,
     .topbar-go button, .topbar-browse, .sponsorblock-modes button,
     .statistics-ranking button,
@@ -964,7 +964,6 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
 :is(.topbar-navigation .icon-button, .archive-watch-action, .channel-profile-favourite) {
   --highlight-hue: var(--view-hue);
 }
-.settings-speed-presets button { --highlight-hue: var(--watch-accent); }
 .preview-button { --highlight-hue: var(--hue); }
 /* Keep yellow at its source lightness: darkening it makes olive. The
    source alpha tags yellow hues (85–125 degrees); the final fill is opaque.
@@ -972,7 +971,7 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
 :where(.topbar-navigation .icon-button, .preview-button,
     .archive-watch-action, .channel-profile-favourite,
     .statistics-ranking button,
-    .sponsorblock-modes button, .settings-speed-presets button, .playlist-popup-reverse,
+    .sponsorblock-modes button, .playlist-popup-reverse,
     .archive-chat-overlay-toggle,
     .customisation-choices label, .library-row-action,
     .libraries-add, .profile-add, .profile-save, .topbar-go button, .topbar-browse,

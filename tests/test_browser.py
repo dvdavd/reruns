@@ -30,6 +30,8 @@ except ImportError:  # pragma: no cover - depends on the machine
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKGROUND_KEY = "ytdlp-background-play-v1"
+AUTOPLAY_KEY = "ytdlp-autoplay-v1"
+FROM_START_KEY = "ytdlp-autoplay-from-start-v1"
 
 
 def chromium_executable():
@@ -141,12 +143,12 @@ class _BrowserCase(unittest.TestCase):
         cls.log.close()
         cls.temp.cleanup()
 
-    def open_page(self, background=None):
+    def open_page(self, background=None, autoplay=None, stored=()):
         context = self.browser.new_context()
         self.addCleanup(context.close)
-        if background:
-            context.add_init_script(
-                f"localStorage.setItem('{BACKGROUND_KEY}', '{background}')")
+        for key, value in ((BACKGROUND_KEY, background), (AUTOPLAY_KEY, autoplay), *stored):
+            if value:
+                context.add_init_script(f"localStorage.setItem('{key}', '{value}')")
         page = context.new_page()
         # /api/preferences is not served without accounts, so its 404 is
         # expected here; anything else failing is not.
@@ -275,6 +277,177 @@ class BrowserSmokeTests(_BrowserCase):
         button.click()
         self.assertEqual(page.evaluate('window.batchAction'),
                          {'id': 'batch-job', 'action': 'cancel'})
+        self.assertEqual(self.failures, [])
+
+
+class AutoplayTests(_BrowserCase):
+    """Two videos from one channel, so each is the other's recommendation,
+    and neither is in a playlist."""
+    @classmethod
+    def fill_archive(cls, archive):
+        make_clip(archive, "autoone", "Smoke Lesson One", video=True)
+        make_clip(archive, "autotwo", "Smoke Lesson Two", video=True)
+
+    def watching(self, page):
+        return page.evaluate("new URLSearchParams(location.search).get('watch')")
+
+    def play_to_the_end(self, page, title):
+        page.click(f'.thumbnail-button[aria-label="View details for {title}"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.wait_for_function(
+            """() => { const v = document.querySelector('#archive-player video');
+                      return v && !v.paused && v.currentTime > 0.3; }""", timeout=10000)
+        started = self.watching(page)
+        page.evaluate("""() => { const v = document.querySelector('#archive-player video');
+                                 v.currentTime = v.duration - 0.5; }""")
+        return started
+
+    def next_title(self, page):
+        return page.evaluate("""() => {
+            const side = document.querySelector('[data-part-side="1"]');
+            return side.hidden ? null : side.querySelector('[data-part-title]').textContent;
+        }""")
+
+    def test_on_carries_on_to_a_recommended_video(self):
+        page = self.open_page(autoplay="on")
+        started = self.play_to_the_end(page, "Smoke Lesson One")
+        self.assertEqual(self.next_title(page), "Smoke Lesson Two")
+        page.wait_for_function(
+            f"new URLSearchParams(location.search).get('watch') !== {json.dumps(started)}",
+            timeout=10000)
+        page.wait_for_function(
+            """() => document.querySelector('[data-part-side="1"]').hidden""", timeout=5000)
+        # The one just watched is not offered back, so the run stops here.
+        self.assertIsNone(self.next_title(page))
+        self.assertEqual(self.failures, [])
+
+    def test_the_next_video_starts_from_the_top_when_asked(self):
+        for from_start, lands_early in (("1", True), ("0", False)):
+            with self.subTest(from_start=from_start):
+                page = self.open_page(autoplay="on", stored=((FROM_START_KEY, from_start),))
+                # Lesson Two was left off fifteen seconds in. Its key is the
+                # item's id, which only the page knows, and leaving its watch
+                # page saves a position of its own, so this is set after.
+                page.click('.thumbnail-button[aria-label="View details for Smoke Lesson Two"]')
+                page.wait_for_selector("#archive-player:not([hidden])")
+                two = self.watching(page)
+                page.goto(self.url + "/?videos")
+                page.evaluate("""id => localStorage.setItem(
+                    `reruns.playback:${JSON.stringify([id, 0])}`, '15')""", two)
+                page.reload()
+                page.wait_for_selector(".video-card")
+                started = self.play_to_the_end(page, "Smoke Lesson One")
+                page.wait_for_function(
+                    f"new URLSearchParams(location.search).get('watch') !== {json.dumps(started)}",
+                    timeout=10000)
+                page.wait_for_function(
+                    """() => { const v = document.querySelector('#archive-player video');
+                              return v && !v.paused && v.currentTime > 0.3; }""", timeout=10000)
+                at = page.evaluate("document.querySelector('#archive-player video').currentTime")
+                self.assertEqual(at < 10, lands_early, at)
+                self.assertEqual(self.failures, [])
+
+    def test_playlist_only_stops_outside_a_playlist(self):
+        # '1' was the old switch's on, which only ever knew playlists.
+        for stored in ("playlist", "1"):
+            with self.subTest(stored=stored):
+                page = self.open_page(autoplay=stored)
+                started = self.play_to_the_end(page, "Smoke Lesson One")
+                self.assertIsNone(self.next_title(page))
+                page.wait_for_function(
+                    "document.querySelector('#archive-player video').ended", timeout=5000)
+                page.wait_for_timeout(2000)
+                self.assertEqual(self.watching(page), started)
+
+    def test_the_menu_offers_three_choices(self):
+        page = self.open_page(autoplay="1")
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        summary = page.locator("[data-autoplay-summary]")
+        self.assertEqual(summary.inner_text(), "Playlist only")
+        page.click('[data-settings-go="autoplay"]')
+        options = page.locator("[data-autoplay-options] [role=radio]")
+        self.assertEqual(options.all_inner_texts(), ["On", "Playlist only", "Off"])
+        options.first.click()
+        # The row's switch already says on, so plain On adds nothing to it.
+        self.assertEqual(summary.inner_text(), "")
+        self.assertIn("recommended", page.locator("[data-autoplay-note]").inner_text())
+        self.assertEqual(page.evaluate(f"localStorage.getItem('{AUTOPLAY_KEY}')"), "on")
+        # Choosing On offers the recommendation at once.
+        self.assertEqual(self.next_title(page), "Smoke Lesson Two")
+        toggle = page.locator("[data-autoplay-from-start]")
+        self.assertTrue(toggle.is_visible())
+        toggle.click()
+        self.assertEqual(toggle.get_attribute("aria-checked"), "true")
+        self.assertEqual(page.evaluate(f"localStorage.getItem('{FROM_START_KEY}')"), "1")
+        # Nothing is autoplayed when it is off, so the switch goes with it.
+        options.last.click()
+        self.assertFalse(toggle.is_visible())
+        self.assertEqual(self.failures, [])
+
+    def test_the_menu_switch_turns_autoplay_back_on_as_it_was(self):
+        page = self.open_page(autoplay="1")
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        switch = page.locator("[data-autoplay-switch]")
+        summary = page.locator("[data-autoplay-summary]")
+        self.assertEqual(switch.get_attribute("aria-checked"), "true")
+        switch.click()
+        self.assertEqual(switch.get_attribute("aria-checked"), "false")
+        self.assertEqual(summary.inner_text(), "")
+        self.assertEqual(page.evaluate(f"localStorage.getItem('{AUTOPLAY_KEY}')"), "off")
+        # The menu stays on its main page; the chevron is what leads away.
+        self.assertEqual(page.locator("#watch-settings-popup").get_attribute("data-page"), "")
+        switch.click()
+        self.assertEqual(summary.inner_text(), "Playlist only")
+        self.assertEqual(page.evaluate(f"localStorage.getItem('{AUTOPLAY_KEY}')"), "playlist")
+        self.assertEqual(self.failures, [])
+
+
+class GalleryDeleteTests(_BrowserCase):
+    """Enough videos for the gallery to draw them in more than one chunk."""
+    @classmethod
+    def fill_archive(cls, archive):
+        make_clip(archive, "keep000", "Keep 0", video=True)
+        info = json.loads((archive / "keep000.info.json").read_text())
+        for index in range(1, 30):
+            name = f"keep{index:03d}"
+            # Copies, not links: the server will not delete a file that
+            # another item shares.
+            shutil.copyfile(archive / "keep000.webm", archive / f"{name}.webm")
+            (archive / f"{name}.info.json").write_text(json.dumps(
+                {**info, "id": name, "title": f"Keep {index}",
+                 "webpage_url": f"https://www.youtube.com/watch?v={name}"}), encoding="utf-8")
+
+    def test_deleting_a_video_keeps_the_other_cards(self):
+        page = self.open_page()
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.wait_for_timeout(300)
+        # The gallery used to throw every card away and make it again, once
+        # for the list without the video and once for the rescan after, and
+        # each new card's thumbnail was blank until it had decoded again.
+        page.evaluate("""() => document.querySelectorAll('.video-card')
+            .forEach(card => { card.keptThrough = true; })""")
+        before = page.locator(".video-card").count()
+        target = page.locator(".video-card").nth(3)
+        doomed = target.get_attribute("data-id")
+        target.hover()
+        target.locator(".menu-trigger").click()
+        page.get_by_role("menuitem", name="Delete").click()
+        page.locator("dialog[open]").get_by_role("button", name="Delete").last.click()
+        page.wait_for_function(
+            "id => ![...document.querySelectorAll('.video-card')].some(card => card.dataset.id === id)",
+            arg=doomed)
+        page.wait_for_timeout(1000)
+        remade = page.evaluate("""() => [...document.querySelectorAll('.video-card')]
+            .filter(card => !card.keptThrough).map(card => card.dataset.id)""")
+        # The deleted card leaves a gap that each chunk after it fills with the
+        # first card of the next, so only those cards are new.
+        self.assertLessEqual(len(remade), before // 12 + 1, remade)
         self.assertEqual(self.failures, [])
 
 

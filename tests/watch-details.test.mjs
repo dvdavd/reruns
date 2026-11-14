@@ -7,7 +7,7 @@ import {applyPlaylists, toMediaItem, toPlaylist} from '../web/item-adapter.js';
 import {inPlaylistOrder, isReversed, markPlaylistDirection, playlistItems, playlistViewOf,
         runsBackwards} from '../web/playlists.js';
 import {activeChapterIndex, announcesNext, countdownAt, chaptersOf, heatGradient, HEAT_STRENGTH, playlistLabel,
-        playlistNav, relatedItems, relatedPanel, specsOf, sponsorSegments, summaryOf, uploadedAtOf,
+        playlistNav, relatedItems, relatedPanel, specsOf, sponsorSegments, summaryOf, upNextOf, uploadedAtOf,
         watchDetails, watchLinks} from '../web/watch-details.js';
 
 const format = {
@@ -285,6 +285,29 @@ test('channel videos come first, ranked by title overlap with stable ties', () =
   assert.deepEqual(items.map(entry => entry.id), ['unrelated', 'weak', 'outside', 'strong', 'tied', 'current']);
 });
 
+test('what comes next is the playlist part, and a recommendation only with autoplay on', () => {
+  const parts = [toMediaItem(playlistRaw('PL1', 1)), toMediaItem(playlistRaw('PL1', 2))];
+  const nav = playlistNav(parts[0], parts);
+  for (const mode of ['on', 'playlist', 'off']) {
+    assert.deepEqual(upNextOf(parts[0], parts, {mode, nav}), {item: parts[1], recommended: false}, mode);
+  }
+  const item = relatedVideo('current', 'Blender lighting tutorial');
+  const strong = relatedVideo('strong', 'Blender lighting');
+  const weak = relatedVideo('weak', 'Blender basics');
+  const items = [weak, strong, item];
+  assert.deepEqual(upNextOf(item, items, {mode: 'on'}), {item: strong, recommended: true});
+  assert.equal(upNextOf(item, items, {mode: 'playlist'}), null);
+  assert.equal(upNextOf(item, items, {mode: 'off'}), null);
+  // What has been watched already is passed over, so two videos cannot
+  // hand the viewer back and forth.
+  assert.equal(upNextOf(item, items, {mode: 'on', played: new Set(['strong'])}).item, weak);
+  assert.equal(upNextOf(item, items, {mode: 'on', played: new Set(['strong', 'weak'])}), null);
+  // The end of a playlist goes on to a recommendation too.
+  const last = playlistNav(parts[1], parts);
+  assert.equal(upNextOf(parts[1], parts, {mode: 'on', nav: last}).item, parts[0]);
+  assert.equal(upNextOf(parts[1], parts, {mode: 'on', nav: last, played: new Set([parts[0].id])}), null);
+});
+
 test('the parts after a numbered video lead the row, nearest first, then the earlier ones', () => {
   const item = relatedVideo('p3', 'Building a shed - Part 3 of 5');
   const items = [
@@ -374,7 +397,7 @@ test('the playlist markup and controller carry the control and its popup', async
     assert.match(html, new RegExp(`data-playlist-${hook}[\\s=>]`), hook);
   }
   assert.match(controller, /dataset\.playlistOpen/);
-  assert.match(html, /data-autoplay-toggle/);
+  assert.match(html, /data-autoplay-options/);
   assert.match(html, /data-subtitle-download/);
   assert.match(controller, /data-part-step/);
   assert.match(html, /id="watch-playlist-popup" class="playlist-popup" popover/);
@@ -385,12 +408,12 @@ test('playback settings share a gear menu and speed persists across videos', asy
   const html = await readFile('web/index.html', 'utf8');
   const controller = await playerSources();
   const styles = await readStyles();
-  assert.match(html, /id="watch-settings-popup"[\s\S]*data-playback-speed/);
-  assert.match(html, /data-settings-go="speed"/);
+  assert.match(html, /id="watch-settings-popup"[\s\S]*data-speed-step/);
+  assert.match(html, /data-settings-go="subtitles"/);
   assert.match(html, /data-settings-page="subtitles"/);
   assert.match(html, /data-subtitle-list/);
   assert.match(html, /data-subtitle-downloads/);
-  assert.match(html, /data-autoplay-toggle/);
+  assert.match(html, /data-settings-go="autoplay"/);
   assert.match(controller, /dataset\.settingsOpen/);
   assert.match(controller, /PLAYBACK_SPEED_KEY/);
   assert.match(controller, /video\.playbackRate = playbackSpeed/);
@@ -405,12 +428,10 @@ test('the settings pages carry their own controls and keep the ones behind them 
   const html = await readFile('web/index.html', 'utf8');
   const controller = await playerSources();
   const styles = await readStyles();
-  // Speed is a dial with the usual rates beside it, not a list to open.
-  assert.match(html, /<input[^>]+class="settings-speed-slider"[^>]+data-playback-speed/);
-  assert.match(html, /data-speed-presets/);
-  assert.match(controller, /SPEED_PRESETS = \[0\.5, 1, 1\.5, 2, 3, 4\]/);
+  // Speed is changed in its row, with no page of its own to open.
+  assert.match(html, /data-speed-step="-1"[\s\S]*data-speed-summary[\s\S]*data-speed-step="1"/);
+  assert.doesNotMatch(html, /data-settings-go="speed"/);
   assert.match(controller, /PLAYBACK_SPEEDS = \[[^\]]*, 8\]/);
-  assert.match(controller, /chooseSpeed\(PLAYBACK_SPEEDS\[Number\(speedSlider\.value\)\]\)/);
   // A page that has slid out of sight is still in the box, so it is inert.
   assert.match(controller, /page\.inert = page !== activePage/);
   // Nothing downloaded says so rather than offering a chooser of one.
@@ -675,8 +696,8 @@ test('the playlist row says where it links, as the title line does for the chann
 test('autoplay preserves hidden arrows before the player reveals controls at end', async () => {
   const source = await readFile('web/player-playlist.js', 'utf8');
   const start = source.indexOf('  // Capture the hidden state before');
-  const end = source.indexOf('  const drawAutoplay', start);
-  const register = new Function('mediaPlayer', 'element', 'autoplay', 'nav', 'upNextDismissed',
+  const end = source.indexOf('  // Built when drawn rather than at load', start);
+  const register = new Function('mediaPlayer', 'element', 'autoplay', 'upNext', 'upNextDismissed',
     source.slice(start, end));
   function setup({ended = true, autoplay = true, next = true, dismissed = false, hidden = true} = {}) {
     const classes = new Set(hidden ? ['is-controls-hidden'] : []);
@@ -692,7 +713,7 @@ test('autoplay preserves hidden arrows before the player reveals controls at end
       assert.equal(options.capture, true);
       pause = handler;
     }};
-    register({video}, element, autoplay, next ? {next: {id: 'next'}} : null, dismissed);
+    register({video}, element, () => autoplay, next ? {item: {id: 'next'}} : null, dismissed);
     pause(); // Capture phase precedes the shared player's normal pause listener.
     classes.delete('is-controls-hidden'); // keepControlsVisible()
     return {classes, interactions};
@@ -715,15 +736,15 @@ test('autoplay preserves hidden arrows before the player reveals controls at end
 test('the final pause and ended sequence updates the autoplay countdown only once', async () => {
   const source = await readFile('web/player-playlist.js', 'utf8');
   const start = source.indexOf("  mediaPlayer.video.addEventListener('ended', () => {");
-  const end = source.indexOf("  autoplayToggle.addEventListener('click'", start);
-  const register = new Function('mediaPlayer', 'nav', 'upNextDismissed', 'announceNext',
+  const end = source.indexOf('  function chooseAutoplay(mode) {', start);
+  const register = new Function('mediaPlayer', 'upNext', 'upNextDismissed', 'announceNext',
     'syncCountdown', 'stopCountdown', 'nextSide', 'inAudioBar', 'advanceMini', 'repeat', 'audioStep',
     source.slice(start, end));
   const handlers = new Map();
   const video = {ended: true, addEventListener: (type, handler) => handlers.set(type, handler)};
   let updates = 0;
   let stops = 0;
-  register({video}, {next: {id: 'next'}}, false, () => {}, () => updates++, () => stops++,
+  register({video}, {item: {id: 'next'}}, false, () => {}, () => updates++, () => stops++,
     {classList: {contains: () => true}}, () => false, () => {}, 'off', () => null);
   handlers.get('pause')();
   assert.equal(updates, 0);
@@ -739,15 +760,15 @@ test('the final pause and ended sequence updates the autoplay countdown only onc
 test('an album in the audio bar plays straight on, with no up-next countdown', async () => {
   const source = await readFile('web/player-playlist.js', 'utf8');
   const start = source.indexOf("  mediaPlayer.video.addEventListener('ended', () => {");
-  const end = source.indexOf("  autoplayToggle.addEventListener('click'", start);
-  const register = new Function('mediaPlayer', 'nav', 'upNextDismissed', 'announceNext',
+  const end = source.indexOf('  function chooseAutoplay(mode) {', start);
+  const register = new Function('mediaPlayer', 'upNext', 'upNextDismissed', 'announceNext',
     'syncCountdown', 'stopCountdown', 'nextSide', 'inAudioBar', 'advanceMini', 'repeat', 'audioStep',
     source.slice(start, end));
   const handlers = new Map();
   const video = {ended: true, addEventListener: (type, handler) => handlers.set(type, handler)};
   let updates = 0;
   const advanced = [];
-  register({video}, {next: {id: 'next'}}, false, () => {}, () => updates++, () => {},
+  register({video}, {item: {id: 'next'}}, false, () => {}, () => updates++, () => {},
     {classList: {contains: () => false}}, () => true, entry => advanced.push(entry.id),
     'off', () => ({id: 'next'}));
   handlers.get('ended')();
@@ -764,7 +785,7 @@ test('autoplay tail continues from the rendered bar position without a time-base
   let restarts = 0;
   const run = new Function('countdownAt', 'getComputedStyle', 'DOMMatrixReadOnly', 'setTimeout', `
     const mediaPlayer = {video: {ended: true, paused: true, currentTime: 600, duration: 600}};
-    const autoplay = true, nav = {next: {id: 'next'}}, upNextDismissed = false;
+    const autoplay = () => true, upNext = {item: {id: 'next'}}, upNextDismissed = false;
     const element = {}, nextKicker = {};
     // The controller words the kicker through the catalogue; this slice only needs it callable.
     const t = key => key;

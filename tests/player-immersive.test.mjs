@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {immersiveDelayMs, immersiveOverlapsLogo, initialisePlayerImmersive} from '../web/player-immersive.js';
+import {immersiveDelayMs, immersiveLayout, immersiveOverlapsLogo, initialisePlayerImmersive} from '../web/player-immersive.js';
 
 test('immersion defaults to twenty seconds for missing or invalid preferences', () => {
   for (const value of [null, undefined, '', 'invalid', '-1', '15']) {
@@ -95,4 +95,43 @@ test('desktop logo hides only when the enlarged stage intersects its bounds', ()
   assert.equal(immersiveOverlapsLogo(stage, logo, 1.15, 18), true);
   assert.equal(immersiveOverlapsLogo({...stage, left: 200}, logo, 1.15, 18), false);
   assert.equal(immersiveOverlapsLogo({...stage, top: 150}, logo, 1.15, 18), false);
+});
+
+// Where the picture and the title under it end up, as the page draws them:
+// the title comes down as far as the picture's foot does.
+function gaps(rect, window, headBottom) {
+  const {extra, drop} = immersiveLayout(rect, {...window, headBottom});
+  return {top: rect.top - extra + drop, bottom: window.height - (headBottom + drop)};
+}
+
+// The watch page's 16:9 stage and the foot of the title under it, as
+// Chromium lays them out before immersion, in a few windows.
+const HEIGHT_SHORT = [{top: 74, width: 953, height: 536}, {width: 1280, height: 720}, 672];
+const WIDTH_SHORT = [{top: 74, width: 1273, height: 716}, {width: 1400, height: 900}, 852];
+
+test('a picture short of height leaves as much room under the title as above itself', () => {
+  const {top, bottom} = gaps(...HEIGHT_SHORT);
+  assert.equal(Math.round(top), 20);
+  assert.equal(Math.round(bottom), 20);
+});
+
+test('a picture capped in its growth shares the spare height out evenly', () => {
+  const rect = {top: 200, width: 900, height: 506};
+  const window = {width: 1920, height: 1200};
+  const headBottom = rect.top + rect.height + 62;
+  assert.equal(immersiveLayout(rect, {...window, headBottom}).extra, 96);
+  const {top, bottom} = gaps(rect, window, headBottom);
+  assert.equal(Math.round(top), Math.round(bottom));
+});
+
+test('a picture short of width is centred with its title, not on its own', () => {
+  const {top, bottom} = gaps(...WIDTH_SHORT);
+  assert.equal(Math.round(top), Math.round(bottom));
+  assert.ok(top > 0);
+});
+
+test('without a title to balance, the picture only grows from its foot', () => {
+  const [rect, window] = HEIGHT_SHORT;
+  const {extra, drop} = immersiveLayout(rect, window);
+  assert.equal(drop, Math.min(18, extra));
 });

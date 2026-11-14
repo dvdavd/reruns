@@ -6,42 +6,21 @@ const PLAYBACK_SPEED_KEY = 'archive-playback-speed';
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3, 4, 6, 8];
 
 export function createPlaybackSpeed({
-  element, mediaPlayer, speedSlider, speedValue,
-  speedPresets, speedSummary,
+  element, mediaPlayer, speedSummary, speedSteps,
 }) {
   let playbackSpeed = 1;
   try {
     const savedSpeed = Number(preferences.getItem(PLAYBACK_SPEED_KEY));
     if (PLAYBACK_SPEEDS.includes(savedSpeed)) playbackSpeed = savedSpeed;
   } catch { /* A blocked store simply starts at normal speed. */ }
-  /**
-   * Speed reads as a dial rather than a list: the slider steps between the
-   * rates the player supports, and the few rates anyone actually asks for sit
-   * under it as buttons, so the common choice is one press rather than a drag.
-   */
-  const SPEED_PRESETS = [0.5, 1, 1.5, 2, 3, 4];
   const speedLabel = rate => rate === 1 ? t('player.normal') : `${rate}x`;
-  speedSlider.max = String(PLAYBACK_SPEEDS.length - 1);
-  speedPresets.replaceChildren(...SPEED_PRESETS.map(rate => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.speedPreset = String(rate);
-    button.textContent = `${rate}x`;
-    button.addEventListener('click', () => chooseSpeed(rate));
-    return button;
-  }));
 
   function drawSpeed() {
     const step = PLAYBACK_SPEEDS.indexOf(playbackSpeed);
-    speedSlider.value = String(step);
-    // Chromium cannot paint a range's filled side on its own, so the track's
-    // gradient is told where to stop, as the seek bar's is.
-    speedSlider.style.setProperty('--speed-fill', `${step / (PLAYBACK_SPEEDS.length - 1) * 100}%`);
-    speedSlider.setAttribute('aria-valuetext', speedLabel(playbackSpeed));
-    speedValue.textContent = speedLabel(playbackSpeed);
     speedSummary.textContent = speedLabel(playbackSpeed);
-    for (const button of speedPresets.children) {
-      button.setAttribute('aria-pressed', String(Number(button.dataset.speedPreset) === playbackSpeed));
+    for (const button of speedSteps) {
+      const next = PLAYBACK_SPEEDS[step + Number(button.dataset.speedStep)];
+      button.disabled = next === undefined;
     }
   }
 
@@ -54,7 +33,50 @@ export function createPlaybackSpeed({
     try { preferences.setItem(PLAYBACK_SPEED_KEY, String(playbackSpeed)); } catch {}
   }
 
-  speedSlider.addEventListener('input', () => chooseSpeed(PLAYBACK_SPEEDS[Number(speedSlider.value)]));
+  /**
+   * The menu's speed row steps through every rate the player supports, one
+   * at a time. Its figure is a dial as well: dragged sideways it moves a rate
+   * for each stretch of travel, and a click that never became a drag goes
+   * back to normal.
+   */
+  const stepBy = offset => chooseSpeed(PLAYBACK_SPEEDS[PLAYBACK_SPEEDS.indexOf(playbackSpeed) + offset]);
+  for (const button of speedSteps) {
+    button.addEventListener('click', () => stepBy(Number(button.dataset.speedStep)));
+  }
+  const DIAL_PX_PER_STEP = 18;
+  const DIAL_SLOP = 4;
+  let dial = null;
+  let dialMoved = false;
+  speedSummary.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    dial = {x: event.clientX, pointerId: event.pointerId, step: PLAYBACK_SPEEDS.indexOf(playbackSpeed)};
+    dialMoved = false;
+    speedSummary.setPointerCapture?.(event.pointerId);
+  });
+  speedSummary.addEventListener('pointermove', event => {
+    if (!dial || event.pointerId !== dial.pointerId) return;
+    const travel = event.clientX - dial.x;
+    if (!dialMoved && Math.abs(travel) < DIAL_SLOP) return;
+    dialMoved = true;
+    const step = Math.max(0, Math.min(PLAYBACK_SPEEDS.length - 1,
+      dial.step + Math.round(travel / DIAL_PX_PER_STEP)));
+    if (PLAYBACK_SPEEDS[step] !== playbackSpeed) chooseSpeed(PLAYBACK_SPEEDS[step]);
+  });
+  for (const type of ['pointerup', 'pointercancel']) {
+    speedSummary.addEventListener(type, () => { dial = null; });
+  }
+  // The click that ends a drag is the drag's, not a request for normal speed.
+  speedSummary.addEventListener('click', () => {
+    if (dialMoved) dialMoved = false;
+    else chooseSpeed(1);
+  });
+  // Held on the figure, the arrow keys turn the dial as a drag would.
+  speedSummary.addEventListener('keydown', event => {
+    const offset = {ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1}[event.key];
+    if (!offset) return;
+    event.preventDefault();
+    stepBy(offset);
+  });
   drawSpeed();
 
   /**

@@ -3,14 +3,15 @@ import {iconMarkup} from './icon.js';
 import {preferences} from './preferences.js';
 import {nextRepeat, REPEAT_MODES, shuffleOrder, stepFrom} from './track-order.js';
 import {inPlaylist, isReversed} from './playlists.js';
-import {announcesNext, countdownAt, playlistNav} from './watch-details.js';
+import {announcesNext, AUTOPLAY_MODES, countdownAt, playlistNav, upNextOf} from './watch-details.js';
 import {t} from './i18n.js';
 import {ROW_THUMBNAIL_WIDTH, sizedThumbnail} from './thumbnail-sizes.js';
 
 export function createPlayerPlaylist({
   element, mediaPlayer, getItems, getActiveId,
   getPlaylistId, getMiniItem, inAudioBar, advanceMini,
-  open, togglePlaylistDirection, autoplayToggle, playlistPopup,
+  open, togglePlaylistDirection, playlistPopup,
+  autoplayOptions, autoplaySummary, autoplaySwitch, autoplayNote, autoplayFromStart, fitSettingsPage, settingsPages,
   playlistTitle, playlistNote, playlistEntries, playlistReverse,
   playlistOpen, playlistPosition,
 }) {
@@ -81,10 +82,39 @@ export function createPlayerPlaylist({
     partNav.addEventListener(type, event => event.stopPropagation());
   }
 
+  // What the end of a video leads to: 'on' plays on through a playlist and
+  // then into the related row, 'playlist' only through a playlist, 'off'
+  // nowhere. The key predates the modes and stored '1' and '0', from when
+  // autoplay was a switch that only knew playlists, so '1' reads as
+  // 'playlist' and nobody's saved choice changes meaning.
   const AUTOPLAY_KEY = 'ytdlp-autoplay-v1';
-  let autoplay = false;
-  try { autoplay = preferences.getItem(AUTOPLAY_KEY) === '1'; } catch (_) {}
+  let autoplayMode = 'off';
+  try {
+    const saved = preferences.getItem(AUTOPLAY_KEY);
+    if (saved === '1') autoplayMode = 'playlist';
+    else if (AUTOPLAY_MODES.includes(saved)) autoplayMode = saved;
+  } catch (_) {}
+  const autoplay = () => autoplayMode !== 'off';
+  // What the menu's switch turns autoplay back on to: whichever of the two
+  // was chosen last, so switching it off and on again keeps Playlist only.
+  const AUTOPLAY_ON_KEY = 'ytdlp-autoplay-on-v1';
+  let autoplayOnMode = autoplay() ? autoplayMode : 'on';
+  try {
+    const saved = preferences.getItem(AUTOPLAY_ON_KEY);
+    if (!autoplay() && AUTOPLAY_MODES.includes(saved) && saved !== 'off') autoplayOnMode = saved;
+  } catch (_) {}
+  // Whether a video autoplay moves on to starts at its top rather than where
+  // it was left off. Only autoplay's own step: choosing the next video by
+  // hand still resumes it, as opening any video does.
+  const FROM_START_KEY = 'ytdlp-autoplay-from-start-v1';
+  let fromStart = false;
+  try { fromStart = preferences.getItem(FROM_START_KEY) === '1'; } catch (_) {}
   let nav = null;
+  // Where the next arrow and autoplay lead: the playlist's next part, or with
+  // autoplay on, a recommended video. See upNextOf.
+  let upNext = null;
+  // Everything opened this session, so a recommendation never leads back.
+  const played = new Set();
   // Closing the up-next card holds for the rest of the part, however much
   // the viewer then seeks around in it.
   let upNextDismissed = false;
@@ -93,7 +123,7 @@ export function createPlayerPlaylist({
   // Capture the hidden state before the shared player's pause handler reveals
   // its controls. Autoplay's final second should not move the up-next card.
   mediaPlayer.video.addEventListener('pause', () => {
-    if (mediaPlayer.video.ended && autoplay && nav?.next && !upNextDismissed
+    if (mediaPlayer.video.ended && autoplay() && upNext && !upNextDismissed
         && element.classList.contains('is-controls-hidden')) {
       element.classList.add('is-autoplay-ending');
     }
@@ -102,8 +132,46 @@ export function createPlayerPlaylist({
     element.addEventListener(type, () => element.classList.remove('is-autoplay-ending'));
   }
 
-  const drawAutoplay = () => autoplayToggle.setAttribute('aria-checked', String(autoplay));
+  // Built when drawn rather than at load, so the words follow the language.
+  const autoplayChoices = () => ({
+    on: [t('common.on'), t('player.autoplayOnNote')],
+    playlist: [t('player.autoplayPlaylist'), t('player.autoplayPlaylistNote')],
+    off: [t('common.off'), t('player.autoplayOffNote')],
+  });
+  function drawAutoplay() {
+    const [label, note] = autoplayChoices()[autoplayMode];
+    // The switch says on or off; only Playlist only needs saying as well.
+    autoplaySummary.textContent = autoplayMode === 'playlist' ? label : '';
+    autoplaySwitch.setAttribute('aria-checked', String(autoplay()));
+    autoplayNote.textContent = note;
+    // With nothing autoplayed there is nothing to start from the top.
+    autoplayFromStart.hidden = !autoplay();
+    autoplayFromStart.setAttribute('aria-checked', String(fromStart));
+    // A note of another length wraps to another height, though only while the
+    // page is showing: drawn at start-up the menu has no size yet.
+    if (settingsPages.dataset.page === 'autoplay') fitSettingsPage('autoplay');
+    autoplayOptions.querySelectorAll('[data-autoplay-mode]').forEach(row => {
+      row.setAttribute('aria-checked', String(row.dataset.autoplayMode === autoplayMode));
+    });
+  }
+  autoplayOptions.replaceChildren(...AUTOPLAY_MODES.map(mode => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'settings-option';
+    row.setAttribute('role', 'radio');
+    row.dataset.autoplayMode = mode;
+    row.innerHTML = '<svg class="settings-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg><span></span><span></span>';
+    row.children[1].textContent = autoplayChoices()[mode][0];
+    row.addEventListener('click', () => chooseAutoplay(mode));
+    return row;
+  }));
   drawAutoplay();
+  autoplaySwitch.addEventListener('click', () => chooseAutoplay(autoplay() ? 'off' : autoplayOnMode));
+  autoplayFromStart.addEventListener('click', () => {
+    fromStart = !fromStart;
+    try { preferences.setItem(FROM_START_KEY, fromStart ? '1' : '0'); } catch (_) {}
+    drawAutoplay();
+  });
 
   function announceNext(shown) {
     nextSide.classList.toggle('is-announcing', shown);
@@ -121,7 +189,7 @@ export function createPlayerPlaylist({
    */
   function syncCountdown() {
     const {video} = mediaPlayer;
-    const at = autoplay && nav?.next && !upNextDismissed
+    const at = autoplay() && upNext && !upNextDismissed
       ? countdownAt(video.currentTime, video.duration) : null;
     if (!at) return stopCountdown();
     if (video.ended && countdownTimer !== null) return;
@@ -148,10 +216,10 @@ export function createPlayerPlaylist({
     nextSide.classList.add('is-counting');
     nextKicker.textContent = t('watch.playingNext');
     if (video.ended) {
-      const target = nav.next.id;
+      const target = upNext.item.id;
       countdownTimer = setTimeout(() => {
         countdownTimer = null;
-        playFromControl(target);
+        playFromControl(target, {fromStart});
       }, tail * 1000);
     }
   }
@@ -171,23 +239,29 @@ export function createPlayerPlaylist({
    */
   function drawPlaylist(item, {redraw = false} = {}) {
     item = inPlaylist(item, getPlaylistId()) || item;
-    const before = nav?.next?.id;
+    played.add(item.id);
+    const before = upNext?.item.id;
     nav = playlistNav(item, getItems());
+    upNext = upNextOf(item, getItems(), {mode: autoplayMode, nav, played});
     // A rescan redraws the part already playing, and must not bring back a
     // dismissed card or stop a countdown, unless what comes next has changed.
-    if (!redraw || nav?.next?.id !== before) {
+    if (!redraw || upNext?.item.id !== before) {
       upNextDismissed = false;
       announceNext(false);
     }
     for (const side of partSides) {
       const direction = Number(side.dataset.partSide);
-      const target = direction < 0 ? nav?.previous : nav?.next;
+      const target = direction < 0 ? nav?.previous : upNext?.item;
       side.hidden = !target;
       if (!target) continue;
       side.querySelector('[data-part-step]').dataset.targetId = target.id;
       side.querySelector('[data-part-title]').textContent = target.title;
       side.querySelector('[data-part-kicker]').textContent = direction < 0 ? t('player.previous') : t('watch.upNext');
-      side.querySelector('[data-part-number]').textContent = `${partNumber(target, nav.entries)}`;
+      // A recommended video is not a part of anything, so it has no number.
+      const number = side.querySelector('[data-part-number]');
+      const recommended = direction > 0 && upNext.recommended;
+      number.hidden = recommended;
+      number.textContent = recommended ? '' : `${partNumber(target, nav.entries)}`;
       const thumb = side.querySelector('[data-part-thumb]');
       thumb.src = target.thumbnail?.url || '';
       thumb.hidden = !target.thumbnail?.url;
@@ -233,14 +307,14 @@ export function createPlayerPlaylist({
     });
   }
 
-  const playFromControl = target => {
+  const playFromControl = (target, {fromStart = false} = {}) => {
     const entry = nav?.entries.find(candidate => candidate.id === target)
       || getItems().find(candidate => candidate.id === target);
     if (!entry) return;
     // A video in the corner moves on in the corner; opening it would drag the
     // viewer back to the watch page they chose to leave.
-    if (getMiniItem()) advanceMini(entry);
-    else if (entry.id !== getActiveId()) open(entry);
+    if (getMiniItem()) advanceMini(entry, {fromStart});
+    else if (entry.id !== getActiveId()) open(entry, 0, {fromStart});
   };
 
   for (const side of partSides) {
@@ -257,13 +331,13 @@ export function createPlayerPlaylist({
   // The card ahead comes up for the last stretch of a part and stays through
   // its end; seeking back out of that stretch puts it away again.
   mediaPlayer.video.addEventListener('timeupdate', () => {
-    if (!nav?.next || upNextDismissed || inAudioBar()) return;
+    if (!upNext || upNextDismissed || inAudioBar()) return;
     const {currentTime, duration} = mediaPlayer.video;
     const near = announcesNext(currentTime, duration);
     if (near !== nextSide.classList.contains('is-announcing')) announceNext(near);
     // The countdown starts partway into the up-next stretch, as time passes.
     const counting = nextSide.classList.contains('is-counting');
-    if (near && !counting && autoplay && countdownAt(currentTime, duration)) syncCountdown();
+    if (near && !counting && autoplay() && countdownAt(currentTime, duration)) syncCountdown();
   });
   mediaPlayer.video.addEventListener('ended', () => {
     // An album plays through, a track straight into the next, as a record
@@ -276,7 +350,7 @@ export function createPlayerPlaylist({
       const target = audioStep(1);
       return target && advanceMini(target);
     }
-    if (!nav?.next || upNextDismissed) return;
+    if (!upNext || upNextDismissed) return;
     announceNext(true);
     syncCountdown();
   });
@@ -292,20 +366,28 @@ export function createPlayerPlaylist({
     });
   }
 
-  autoplayToggle.addEventListener('click', () => {
-    autoplay = !autoplay;
-    try { preferences.setItem(AUTOPLAY_KEY, autoplay ? '1' : '0'); } catch (_) {}
+  function chooseAutoplay(mode) {
+    autoplayMode = mode;
+    try { preferences.setItem(AUTOPLAY_KEY, mode); } catch (_) {}
+    if (mode !== 'off') {
+      autoplayOnMode = mode;
+      try { preferences.setItem(AUTOPLAY_ON_KEY, mode); } catch (_) {}
+    }
     drawAutoplay();
-    if (!autoplay) stopCountdown();
+    // Turning recommendations on or off changes what the next arrow offers,
+    // so the arrows redraw in place under the open menu.
+    const current = getItems().find(entry => entry.id === getActiveId());
+    if (current) drawPlaylist(current, {redraw: true});
+    if (!autoplay()) stopCountdown();
     else if (nextSide.classList.contains('is-announcing')) syncCountdown();
-  });
+  }
 
   // Shift+N and Shift+P step through the run, as they do on YouTube.
   document.addEventListener('keydown', event => {
-    if (!getActiveId() || !nav || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!getActiveId() || !(nav || upNext) || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target.closest?.('input, textarea, select, [contenteditable]')) return;
     const key = event.key.toLowerCase();
-    const target = key === 'n' ? nav.next : key === 'p' ? nav.previous : null;
+    const target = key === 'n' ? upNext?.item : key === 'p' ? nav?.previous : null;
     if (!target) return;
     event.preventDefault();
     playFromControl(target.id);

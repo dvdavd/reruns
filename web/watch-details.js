@@ -363,6 +363,25 @@ export function playlistNav(item, items) {
   };
 }
 
+/** Autoplay's choices: on past a playlist's end, within one, or not at all. */
+export const AUTOPLAY_MODES = ['on', 'playlist', 'off'];
+
+/**
+ * What the next arrow, the up-next card and autoplay lead to after this
+ * video. The playlist's next part always comes first. Only with autoplay
+ * fully on does a video outside a playlist, or at the end of one, go on to
+ * the lead of the related row, so the other modes show exactly what they
+ * did before there was a recommendation. `played` holds what has already
+ * been watched this session, so two videos that each rank the other first
+ * cannot bounce the viewer between them forever.
+ */
+export function upNextOf(item, items, {mode = 'off', nav = null, played = new Set()} = {}) {
+  if (nav?.next) return {item: nav.next, recommended: false};
+  if (mode !== 'on') return null;
+  const recommended = relatedItems(item, items, Infinity).find(candidate => !played.has(candidate.id));
+  return recommended ? {item: recommended, recommended: true} : null;
+}
+
 /**
  * How long before the end of a part its "up next" card comes up on its own:
  * twenty seconds, or the last tenth of a short part, so a one-minute clip is

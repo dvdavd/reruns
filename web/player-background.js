@@ -12,7 +12,7 @@ export function createBackgroundPlayer({
   getPlaylistId, playlistController, inAudioBar, advanceMini,
   restoreMini, closeMini, close, urlFor,
   linkTo, leaveBar, fitSettingsPage, settingsPages,
-  backgroundOptions, backgroundSummary, backgroundNote, backgroundButton,
+  backgroundOptions, backgroundSummary, backgroundSwitch, backgroundNote, backgroundButton,
 }) {
   const {audioStep} = playlistController;
   // Which of the two the background player was switched to - 'audio' for
@@ -45,9 +45,29 @@ export function createBackgroundPlayer({
     else if (saved === '0' || saved === 'manual') backgroundPlay = 'off';
     else if (BACKGROUND_MODES.some(([mode]) => mode === saved)) backgroundPlay = saved;
   } catch (_) {}
+  // What the menu's switch turns background play back on to: whichever of
+  // On and Automatic was chosen last, Automatic if neither ever was.
+  const BACKGROUND_ON_KEY = 'ytdlp-background-play-on-v1';
+  let backgroundOnMode = backgroundPlay === 'off' ? 'audio' : backgroundPlay;
+  try {
+    const saved = preferences.getItem(BACKGROUND_ON_KEY);
+    if (backgroundPlay === 'off' && (saved === 'auto' || saved === 'audio')) backgroundOnMode = saved;
+  } catch (_) {}
+  const chooseBackgroundPlay = mode => {
+    backgroundPlay = mode;
+    try { preferences.setItem(BACKGROUND_KEY, mode); } catch (_) {}
+    if (mode !== 'off') {
+      backgroundOnMode = mode;
+      try { preferences.setItem(BACKGROUND_ON_KEY, mode); } catch (_) {}
+    }
+    drawBackgroundPlay();
+  };
   const drawBackgroundPlay = () => {
-    const [, label, note] = BACKGROUND_MODES.find(([mode]) => mode === backgroundPlay);
-    backgroundSummary.textContent = label;
+    const [, , note] = BACKGROUND_MODES.find(([mode]) => mode === backgroundPlay);
+    // The switch says on or off; only Automatic needs saying as well, and
+    // shortened, since it shares the row with the switch and the chevron.
+    backgroundSummary.textContent = backgroundPlay === 'audio' ? t('player.automaticShort') : '';
+    backgroundSwitch.setAttribute('aria-checked', String(backgroundPlay !== 'off'));
     backgroundNote.textContent = note;
     // A note of another length wraps to another height, though only while the
     // page is the one showing: drawn at start-up the menu has no size yet.
@@ -64,14 +84,13 @@ export function createBackgroundPlayer({
     row.dataset.backgroundMode = mode;
     row.innerHTML = '<svg class="settings-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg><span></span><span></span>';
     row.children[1].textContent = label;
-    row.addEventListener('click', () => {
-      backgroundPlay = mode;
-      try { preferences.setItem(BACKGROUND_KEY, mode); } catch (_) {}
-      drawBackgroundPlay();
-    });
+    row.addEventListener('click', () => chooseBackgroundPlay(mode));
     return row;
   }));
   drawBackgroundPlay();
+  backgroundSwitch.addEventListener('click', () => {
+    chooseBackgroundPlay(backgroundPlay === 'off' ? backgroundOnMode : 'off');
+  });
   backgroundButton.addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen?.();
     close({mini: true});

@@ -146,11 +146,23 @@ export class VirtualGallery {
   rebuild(items, style, template, sameGrid) {
     const previousChunks = this.chunks;
     const previousItems = this.items;
+    // On the same grid a chunk on screen hands its node to the new chunk in
+    // its place, which is drawn into it again rather than afresh. Dropped and
+    // remade, every card on screen was new, its thumbnail blank until it had
+    // decoded again: deleting a video blinked the whole gallery, once for the
+    // list without it and once more for the rescan after.
+    const adoptable = sameGrid
+      ? previousChunks.filter(chunk => chunk.mounted && chunk.node && chunk.index * this.chunkSize(template) < items.length)
+      : [];
+    const adopted = new Set(adoptable);
     this.batching = true;
-    for (const chunk of previousChunks) this.dropChunk(chunk);
+    for (const chunk of previousChunks) if (!adopted.has(chunk)) this.dropChunk(chunk);
     this.batching = false;
+    const kept = new Set(adoptable.map(chunk => chunk.node));
     // Whatever else the markup started with goes, as replaceChildren once did.
-    for (const child of [...this.root.childNodes]) if (!isSpacer(child)) child.remove();
+    for (const child of [...this.root.childNodes]) {
+      if (!isSpacer(child) && !kept.has(child)) child.remove();
+    }
 
     this.columns = template;
     this.items = items;
@@ -167,6 +179,14 @@ export class VirtualGallery {
                         height: previous?.height || this.estimate(end - start, columnCount),
                         measuredFor: previous?.measuredFor ?? null,
                         mounted: false, host: null, node: null});
+    }
+    for (const old of adoptable) {
+      const chunk = this.chunks[old.index];
+      Object.assign(chunk, {mounted: true, host: old.host, node: old.node});
+      this.onUnmount?.(this.elementsForChunk(old), old);
+      this.renderChunk(chunk, items.slice(chunk.start, chunk.end),
+                       node => this.placeChunk(chunk, node));
+      this.onMount?.(this.elementsForChunk(chunk), chunk);
     }
     this.syncSpacers();
     this.updateWindow();

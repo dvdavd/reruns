@@ -262,7 +262,12 @@ export function createGalleryActions({
       row.removeEventListener('pointerleave', cancelSubmenuOpen);
     }};
   }
+  /* Opening one submenu lets the others go at once rather than after their
+     grace: the new row's aria-expanded takes it out of the rows that dim an
+     open one, so the old row relit until its own close came round. */
   function openSubmenu(entry, target, row, focus) {
+    if (entry.action !== 'add-playlist') playlistEditor?.closeSubmenu();
+    if (entry.action !== 'show-playlists') openCollections?.closeSubmenu?.();
     if (entry.action === 'show-playlists') {
       closeFormatDownload?.();
       openCollections(target.facets?.collections || [], row, {side: true, focus});
