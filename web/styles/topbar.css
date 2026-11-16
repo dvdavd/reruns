@@ -83,6 +83,10 @@ body.is-leaving-watch .topbar-shell { transition: none; }
 /* With the go button and Subscribe both collapsed to zero width, the flex
    gaps around them would otherwise leave a dead strip after the field. */
 .topbar-search:not([data-mode="link"]) { gap: 0; }
+/* A link's gap would also push the field 6px further from the folder picker,
+   so the picker gives that much of its margin back. */
+.topbar-search[data-mode="link"] .topbar-directory { margin-right: 2px; }
+@media (max-width: 1024px) { .topbar-search[data-mode="link"] .topbar-directory { margin-right: 0; } }
 @media (max-width: 600px) { .topbar-subscribe { padding: 0 12px; font-size: var(--font-size-body); } }
 /* Under this width, once the field holds something, the search takes a row
    of its own under the logo, pages, downloads and settings: folder, field and
@@ -100,6 +104,23 @@ body.is-leaving-watch .topbar-shell { transition: none; }
 }
 @media (max-width: 600px) {
   .topbar-shell > .topbar { row-gap: 8px; }
+}
+/* With room either side, the field holds the middle of the page at a fixed
+   width and its buttons hang off its right, so typing or pasting a link never
+   moves it. The folder picker stays beside the page buttons, taken out of the
+   flow at the form's original start. topbar-centring.js decides when there is
+   room and how far past the page buttons the form starts. */
+.topbar { --search-centred-width: 560px; }
+/* The form still fills the bar and only starts further in, with the room
+   after the buttons left empty. Sized to its contents instead, Firefox kept
+   the width it had before Browse finished growing and squeezed the button to
+   a sliver; with the field fixed, nothing in the row needs to shrink. */
+.topbar[data-search-centred] .topbar-search { margin-left: var(--search-offset); }
+.topbar[data-search-centred] .topbar-search-field { flex: 0 0 var(--search-centred-width); }
+.topbar[data-search-centred] .topbar-search > :not(.topbar-search-field) { flex-shrink: 0; }
+.topbar[data-search-centred] .topbar-directory {
+  position: absolute;
+  left: calc(-1 * var(--search-offset));
 }
 .topbar-search-field { position: relative; display: flex; flex: 1; min-width: 0; }
 .topbar-go { display: flex; flex-shrink: 0; height: 36px; }

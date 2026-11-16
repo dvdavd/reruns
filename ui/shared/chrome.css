@@ -464,10 +464,13 @@ body.actors-open .topbar-search > .icon-tabler-user-search { display: block; }
 
 /* ── Status toast ────────────────────────── */
 
+/* It may be a popover, to show above a modal's backdrop (chrome.js), so the
+   UA's centring inset and margin are undone. */
 .status-toast {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
+  inset: auto auto 18px 50%;
+  margin: 0;
+  overflow: visible;
   z-index: 300;
   max-width: min(420px, calc(100vw - 28px));
   padding: 8px 13px;
@@ -484,13 +487,33 @@ body.actors-open .topbar-search > .icon-tabler-user-search { display: block; }
   transition: transform 240ms ease, opacity 200ms ease, visibility 240ms;
 }
 
+/* Flex, so the text is blockified and can take ::first-letter after the
+   icon; the `[hidden]` rule below still outweighs it. */
+.status-toast {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.status-toast-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .status-toast.is-visible {
   transform: translate(-50%, 0);
   opacity: 1;
   visibility: visible;
 }
 
-.status-toast::first-letter {
+.status-toast-text::first-letter {
   text-transform: uppercase;
 }
 

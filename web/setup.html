@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The background behind the browser's own bar: --color-bg, dark here and
+       light.css's when the script below finds the light theme. theme-colour.js
+       follows any later change. -->
+  <meta name="theme-color" content="#181818">
+  <script>
+    // The theme this browser last chose, before first paint. A browser that
+    // never chose takes the admin's default once the config arrives.
+    try {
+      const theme = localStorage.getItem('archive-theme');
+      if (theme === 'light' || theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches) {
+        document.documentElement.dataset.theme = 'light';
+        document.querySelector('meta[name="theme-color"]').content = '#f5f6f9';
+      }
+    } catch { /* The dark default still works without browser storage. */ }
+  </script>
+  <title>Set up · Reruns</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/media-ui/shared/chrome.css">
+  <link rel="stylesheet" href="./styles/base.css">
+  <link rel="stylesheet" href="./styles/topbar.css">
+  <link rel="stylesheet" href="./styles/cards.css">
+  <link rel="stylesheet" href="./styles/popups.css">
+  <link rel="stylesheet" href="./styles/library.css">
+  <link rel="stylesheet" href="./styles/panels.css">
+  <link rel="stylesheet" href="./light.css">
+  <link rel="stylesheet" href="./setup.css">
+  <style id="palette-default">
+    /* Original, the palette a fresh install resolves to, so the sign-in button and
+       logo do not first show the stylesheet's purple until setup.js has fetched the
+       config. The stored palette below wins over it, and setup.js's inline styles
+       over both. Generated from palette.js; keep in step with it. */
+    :root{--button-hue:oklch(from #e83a68 l calc(c * 1) h);--color-accent:oklch(from #e83a68 .56 min(calc(c * 1), .24) h);--color-accent-strong:oklch(from #e83a68 .47 min(calc(c * 1), .22) h);--logo-gradient:linear-gradient(in oklch to right, oklch(from color-mix(in oklch, #ff7a0f 65%, #f0307c) l calc(c * 1) h), oklch(from color-mix(in oklch, #f0307c 65%, #f0307c) l calc(c * 1) h), oklch(from color-mix(in oklch, #7a38e8 65%, #f0307c) l calc(c * 1) h));--logo-1:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 75%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h);--logo-2:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 25%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h);--logo-3:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 75%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h);--logo-4:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 25%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(1){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 100%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(2){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 75%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(3){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 50%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(4){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #ff7a0f 65%, #f0307c) 25%, color-mix(in oklch, #f0307c 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(5){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 100%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(6){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 75%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(7){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 50%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(8){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 25%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+    #reruns-rainbow stop:nth-of-type(9){stop-color:oklch(from color-mix(in oklch, color-mix(in oklch, #f0307c 65%, #f0307c) 0%, color-mix(in oklch, #7a38e8 65%, #f0307c)) l calc(c * 1) h)}
+  </style>
+  <script>
+    // The palette this browser last chose, as customisation.js keeps it for
+    // index.html, so a returning browser sees it from the first paint. Cooler is
+    // the stylesheet's own colours and has no stored copy, so it just loses the
+    // Original default above.
+    try {
+      const palette = localStorage.getItem('archive-palette-style');
+      if (palette) document.write(`<style id="palette-early">${palette}</style>`);
+      else if (localStorage.getItem('archive-palette') === 'cooler') document.getElementById('palette-default').remove();
+    } catch { /* The palette still arrives with setup.js. */ }
+  </script>
+  <script type="importmap">
+    {"imports":{
+      "media-ui":"/media-ui/shared/index.js",
+      "media-ui/":"/media-ui/shared/"
+    }}
+  </script>
+</head>
+<body class="wizard-stage">
+  <main class="wizard" aria-labelledby="wizard-name">
+    <section class="wizard-intro">
+      <div class="wizard-spill" aria-hidden="true"></div>
+      <svg class="topbar-logo wizard-logo" viewBox="0 0 40 24" width="160" height="96" aria-hidden="true">
+        <defs>
+          <linearGradient id="reruns-rainbow" x1="0" y1="0" x2="1" y2="0">
+            <!-- Pink, purple, indigo, with the steps between them taken around the
+                 hue wheel (OKLCH) so the blend never greys out. -->
+            <stop offset="0.0" stop-color="#ce4178"/>
+            <stop offset="0.125" stop-color="#c53e93"/>
+            <stop offset="0.25" stop-color="#b73fac"/>
+            <stop offset="0.375" stop-color="#a442c4"/>
+            <stop offset="0.5" stop-color="#8d47d8"/>
+            <stop offset="0.625" stop-color="#7b46d2"/>
+            <stop offset="0.75" stop-color="#6845cb"/>
+            <stop offset="0.875" stop-color="#5644c2"/>
+            <stop offset="1" stop-color="#4442b8"/>
+          </linearGradient>
+        </defs>
+        <!-- The player's rounded screen, with a rewind symbol on it. -->
+        <rect width="40" height="24" rx="6" fill="url(#reruns-rainbow)"/>
+        <!-- The symbol, scaled about the centre. The lead arrow is notched for the
+             follower to nest in, with a small gap. Each triangle's weight sits at its
+             flat side, so it is nudged left to look centred rather than measure so.
+             A faint shadow lifts it off the colours. -->
+        <g transform="translate(20 12) scale(.72) translate(-20.8 -12)">
+          <g class="arrow arrow-lead">
+            <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z" fill="#0003" stroke="#0003" stroke-width="1.5"
+                  stroke-linejoin="round" transform="translate(0 .4)"/>
+            <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z" fill="#fff" stroke="#fff" stroke-width="1.5"
+                  stroke-linejoin="round"/>
+          </g>
+          <g class="arrow arrow-follow">
+            <path d="M19.2 12l10-6v12z" fill="#0003" stroke="#0003" stroke-width="1.5"
+                  stroke-linejoin="round" transform="translate(0 .4)"/>
+            <path d="M19.2 12l10-6v12z" fill="#fff" stroke="#fff" stroke-width="1.5"
+                  stroke-linejoin="round"/>
+          </g>
+        </g>
+      </svg>
+      <h1 id="wizard-name" class="wizard-name">Reruns</h1>
+      <p class="wizard-version" data-version hidden></p>
+      <p class="wizard-welcome" data-i18n="setup.welcome">Welcome to Reruns. Let's get you set up.</p>
+      <ol class="wizard-progress" aria-label="Setup steps" data-i18n-attrs="aria-label:setup.steps">
+        <li data-marker="auth" data-i18n="setup.step.authentication">Authentication</li>
+        <li data-marker="account" data-i18n="setup.step.account">Account</li>
+        <li data-marker="library" data-i18n="setup.step.library">Library</li>
+        <li data-marker="done" data-i18n="setup.step.done">Done</li>
+      </ol>
+    </section>
+
+    <section class="wizard-pages">
+      <!-- Every page shares one grid cell, so the pane is as tall as the
+           tallest and nothing below it jumps as the pages change. -->
+      <form class="wizard-page" data-page="auth">
+        <h2 data-i18n="setup.auth.title">How will people sign in?</h2>
+        <p class="wizard-lede" data-i18n="setup.auth.lede">You can switch later, but accounts made under one way do not carry over to the others.</p>
+        <!-- Each answer is its own button straight on to the next page: a
+             choice that then needed Continue was two presses for one decision. -->
+        <div class="wizard-options">
+          <button class="wizard-option" type="submit" name="auth" value="local">
+            <span class="wizard-option-title"><span data-i18n="setup.auth.local">Local accounts</span><em data-i18n="setup.auth.recommended">Recommended</em></span>
+            <span class="wizard-option-note" data-i18n="setup.auth.local.note">Usernames and passwords stored on this server.</span>
+          </button>
+          <button class="wizard-option" type="submit" name="auth" value="oidc">
+            <span class="wizard-option-title" data-i18n="setup.auth.oidc">Single sign-on (OIDC)</span>
+            <span class="wizard-option-note" data-i18n="setup.auth.oidc.note">Sign in through Pocket ID, Authentik, Keycloak, Authelia or another OpenID Connect provider.</span>
+          </button>
+          <button class="wizard-option" type="submit" name="auth" value="none">
+            <span class="wizard-option-title" data-i18n="setup.auth.none">No sign-in</span>
+            <span class="wizard-option-note" data-i18n="setup.auth.none.note">Anyone who can reach the server has full control. Only for a machine nobody else can reach.</span>
+          </button>
+        </div>
+
+        <p class="wizard-message" role="status" data-message></p>
+      </form>
+
+      <!-- OIDC and no sign-in are set in the server's environment, so their
+           pages say what to set and check once the server has restarted. -->
+      <form class="wizard-page" data-page="oidc">
+        <h2 data-i18n="setup.auth.oidc">Single sign-on (OIDC)</h2>
+        <div data-oidc-ready hidden>
+          <p class="wizard-lede" data-oidc-ready-text></p>
+          <a class="profile-save wizard-wide" href="/auth/oidc/start" data-oidc-link></a>
+        </div>
+        <div data-oidc-steps>
+          <p class="wizard-lede" data-i18n="setup.auth.oidc.lede">Reruns reads its provider from the server's settings, so this is set up outside the page.</p>
+          <ol class="wizard-howto">
+            <li><span data-i18n="setup.auth.oidc.step1">In your provider, make a client and register this redirect address:</span>
+              <span class="wizard-code"><code data-callback></code><button type="button" class="wizard-copy" data-copy></button></span></li>
+            <li><span data-i18n="setup.auth.oidc.step2">Give the server these settings, with your own values:</span>
+              <span class="wizard-code wizard-block"><code data-oidc-env></code><button type="button" class="wizard-copy" data-copy></button></span>
+              <span class="wizard-optional"><span data-i18n="setup.auth.oidc.optional">Optionally:</span>
+                <button type="button" class="wizard-info" popovertarget="oidc-optional-help" aria-expanded="false" data-info
+                  data-i18n-attrs="aria-label:setup.auth.oidc.optionalHelp,title:setup.auth.oidc.optionalHelp" aria-label="About these settings" title="About these settings"></button></span>
+              <span class="wizard-code wizard-block"><code data-oidc-optional></code><button type="button" class="wizard-copy" data-copy></button></span></li>
+            <li data-i18n="setup.auth.oidc.step3">Restart the server and come back here. Members of the admin group become admins the first time they sign in.</li>
+          </ol>
+        </div>
+        <p class="wizard-message" role="status" data-message></p>
+        <div class="wizard-actions">
+          <button class="profile-cancel" type="button" data-back data-i18n="setup.back">Back</button>
+          <button class="profile-save" type="submit" data-check data-i18n="setup.auth.check">Check again</button>
+        </div>
+        <!-- Help for the optional settings, behind an (i) rather than under the
+             box: the page is as tall as its tallest step, and this one was it. -->
+        <p id="oidc-optional-help" class="wizard-tip" popover="auto" data-i18n="setup.auth.oidc.optionalNote">Members of the admin group become admins. The libraries claim lists the libraries a new account can see, by folder name, or * for all; without it, they see every library.</p>
+      </form>
+
+      <form class="wizard-page" data-page="none">
+        <h2 data-i18n="setup.auth.none">No sign-in</h2>
+        <p class="wizard-lede" data-i18n="setup.auth.none.lede">Sign-in is switched off when the server starts, so this is set up outside the page.</p>
+        <ol class="wizard-howto">
+          <li><span data-i18n="setup.auth.none.step1">Start the server with sign-in turned off:</span>
+            <span class="wizard-code"><code>RERUNS_NO_AUTH=true</code><button type="button" class="wizard-copy" data-copy></button></span>
+            <span class="wizard-small" data-i18n="setup.auth.none.flag">or pass {child} on the command line.<code>--no-auth</code></span></li>
+          <li data-i18n="setup.auth.none.step2">Restart it, and the library opens straight away.</li>
+        </ol>
+        <p class="wizard-caution" data-i18n="setup.auth.none.caution">Keep the server on 127.0.0.1, or behind something that checks who is asking.</p>
+        <p class="wizard-message" role="status" data-message></p>
+        <div class="wizard-actions">
+          <button class="profile-cancel" type="button" data-back data-i18n="setup.back">Back</button>
+          <button class="profile-save" type="submit" data-check data-i18n="setup.auth.check">Check again</button>
+        </div>
+      </form>
+
+      <form class="wizard-page" data-page="account">
+        <h2 data-i18n="setup.account.title">Create the admin account</h2>
+        <p class="wizard-lede" data-i18n="setup.account.lede">This account manages libraries, downloads and who else can sign in.</p>
+        <p class="wizard-caution" role="alert" data-not-writable hidden></p>
+        <label class="wizard-field" data-token-row><span data-i18n="auth.token">Setup token</span>
+          <input name="token" type="text" autocomplete="off" spellcheck="false">
+          <span class="wizard-small" data-i18n="setup.auth.local.howto">The server printed it in its console when it started; with Docker, run {child} on the container.<code>docker logs</code></span></label>
+        <label class="wizard-field"><span data-i18n="auth.username">Username</span>
+          <input name="username" type="text" autocomplete="username" maxlength="120"></label>
+        <label class="wizard-field" data-password-field><span data-i18n="auth.password">Password</span>
+          <span class="password-input">
+            <input name="password" type="password" autocomplete="new-password" maxlength="1024" aria-describedby="wizard-strength">
+            <button class="password-reveal" type="button" aria-pressed="false"></button>
+          </span>
+          <span class="password-strength" id="wizard-strength" aria-live="polite"><i></i><b></b></span></label>
+        <p class="wizard-message" role="status" data-message></p>
+        <div class="wizard-actions">
+          <button class="profile-cancel" type="button" data-back data-i18n="setup.back">Back</button>
+          <button class="profile-save" type="submit" data-i18n="setup.account.create">Create account</button>
+        </div>
+      </form>
+
+      <form class="wizard-page" data-page="library">
+        <h2 data-i18n="setup.library.title">Where your videos live</h2>
+        <p class="wizard-lede" data-i18n="setup.library.lede">Add the folders that already hold videos, or an empty one to start with. Reruns shows them all as one library.</p>
+        <ul class="wizard-libraries" data-libraries></ul>
+        <p class="wizard-small" data-downloads-hint hidden data-i18n="setup.library.downloadsHint">New downloads are saved to the folder whose download button is lit. Press another to change it.</p>
+        <div class="wizard-add">
+          <label class="wizard-field"><span data-i18n="setup.library.add">Folder path</span>
+            <input name="path" type="text" autocomplete="off" spellcheck="false" placeholder="/srv/videos" data-i18n-attrs="placeholder:setup.library.placeholder"></label>
+          <button class="profile-cancel" type="button" data-add-library data-i18n="setup.library.addButton">Add</button>
+        </div>
+        <p class="wizard-small" data-i18n="setup.library.note">The full path as the server sees it. With Docker, that is the path inside the container.</p>
+        <p class="wizard-message" role="status" data-message></p>
+        <div class="wizard-actions">
+          <button class="profile-save" type="submit" data-i18n="setup.continue">Continue</button>
+        </div>
+      </form>
+
+      <section class="wizard-page wizard-done" data-page="done">
+        <svg class="wizard-tick" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"/><path d="M15 24.5l6 6 12-13"/></svg>
+        <h2 data-i18n="setup.done.title">You're all set</h2>
+        <p class="wizard-lede" data-i18n="setup.done.lede">Paste a link in the search bar to download your first video.</p>
+        <div class="wizard-actions">
+          <a class="profile-save wizard-open" href="/" data-open data-i18n="setup.done.open">Open Reruns</a>
+        </div>
+      </section>
+
+      <section class="wizard-page" data-page="closed">
+        <h2 data-i18n="setup.closed.title">Already set up</h2>
+        <p class="wizard-lede" data-i18n="setup.closed.lede">This archive has an admin. Sign in to change its settings.</p>
+        <div class="wizard-actions">
+          <a class="profile-save wizard-open" href="/auth.html" data-i18n="auth.signIn">Sign in</a>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="/setup.js"></script>
+</body>
+</html>

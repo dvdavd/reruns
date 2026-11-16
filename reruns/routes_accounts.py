@@ -6,7 +6,11 @@ import json
 import logging
 from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, quote, unquote
+
+from .auth import ALL_LIBRARIES
+from .routes_media import is_page_path
+from .version import DISPLAY_VERSION
 
 
 log = logging.getLogger("server")
@@ -50,8 +54,10 @@ class AccountRoutes:
         # than once per item checked.
         if getattr(self, "_grant_roots", None) is None:
             roots = {library: root.resolve() for library, root in self.settings.libraries()}
-            self._grant_roots = [(roots[grant["library"]], roots[grant["library"]] / grant["folder"])
-                                 for grant in self.account["grants"] if grant["library"] in roots]
+            self._grant_roots = [(root, root) for root in roots.values()] if any(
+                grant["library"] == ALL_LIBRARIES for grant in self.account["grants"]) else [
+                (roots[grant["library"]], roots[grant["library"]] / grant["folder"])
+                for grant in self.account["grants"] if grant["library"] in roots]
         resolved = self.archive.resolve(path)
         return any(resolved.is_relative_to(root) and resolved.is_relative_to(folder)
                    for root, folder in self._grant_roots)
@@ -111,6 +117,9 @@ class AccountRoutes:
                              # made: that is where an unwritable folder is about to bite.
                              "configWritable": self.auth.writable() or self.auth.has_admin(),
                              "configDir": str(self.auth.path.parent),
+                             # Shown on the setup page; once there is an admin
+                             # a stranger has no need to know it.
+                             **({} if self.auth.has_admin() else {"version": DISPLAY_VERSION}),
                              **self._look_defaults()}, head_only=head_only)
             return False
         if path == "/api/auth/me":
@@ -121,6 +130,13 @@ class AccountRoutes:
             if self._require_user():
                 if self._is_admin():
                     self._send_json(self.auth.users(), head_only=head_only)
+                else:
+                    self.send_error(HTTPStatus.FORBIDDEN)
+            return False
+        if path == "/api/auth/invites":
+            if self._require_user():
+                if self._is_admin():
+                    self._send_json(self.auth.invites(), head_only=head_only)
                 else:
                     self.send_error(HTTPStatus.FORBIDDEN)
             return False
@@ -150,13 +166,20 @@ class AccountRoutes:
                 log.exception("OIDC sign-in failed")
                 self._redirect("/auth.html?error=oidc", self._oidc_cookie("", expire=True))
             return False
-        if path in ("/auth.html", "/favicon.svg") or path.startswith("/media-ui/") or path.endswith((".js", ".css", ".svg", ".woff", ".woff2")):
+        if path in ("/auth.html", "/setup.html", "/favicon.svg") or path.startswith("/media-ui/") or path.endswith((".js", ".css", ".svg", ".woff", ".woff2")):
             return True
         if self.account is None:
             if path.startswith("/api/"):
                 self.send_error(HTTPStatus.UNAUTHORIZED, "Sign in required")
             else:
-                self._redirect("/auth.html")
+                # Until there is an admin there is no one to sign in as. A
+                # link to a video or a channel is followed once signed in.
+                if not self.auth.has_admin():
+                    self._redirect("/setup.html")
+                elif is_page_path(path):
+                    self._redirect("/auth.html?next=" + quote(self.path, safe=""))
+                else:
+                    self._redirect("/auth.html")
             return False
         if path == "/api/activity" and not self._is_admin():
             self.send_error(HTTPStatus.FORBIDDEN)
@@ -192,6 +215,23 @@ class AccountRoutes:
                 self.end_headers()
                 self.wfile.write(body)
                 return
+            if path == "/api/auth/invite":
+                # Asked by the sign-in page before it offers the form, so a
+                # spent link says so at once rather than after the typing.
+                self._send_json({"valid": self.auth.invite_valid(str(payload.get("token") or ""))}, head_only=False)
+                return
+            if path == "/api/auth/invite/redeem":
+                user = self.auth.redeem_invite(str(payload.get("token") or ""), str(payload.get("username") or ""),
+                                               str(payload.get("password") or ""))
+                token = self.auth.issue(user["id"])
+                body = json.dumps(user).encode()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Set-Cookie", self._session_cookie(token))
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if path == "/api/auth/logout":
                 self.auth.revoke(self._cookie_token())
                 self.send_response(HTTPStatus.OK)
@@ -214,6 +254,16 @@ class AccountRoutes:
                 return
             if path == "/api/auth/users":
                 result = self.auth.create_local(str(payload.get("username") or ""), str(payload.get("password") or ""))
+            elif path == "/api/auth/invites":
+                result = self.auth.create_invite(self.account["id"], payload, self.settings.libraries())
+            elif path.startswith("/api/auth/invites/") and path.endswith("/delete"):
+                self.auth.revoke_invite(int(path.split("/")[-2]))
+                result = {}
+            elif path.startswith("/api/auth/users/") and path.endswith("/delete"):
+                user_id = int(path.split("/")[-2])
+                self.auth.delete_user(user_id, self.account["id"])
+                self.settings.playlists.forget_owner(f"user:{user_id}")
+                result = {}
             elif path.startswith("/api/auth/users/"):
                 user_id = int(path.rsplit("/", 1)[-1])
                 result = self.auth.update_user(user_id, payload, self.settings.libraries(),

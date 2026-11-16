@@ -8,7 +8,6 @@ import {createStatisticsUI} from './statistics-ui.js';
 import {createOrphansUI} from './orphans-ui.js';
 import {createAccountsUI} from './accounts-ui.js';
 import {createActivityUI} from './activity-ui.js';
-import {showModalOverPage} from './drawer.js';
 import {post, request} from './api.js';
 import {chosenLanguage, createCustomisationUI, previewsAutoplay} from './customisation.js';
 import {t, translateMarkup, useLocale} from './i18n.js';
@@ -23,6 +22,10 @@ import {createPlayerController} from './player-controller.js';
 import {selectOnFocus} from './select-on-focus.js';
 import {subscriptionTarget} from './subscription-target.js';
 import {createSubscriptionsUI} from './subscriptions-ui.js';
+import {watchTopbarCentring} from './topbar-centring.js';
+import {followThemeColour} from './theme-colour.js';
+
+followThemeColour();
 
 const account = await request('/api/auth/me');
 if (account.authEnabled === false) {
@@ -178,7 +181,7 @@ const downloads = createDownloadsUI({
   drawerClose: document.querySelector('#download-drawer-close'),
   drawerSummary: document.querySelector('#download-drawer-summary'),
   onJobs: jobs => browse.updateJobs(jobs),
-  playLocal: {keyFor: gallery.keyForSource, play: gallery.playByKey},
+  playLocal: {keyFor: gallery.keyForSource, play: gallery.playByKey, href: gallery.hrefForKey},
   // What has just arrived reads as held in the browse panel once the
   // library has been read again.
   onSettled: async () => {
@@ -232,6 +235,7 @@ const browse = createBrowseUI({
   } : null,
   jobAction: downloads.jobAction,
   playLocal: (key, event) => gallery.playByKey(key, event),
+  localHref: key => gallery.hrefForKey(key),
   report,
 });
 gallery.setBrowse(browse.open);
@@ -260,6 +264,13 @@ const subscriptions = createSubscriptionsUI({
 const browseButton = document.querySelector('#download-browse');
 const topbarSearch = document.querySelector('#download-form');
 const searchField = document.querySelector('#archive-search');
+
+watchTopbarCentring({
+  bar: document.querySelector('.topbar-shell > .topbar'),
+  nav: document.querySelector('.topbar-navigation'),
+  folder: document.querySelector('#directory-toggle'),
+  after: [document.querySelector('#create-playlist'), document.querySelector('.topbar-actions')],
+});
 function topbarBrowseSource() {
   return gallery.channelBrowseSource()
     || browseSourceFor(searchField.value, {link: downloads.isLink(), view: gallery.currentView()});
@@ -294,20 +305,25 @@ topbarSearch.addEventListener('submit', event => {
 });
 syncBrowseButton();
 
-const accounts = createAccountsUI({
-  drawer: document.querySelector('#accounts-drawer'),
-  drawerClose: document.querySelector('#accounts-close'),
-  summary: document.querySelector('#accounts-summary'),
-  list: document.querySelector('#accounts-list'),
-  form: document.querySelector('#accounts-form'),
-  report,
-});
 const passwordDialog = createPasswordDialog({
   dialog: document.querySelector('#password-dialog'),
   form: document.querySelector('#password-form'),
   message: document.querySelector('#password-message'),
   cancel: document.querySelector('#password-cancel'),
   report,
+});
+const accounts = createAccountsUI({
+  drawer: document.querySelector('#accounts-drawer'),
+  drawerClose: document.querySelector('#accounts-close'),
+  addButton: document.querySelector('#accounts-new'),
+  addForm: document.querySelector('#accounts-form'),
+  inviteButton: document.querySelector('#accounts-invite'),
+  inviteForm: document.querySelector('#accounts-invite-form'),
+  summary: document.querySelector('#accounts-summary'),
+  list: document.querySelector('#accounts-list'),
+  passwords: passwordDialog,
+  report,
+  selfId: account.id,
 });
 const libraries = createLibrariesUI({
   drawer: document.querySelector('#libraries-drawer'),
@@ -355,6 +371,7 @@ const statistics = createStatisticsUI({
   currentView: () => gallery.statisticsView(),
   facetLink: (kind, target) => gallery.facetLink(kind, target),
   playVideo: (item, event) => gallery.playByKey(item.id, event),
+  videoHref: item => gallery.hrefForKey(item.id),
 });
 
 const activity = createActivityUI({
@@ -453,20 +470,7 @@ browse.setProfiles(settings || {});
 gallery.setDownloadProfiles(settings || {});
 subscriptions.setProfiles(settings || {});
 subscriptions.setDefaults(settings || {});
-// A fresh install has nothing to show until a folder is added, so say how
-// before dropping someone at an empty form.
-if (account.role === 'admin' && settings?.libraries.length === 0) {
-  const welcome = document.querySelector('#welcome-dialog');
-  const path = document.querySelector('#welcome-path');
-  const message = document.querySelector('#welcome-message');
-  document.querySelector('#welcome-later').addEventListener('click', () => welcome.close());
-  path.addEventListener('input', () => { message.hidden = true; });
-  document.querySelector('#welcome-form').addEventListener('submit', async event => {
-    event.preventDefault();
-    const failure = await libraries.add(path.value.trim());
-    message.textContent = failure;
-    message.hidden = !failure;
-    if (!failure) welcome.close();
-  });
-  showModalOverPage(welcome);
-}
+// A fresh install has nothing to show until a folder is added. The setup page
+// asks for one, and picks up there when setup stopped short of it, or never
+// ran because the server has no sign-in.
+if (account.role === 'admin' && settings?.libraries.length === 0) location.replace('/setup.html');

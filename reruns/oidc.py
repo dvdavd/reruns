@@ -11,7 +11,7 @@ from urllib.parse import urlencode, urlparse
 
 class OIDC:
     def __init__(self, issuer: str, client_id: str, client_secret: str, public_url: str, name: str = "",
-                 admin_group: str = "", user_group: str = ""):
+                 admin_group: str = "", user_group: str = "", libraries_claim: str = ""):
         self.issuer = issuer.rstrip("/")
         self.client_id = client_id
         self.client_secret = client_secret
@@ -21,6 +21,10 @@ class OIDC:
         # identity provider can decide who gets in without anyone clicking.
         self.admin_group = admin_group.strip()
         self.user_group = user_group.strip()
+        # A claim naming the libraries a new account starts with, for a
+        # provider that decides that too. Without it, or when a token leaves
+        # it out, they start with every library.
+        self.libraries_claim = libraries_claim.strip()
         self.scope = "openid profile email" + (" groups" if self.admin_group or self.user_group else "")
         self.public_url = public_url.rstrip("/")
         issuer_url, app_url = urlparse(self.issuer), urlparse(self.public_url)
@@ -96,5 +100,8 @@ class OIDC:
         groups = {groups} if isinstance(groups, str) else {str(group) for group in groups}
         access = ("admin" if self.admin_group and self.admin_group in groups else
                   "user" if self.user_group and self.user_group in groups else None)
-        return {"issuer": self.issuer, "subject": claims["sub"], "access": access,
+        named = claims.get(self.libraries_claim) if self.libraries_claim else None
+        library_names = (None if named is None else [named] if isinstance(named, str)
+                         else [str(name) for name in named] if isinstance(named, list) else None)
+        return {"issuer": self.issuer, "subject": claims["sub"], "access": access, "library_names": library_names,
                 "name": str(claims.get("preferred_username") or claims.get("name") or claims.get("email") or claims["sub"])}

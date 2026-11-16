@@ -83,6 +83,9 @@
 }
 .library-row:last-child { border-bottom: 0; }
 .library-row-text { display: grid; flex: 1; min-width: 0; gap: 2px; }
+/* A folder, or on the download folder a folder with an arrow into it; in the
+   row's ink rather than the accent, which was too dark to make out. */
+.library-row-icon { flex-shrink: 0; width: 18px; height: 18px; margin-inline-end: 6px; color: color-mix(in srgb, var(--shell-fg) 72%, transparent); }
 .library-path {
   overflow: hidden;
   color: #aaa;

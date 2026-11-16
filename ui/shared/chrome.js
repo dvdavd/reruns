@@ -1,3 +1,5 @@
+import {iconHref} from './components/icons.js';
+
 // Page chrome behaviour shared by media applications.
 //
 // Everything here works against the class and role contract in `chrome.css`
@@ -22,25 +24,60 @@ export function initTopbarScroll(selector = '.topbar') {
 
 // A transient message in the corner of the page. `persistent` leaves it up
 // until the caller hides it, which is what a long-running scan needs.
+//
+// A node marked `popover` is raised into the top layer each time it is shown.
+// Otherwise a modal dialog's backdrop lies over it, and a refusal from a drawer
+// (a folder the server cannot read) appeared dimmed behind the drawer that
+// asked for it. Hiding and showing again moves it above a dialog opened since.
 export function createStatusToast(node) {
   let timer = null;
   const clear = () => clearTimeout(timer);
+  const isPopover = node?.hasAttribute('popover') && typeof node.showPopover === 'function';
+
+  const raise = () => {
+    node.hidden = false;
+    if (!isPopover) return;
+    if (node.matches(':popover-open')) node.hidePopover();
+    node.showPopover();
+  };
+
+  const lower = () => {
+    if (isPopover && node.matches(':popover-open')) node.hidePopover();
+    node.hidden = true;
+  };
+
+  // A leading glyph says which kind of message it is before it is read: the
+  // neutral glass carries an ordinary one, and an error has its own colour too.
+  const fill = (message, error) => {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const icon = document.createElementNS(svgNS, 'svg');
+    icon.setAttribute('class', 'status-toast-icon');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    const use = document.createElementNS(svgNS, 'use');
+    use.setAttribute('href', iconHref(error ? 'alert-triangle' : 'info'));
+    icon.append(use);
+    const text = document.createElement('span');
+    text.className = 'status-toast-text';
+    text.textContent = message;
+    node.replaceChildren(icon, text);
+  };
 
   const hide = () => {
     if (!node) return;
     node.classList.remove('is-visible');
-    timer = setTimeout(() => { node.hidden = true; }, 260);
+    timer = setTimeout(lower, 260);
   };
 
   const show = (message, {persistent = false, error = false, timeout = 3200} = {}) => {
     if (!node) return;
     clear();
-    node.textContent = message;
     node.onclick = null;
     node.classList.remove('is-clickable', 'is-library-loading');
     node.classList.toggle('is-error', error);
-    if (!message) { node.hidden = true; return; }
-    node.hidden = false;
+    if (!message) { node.replaceChildren(); lower(); return; }
+    fill(message, error);
+    raise();
     requestAnimationFrame(() => node.classList.add('is-visible'));
     // `timeout: 0` is how a caller says "leave it up", same as `persistent`.
     if (!persistent && timeout) timer = setTimeout(hide, timeout);
@@ -51,17 +88,17 @@ export function createStatusToast(node) {
   const showSticky = (message, className) => {
     if (!node) return;
     clear();
-    node.textContent = message;
+    fill(message, false);
     node.onclick = null;
     node.classList.remove('is-clickable', 'is-error');
     node.classList.add(className, 'is-visible');
-    node.hidden = false;
+    raise();
   };
 
   const clearSticky = className => {
     if (!node || !node.classList.contains(className)) return;
     node.classList.remove('is-visible', className);
-    node.hidden = true;
+    lower();
   };
 
   return {node, show, hide, clear, showSticky, clearSticky};

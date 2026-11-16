@@ -17,6 +17,7 @@ import {initialisePlayerImmersive} from './player-immersive.js';
 import {createPlayerStats} from './player-stats.js';
 import {preferences} from './preferences.js';
 import {inPlaylist} from './playlists.js';
+import {findWatched, galleryRoute, routeFromLocation, urlForRoute, watchTargetFor} from './routes.js';
 import {isListened} from './tracklist.js';
 import {t} from './i18n.js';
 import {playerLabels} from './player-labels.js';
@@ -95,10 +96,25 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const {stageNode, pictureRect, transitionSource, transitionThumbnail, transitionBackThumbnail,
     aspectOf, applyAspect, setAspect, flyStage, enterBar, leaveBar, flyFromBar} = transitions;
 
-  const urlFor = id => {
-    const url = new URL(window.location.href);
-    if (id) url.searchParams.set('watch', id); else url.searchParams.delete('watch');
-    return `${url.pathname}${url.search}${url.hash}`;
+  /** The playlist a video opened now would play on through: the one the
+   *  watch page is in, or the one the gallery is showing. */
+  const playlistContext = () => {
+    const route = routeFromLocation(window.location);
+    if (route.watch) return route.list;
+    return route.facet?.kind === 'playlist' ? route.facet.id : '';
+  };
+  /** The address of the gallery the page sits on, which closing returns to. */
+  const galleryUrl = () =>
+    urlForRoute(galleryRoute(window.location, window.history.state), window.location.search);
+  /** A video's address, or the gallery's for none. The playlist goes with it
+   *  only when the video is in it. */
+  const urlFor = (id, list = playlistContext()) => {
+    if (!id) return galleryUrl();
+    const items = getItems();
+    const item = items.find(entry => entry.id === id);
+    const watch = item ? watchTargetFor(item, items) : {key: id};
+    return urlForRoute({watch, list: item && list && inPlaylist(item, list) ? list : ''},
+      window.location.search);
   };
 
   // The settings menu is put together further down; until then there is no
@@ -593,7 +609,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
 
   async function open(item, _partIndex = 0, eventOrOptions = {}) {
     if (!item) return;
-    const routePlaylist = new URLSearchParams(window.location.search).get('playlist');
+    const routePlaylist = playlistContext();
     item = inPlaylist(item, routePlaylist) || item;
     activePlaylistId = item.archive?.playlist?.id || null;
     const options = eventOrOptions?.currentTarget ? {} : eventOrOptions;
@@ -651,7 +667,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     window.scrollTo(0, 0);
     if (history) {
       window.history.pushState(
-        {...window.history.state, watch: item.id, archiveScrollY: galleryScrollY},
+        {...window.history.state, gallery: galleryUrl(), watch: item.id, archiveScrollY: galleryScrollY},
         '', urlFor(item.id),
       );
     }
@@ -798,7 +814,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     window.scrollTo(0, 0);
     if (history) {
       window.history.pushState(
-        {...window.history.state, watch: item.id, archiveScrollY: galleryScrollY},
+        {...window.history.state, gallery: galleryUrl(), watch: item.id, archiveScrollY: galleryScrollY},
         '', urlFor(item.id),
       );
     }
@@ -823,7 +839,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
    */
   async function playInBackground(item) {
     if (!item) return;
-    const routePlaylist = new URLSearchParams(window.location.search).get('playlist');
+    const routePlaylist = playlistContext();
     item = inPlaylist(item, routePlaylist) || item;
     activePlaylistId = item.archive?.playlist?.id || null;
     if (activeId) close({history: false});
@@ -835,8 +851,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     drawMiniControls();
   }
   window.addEventListener('popstate', event => {
-    const id = new URLSearchParams(window.location.search).get('watch');
-    const item = getItems().find(entry => entry.id === id);
+    const item = findWatched(routeFromLocation(window.location).watch, getItems());
     if (item) open(item, 0, {history: false});
     else close({history: false, scrollY: Number.isFinite(event.state?.archiveScrollY)
       ? event.state.archiveScrollY : galleryScrollY});
@@ -951,14 +966,19 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     },
     refreshFavourite: drawFavourite,
     async restoreRoute() {
-      const id = new URLSearchParams(window.location.search).get('watch');
-      // An address saved while a copy stood for its video still finds the
-      // video once a better copy has taken over (see groupFormats).
-      const item = getItems().find(entry => entry.id === id)
-        || getItems().find(entry => entry.archive?.formats?.some(format => format.id === id));
-      if (item && item.id !== id) window.history.replaceState({}, '', urlFor(item.id));
-      if (item) await open(item, 0, {history: false, animate: false});
-      else if (id) window.history.replaceState({}, '', urlFor(null));
+      const route = routeFromLocation(window.location);
+      // The gallery behind is settled before the address changes, as an old
+      // `/?watch=` address carries it and the new one would not.
+      const gallery = galleryUrl();
+      const item = findWatched(route.watch, getItems());
+      // Written out in full each time, so an old address, or one naming a
+      // copy that a better download has since replaced, becomes the current one.
+      if (item) {
+        window.history.replaceState({...window.history.state, gallery}, '', urlFor(item.id, route.list));
+        await open(item, 0, {history: false, animate: false});
+      } else if (route.watch || route.legacy) {
+        window.history.replaceState({...window.history.state}, '', gallery);
+      }
     },
   };
 }

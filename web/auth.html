@@ -1,14 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
+  <!-- The background behind the browser's own bar: --color-bg, dark here and
+       light.css's when the script below finds the light theme. theme-colour.js
+       follows any later change. -->
+  <meta name="theme-color" content="#181818">
   <script>
+    // The theme this browser last chose, before first paint. A browser that
+    // never chose takes the admin's default once the config arrives.
     try {
       const theme = localStorage.getItem('archive-theme');
       if (theme === 'light' || theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches) {
         document.documentElement.dataset.theme = 'light';
+        document.querySelector('meta[name="theme-color"]').content = '#f5f6f9';
       }
     } catch { /* The dark default still works without browser storage. */ }
   </script>
@@ -22,6 +28,7 @@
   <link rel="stylesheet" href="./styles/library.css">
   <link rel="stylesheet" href="./styles/panels.css">
   <link rel="stylesheet" href="./light.css">
+  <link rel="stylesheet" href="./setup.css">
   <link rel="stylesheet" href="./auth.css">
   <style id="palette-default">
     /* Original, the palette a fresh install resolves to, so the sign-in button and
@@ -50,10 +57,17 @@
       else if (localStorage.getItem('archive-palette') === 'cooler') document.getElementById('palette-default').remove();
     } catch { /* The palette still arrives with auth.js. */ }
   </script>
+  <script type="importmap">
+    {"imports":{
+      "media-ui":"/media-ui/shared/index.js",
+      "media-ui/":"/media-ui/shared/"
+    }}
+  </script>
 </head>
-<body class="auth-page">
-  <main class="auth-card">
-    <svg class="topbar-logo auth-logo" viewBox="0 0 40 24" width="90" height="54" aria-hidden="true">
+<body class="wizard-stage auth-page">
+  <main class="wizard auth-card">
+    <div class="wizard-spill" aria-hidden="true"></div>
+    <svg class="topbar-logo wizard-logo auth-logo" viewBox="0 0 40 24" width="90" height="54" aria-hidden="true">
         <defs>
           <linearGradient id="reruns-rainbow" x1="0" y1="0" x2="1" y2="0">
             <!-- Pink, purple, indigo, with the steps between them taken around the
@@ -90,21 +104,13 @@
           </g>
         </g>
       </svg>
-    <h1>Reruns</h1>
-    <p id="auth-intro" data-i18n="auth.intro">Sign in to your archive.</p>
-    <p id="auth-warning" class="auth-note auth-warning" role="alert" hidden></p>
+    <h1 class="wizard-name">Reruns</h1>
+    <p id="auth-intro" class="wizard-welcome" data-i18n="auth.intro">Sign in to your archive.</p>
     <form id="auth-form">
-      <label><span data-i18n="auth.username">Username</span><input name="username" type="text" autocomplete="username" required></label>
-      <label><span data-i18n="auth.password">Password</span><input name="password" type="password" autocomplete="current-password" required></label>
-      <label id="repeat-row" hidden><span data-i18n="auth.repeat">Repeat password</span><input name="repeat" type="password" autocomplete="new-password" disabled></label>
-      <label id="setup-token-row" hidden><span data-i18n="auth.token">Setup token</span><input name="token" type="text" autocomplete="off" spellcheck="false">
-        <small class="auth-note info-callout">
-          <svg class="info-callout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/>
-          </svg>
-          <span id="setup-token-hint">Printed in the server's console when it starts.
-            With Docker, run <code>docker logs</code> on the container.</span></small></label>
+      <label class="wizard-field"><span data-i18n="auth.username">Username</span><input name="username" type="text" autocomplete="username" required></label>
+      <label class="wizard-field" data-password-field><span data-i18n="auth.password">Password</span>
+        <span class="password-input"><input name="password" type="password" autocomplete="current-password" required aria-describedby="auth-strength"><button class="password-reveal" type="button" aria-pressed="false"></button></span>
+        <span class="password-strength" id="auth-strength" aria-live="polite" hidden><i></i><b></b></span></label>
       <button id="auth-submit" class="profile-save" type="submit" data-i18n="auth.signIn">Sign in</button>
     </form>
     <div id="auth-or" class="auth-or" role="separator" hidden><span data-i18n="auth.or">or</span></div>

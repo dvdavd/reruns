@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-APP_VERSION = "0.8.17"
+APP_VERSION = "0.8.19"
 
 
 def _revision() -> str:

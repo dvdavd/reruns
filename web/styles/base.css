@@ -60,7 +60,10 @@
   --shell-fg: var(--color-text);
   --shell-muted: var(--color-text-muted);
   --shell-line: var(--color-border);
-  --raised-surface: #262626;
+  /* A section inside a drawer or panel: the ink mixed into the panel's fill,
+     so it stays a step off whatever the panel is drawn in. A fixed grey
+     matched the glass's own shade and vanished on it. */
+  --raised-surface: color-mix(in srgb, var(--glass-ink) 6%, var(--color-menu-bg));
   --shadow-menu: 0 6px 16px #000000b3, 0 2px 5px #0006;
 }
 

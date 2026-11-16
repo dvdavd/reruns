@@ -39,6 +39,9 @@ services:
       # first sign-in, as admins or as ordinary users respectively.
       # RERUNS_OIDC_ADMIN_GROUP: reruns_admin
       # RERUNS_OIDC_USER_GROUP: reruns_user
+      # A claim listing the libraries a new account starts with, by
+      # folder name; without it they see every library.
+      # RERUNS_OIDC_LIBRARIES_CLAIM: reruns_libraries
     ports:
       - "127.0.0.1:8800:8800"
     volumes:

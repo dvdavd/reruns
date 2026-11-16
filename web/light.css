@@ -26,7 +26,6 @@
   --color-button-bg-hover: color-mix(in srgb, var(--color-accent) 12%, #e9eaf0);
   --color-button-border-hover: color-mix(in srgb, var(--color-accent) 42%, #c8cad4);
   --color-menu-bg: #fff;
-  --raised-surface: #eef0f4;
   --color-menu-border: #d9dbe3;
   --color-dialog-bg: #eff0f4;
   --color-menu-item-hover: color-mix(in srgb, var(--color-accent) 12%, #fff);
@@ -156,7 +155,6 @@
 :root[data-theme="light"] .search-clear-button { color: #555b6a; }
 :root[data-theme="light"] .search-clear-button:is(:hover, :focus-visible) { border-color: #c9cbd5; background: #e5e7ee; color: #1e2230; }
 :root[data-theme="light"] #download-queue-toggle[data-progress="true"]::after { inset: 2px; }
-:root[data-theme="light"] .status-toast { color: #292037; box-shadow: var(--shadow-menu); }
 :root[data-theme="light"] .topbar .topbar-navigation { background: rgb(32 35 59 / .055); }
 :root[data-theme="light"] .topbar .topbar-navigation > .icon-button:not(:hover, :focus-visible) { background: transparent; }
 :root[data-theme="light"] .topbar .topbar-navigation .icon-button[aria-pressed="true"],
@@ -190,7 +188,6 @@
 :root[data-theme="light"] .group-chip { background: #f0f1f5; color: #454959; }
 :root[data-theme="light"] .menu-trigger { color: #555b69; }
 :root[data-theme="light"] :is(.menu-trigger:hover, .menu-trigger[aria-expanded="true"]) { border-color: #d2d5df; background: #e9eaf0; color: #202431; }
-:root[data-theme="light"] .menu-popover { border-color: #d9dbe3; box-shadow: var(--shadow-menu); }
 :root[data-theme="light"] .release-chip { color: #54596a; }
 :root[data-theme="light"] .archive-watch-specs dt {
   color: oklch(from var(--watch-accent) .32 c h);
@@ -347,7 +344,9 @@
 :root[data-theme="light"] .customisation-choices label:has(:checked),
 :root[data-theme="light"] .customisation-choices label:has(:checked):is(:hover, :has(:focus-visible)),
 :root[data-theme="light"] .library-row .library-row-action.active,
+:root[data-theme="light"] .wizard-library .library-row-action.active,
 :root[data-theme="light"] .library-row .library-row-action.active:is(:hover, :focus-visible),
+:root[data-theme="light"] .wizard-library .library-row-action.active:is(:hover, :focus-visible),
 :root[data-theme="light"] .account-row .library-row-action.active:not(.danger),
 :root[data-theme="light"] .account-row .library-row-action.active:not(.danger):not(:disabled):is(:hover, :focus-visible),
 :root[data-theme="light"] .profile-row .library-row-action[aria-checked="true"],

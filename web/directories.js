@@ -9,20 +9,22 @@
 export const DIRECTORY_KEY = 'archive-directory';
 
 /**
- * What the menu offers, top to bottom, each with how deep it is indented.
- * With one library its root is the same thing as "All videos", so only the
- * folders in it are listed; with several, each library's root is a row.
+ * What the menu offers below "All videos", top to bottom, each with how deep
+ * it is indented. Everything sits at least a step in from "All videos", which
+ * holds it all. With one library its root is the same thing as "All videos",
+ * so only the folders in it are listed; with several, each library's root is
+ * a row.
  */
 export function directoryRows(entries) {
   const several = new Set(entries.map(entry => entry.library)).size > 1;
   const rows = [];
   for (const entry of entries) {
     if (!entry.path) {
-      if (several) rows.push({key: entry.key, name: entry.name, depth: 0, count: entry.count});
+      if (several) rows.push({key: entry.key, name: entry.name, depth: 1, count: entry.count});
       continue;
     }
     rows.push({key: entry.key, name: entry.name, count: entry.count,
-      depth: entry.path.split('/').length - (several ? 0 : 1)});
+      depth: entry.path.split('/').length + (several ? 1 : 0)});
   }
   return rows;
 }

@@ -4,7 +4,7 @@ import {formatRuntime, libraryStats} from './library-stats.js';
 import {plural, t} from './i18n.js';
 
 
-export function createStatisticsUI({drawer, drawerClose, scopeSwitch, subtitle, stats, items, currentView, facetLink, playVideo}) {
+export function createStatisticsUI({drawer, drawerClose, scopeSwitch, subtitle, stats, items, currentView, facetLink, playVideo, videoHref}) {
   const controls = createDrawerControls(drawer);
   let metric = 'count';
   let scope = 'library';
@@ -122,7 +122,7 @@ export function createStatisticsUI({drawer, drawerClose, scopeSwitch, subtitle, 
             percent: Math.round(playlist.count / playlist.total * 100)})},
       })), true)}
       ${bars(t('stats.largestVideos'), found.largestVideos.map(({item, sizeBytes}) => ({
-        name: html`<a href=${`?watch=${encodeURIComponent(item.id)}`} onClick=${event => {
+        name: html`<a href=${videoHref?.(item)} onClick=${event => {
           if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           event.preventDefault(); controls.close(); playVideo(item, event);
         }}>${item.title}</a>`, tooltip: item.title, value: sizeBytes, label: formatBytes(sizeBytes)})))}`, stats);

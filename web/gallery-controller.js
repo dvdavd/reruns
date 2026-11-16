@@ -13,7 +13,7 @@ import {createChannelImages} from './channel-image.js';
 import {createChannelProfile} from './channel-profile.js';
 import {createCollectionMenu} from './collection-menu.js';
 import {createCreatorShelf, creatorOf} from './creator-shelf.js';
-import {facetFromParams, facetName, matchesFacet} from './facets.js';
+import {facetName, matchesFacet} from './facets.js';
 import {
   createPlaylistCollapser, inPlaylist, inPlaylistOrder, isReversed,
   playlistsFrom, playlistViewOf,
@@ -25,7 +25,8 @@ import {createPlaylistShelf, favouritePlaylists as favouritesAmong} from './play
 import {createTracklist, showsAsTracks, tracklistOf} from './tracklist.js';
 import {createVideoShelf, favouriteVideos} from './video-shelf.js';
 import {channelSubscribeUrl} from './subscription-target.js';
-import {displayedView, viewFromParams} from './views.js';
+import {displayedView} from './views.js';
+import {galleryRoute, urlForRoute} from './routes.js';
 import {ColumnGallery} from './column-gallery.js';
 
 /** Whether a playlist belongs to the channel or creator a chip names: any of
@@ -34,8 +35,6 @@ const ownedBy = (playlist, facet) => playlist.items.some(item => matchesFacet(it
 import {directionOf, effectiveSort, galleryHeading, sortButtons} from './gallery-heading.js';
 import {createPlaylistProfile} from './playlist-profile.js';
 
-const facetFromUrl = () =>
-  facetFromParams(new URLSearchParams(window.location.search));
 
 export function createGalleryController({
   root, summary, playlistsSummary, channelsSummary, count, search, searchClear, shelf, videoShelf,
@@ -98,9 +97,8 @@ export function createGalleryController({
     check: (...args) => subscriptionsBackend?.check(...args),
     refresh: () => subscriptionsBackend?.refresh(),
   };
-  let query = new URLSearchParams(window.location.search).get('q') || '';
-  let facet = facetFromUrl();
-  let view = viewFromParams(new URLSearchParams(window.location.search));
+  // A page landed on at a video starts with the gallery it sits on.
+  let {query, facet, view} = galleryRoute(window.location, window.history.state);
   const nameOf = active => facetName(active, store.allItems());
   const navigation = createGalleryNavigation({search, searchClear, player, nameOf,
     getState: () => ({query, facet, view}),
@@ -307,7 +305,7 @@ export function createGalleryController({
     root: playlistsRoot,
     onPlay: (item, event) => player.open(item, 0, event),
     onOpen: openPlaylist,
-    onFilterOwner: owner => filterByFacet('channel', owner, {view: ownerView()}),
+    onFilterOwner: owner => filterByFacet('channel', owner),
     loadOwnerPortrait: channelImages,
     ...playlistFavourites,
     onEdit: playlist => playlistEditor.edit(playlist),
@@ -383,7 +381,6 @@ export function createGalleryController({
     afterRender: track => initialiseCardAccents(track, id => store.itemForRef(id)),
   });
 
-  const ownerView = () => (displayedView(view, {query, facet}) === 'playlists' ? 'playlists' : view);
   /**
    * Clearing means the whole archive, every time. Stepping back through
    * history instead would land on whatever was filtered before — the previous
@@ -655,6 +652,11 @@ export function createGalleryController({
       const found = store.allItems().find(item => item.archive?.sourceId === String(id)
         && String(item.archive.extractor).toLowerCase() === wanted);
       return found?.id || '';
+    },
+    /** The address of a library video by its key, for a link to open in a new tab. */
+    hrefForKey(key) {
+      const item = store.itemForRef(key);
+      return item ? player.linkFor(item) : urlForRoute({watch: {key}});
     },
     /** Opens a library video by its key; false when the library no longer has it. */
     playByKey(key, event) {

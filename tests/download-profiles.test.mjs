@@ -118,6 +118,16 @@ test('restricted locations contain only explicit grants, even for empty folders'
   assert.deepEqual(grantedLocationChoices([], libraries), []);
 });
 
+test('a grant of every library offers each library the account is shown', () => {
+  const shown = [{id: 'films', path: '/media/Films'}, {id: 'music', path: '/media/Music'}];
+  const choices = grantedLocationChoices([{library: '*', folder: ''}], shown);
+  assert.deepEqual(choices.map(choice => choice.label), ['Films', 'Music']);
+  assert.deepEqual(choices.map(choice => JSON.parse(choice.value)),
+    [{library: 'films', folder: ''}, {library: 'music', folder: ''}]);
+  // A root granted as well is not offered twice.
+  assert.equal(grantedLocationChoices([{library: '*', folder: ''}, {library: 'films', folder: ''}], shown).length, 2);
+});
+
 test('manual defaults and granted folder labels stay compact without changing destinations', () => {
   assert.deepEqual(locationChoices([], '', 'Default'), [{value: '', label: 'Default'}]);
   const granted = grantedLocationChoices([{library: 'lib1', folder: 'Shared'}], libraries);

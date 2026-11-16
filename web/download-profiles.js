@@ -144,9 +144,19 @@ export function locationChoices(rows, selectedKey, defaultLabel = t('profiles.pr
 }
 
 /** Restricted accounts choose an explicit grant, including empty library folders
-    that have no entries in the gallery yet. There is no profile-default option. */
+    that have no entries in the gallery yet. There is no profile-default option.
+    A grant of every library ("*", auth.py's ALL_LIBRARIES) offers each library
+    the account is shown, as the server lists them, by its root. */
 export function grantedLocationChoices(grants, libraries) {
-  return grants.flatMap(grant => {
+  const every = grants.some(grant => grant.library === '*');
+  const expanded = every
+    ? [...libraries.map(library => ({library: library.id, folder: ''})), ...grants.filter(grant => grant.library !== '*')]
+    : grants;
+  const seen = new Set();
+  return expanded.flatMap(grant => {
+    const key = `${grant.library}/${grant.folder || ''}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
     const library = libraries.find(item => item.id === grant.library);
     if (!library) return [];
     return [{value: JSON.stringify({library: grant.library, folder: grant.folder || ''}),

@@ -4,8 +4,8 @@
 import {t} from './i18n.js';
 
 
-/** Each filter as the facets of an item it would match. The key is both the
- *  URL parameter and the chip kind. */
+/** Each filter as the facets of an item it would match. The key is the chip
+ *  kind, and names its path in the address (see routes.js). */
 export const FACETS = {
   // An unknown quality's id stays as it was, since it is also the URL's. A
   // download with no picture has no quality to rank, so it is its own kind,
@@ -41,22 +41,4 @@ export function facetName(facet, items) {
     if (entry) return entry.name;
   }
   return '';
-}
-
-/** The chip filter a URL asks for, or null for the whole archive. */
-export function facetFromParams(params) {
-  for (const kind of Object.keys(FACETS)) {
-    const id = params.get(kind);
-    if (id) return {kind, id, name: ''};
-  }
-  return null;
-}
-
-/** Writes the filter onto a URL, clearing whichever chip is not in play. */
-export function applyFacetParams(url, facet) {
-  for (const kind of Object.keys(FACETS)) {
-    if (facet?.kind === kind) url.searchParams.set(kind, facet.id);
-    else url.searchParams.delete(kind);
-  }
-  return url;
 }

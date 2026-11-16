@@ -209,7 +209,7 @@ class BrowserSmokeTests(_BrowserCase):
     def test_player_opens_and_plays(self):
         page = self.open_page()
         self.play(page, "Smoke Video")
-        self.assertIn("watch=", page.url)
+        self.assertIn("/watch/", page.url)
         self.assertEqual(self.failures, [])
 
     def test_background_play_follows_its_setting(self):
@@ -289,7 +289,7 @@ class AutoplayTests(_BrowserCase):
         make_clip(archive, "autotwo", "Smoke Lesson Two", video=True)
 
     def watching(self, page):
-        return page.evaluate("new URLSearchParams(location.search).get('watch')")
+        return page.evaluate("location.pathname")
 
     def play_to_the_end(self, page, title):
         page.click(f'.thumbnail-button[aria-label="View details for {title}"]')
@@ -313,7 +313,7 @@ class AutoplayTests(_BrowserCase):
         started = self.play_to_the_end(page, "Smoke Lesson One")
         self.assertEqual(self.next_title(page), "Smoke Lesson Two")
         page.wait_for_function(
-            f"new URLSearchParams(location.search).get('watch') !== {json.dumps(started)}",
+            f"location.pathname !== {json.dumps(started)}",
             timeout=10000)
         page.wait_for_function(
             """() => document.querySelector('[data-part-side="1"]').hidden""", timeout=5000)
@@ -326,11 +326,12 @@ class AutoplayTests(_BrowserCase):
             with self.subTest(from_start=from_start):
                 page = self.open_page(autoplay="on", stored=((FROM_START_KEY, from_start),))
                 # Lesson Two was left off fifteen seconds in. Its key is the
-                # item's id, which only the page knows, and leaving its watch
+                # item's id, which only the server knows, and leaving its watch
                 # page saves a position of its own, so this is set after.
                 page.click('.thumbnail-button[aria-label="View details for Smoke Lesson Two"]')
                 page.wait_for_selector("#archive-player:not([hidden])")
-                two = self.watching(page)
+                two = page.evaluate("""() => fetch('/api/items').then(response => response.json())
+                    .then(items => items.find(item => item.id === 'autotwo')._key)""")
                 page.goto(self.url + "/?videos")
                 page.evaluate("""id => localStorage.setItem(
                     `reruns.playback:${JSON.stringify([id, 0])}`, '15')""", two)
@@ -338,7 +339,7 @@ class AutoplayTests(_BrowserCase):
                 page.wait_for_selector(".video-card")
                 started = self.play_to_the_end(page, "Smoke Lesson One")
                 page.wait_for_function(
-                    f"new URLSearchParams(location.search).get('watch') !== {json.dumps(started)}",
+                    f"location.pathname !== {json.dumps(started)}",
                     timeout=10000)
                 page.wait_for_function(
                     """() => { const v = document.querySelector('#archive-player video');

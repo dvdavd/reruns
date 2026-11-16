@@ -43,6 +43,11 @@ class PlaylistStore:
     def _db(self):
         return sqlite3.connect(self.path, timeout=20)
 
+    def forget_owner(self, owner: str) -> None:
+        """A deleted account's playlists go with it, before its id is reused."""
+        with self._db() as db:
+            db.execute("DELETE FROM playlists WHERE owner=?", (owner,))
+
     def list(self, owner: str) -> list[dict]:
         with self._db() as db:
             records = [json.loads(row[0]) for row in db.execute(

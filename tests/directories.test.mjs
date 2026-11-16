@@ -16,16 +16,16 @@ test('one library with nothing chosen in it offers no choice', () => {
   assert.equal(offersDirectories([entry('a', '')]), false);
 });
 
-test('one library lists its folders without a root row, nested by depth', () => {
+test('one library lists its folders without a root row, a step in from All videos and nested by depth', () => {
   const rows = directoryRows([entry('a', ''), entry('a', 'Music'), entry('a', 'Music/Live')]);
-  assert.deepEqual(rows.map(row => [row.name, row.depth]), [['Music', 0], ['Live', 1]]);
+  assert.deepEqual(rows.map(row => [row.name, row.depth]), [['Music', 1], ['Live', 2]]);
 });
 
-test('several libraries each get a root row and their folders sit under it', () => {
+test('several libraries each get a root row under All videos, and their folders sit under it', () => {
   const entries = [entry('a', ''), entry('a', 'Music'), entry('b', '')];
   assert.equal(offersDirectories(entries), true);
   assert.deepEqual(directoryRows(entries).map(row => [row.name, row.depth]),
-    [['a', 0], ['Music', 1], ['b', 0]]);
+    [['a', 1], ['Music', 2], ['b', 1]]);
 });
 
 test('an item is in a folder when its id starts with the folder\'s key', () => {

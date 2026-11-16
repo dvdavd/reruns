@@ -1014,22 +1014,133 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
   }
 }
 
+/* ---- the glass ---- */
+/* The rule for edges: a surface raised over something else — a dialog, a
+   menu, a drawer, the player's controls over the video — gets an edge, so
+   it shows where it ends. Whatever lies on a surface stays flat: a section,
+   a row or a tile inside a panel is a step of fill, never a ring. A line
+   inside a panel is for colour or state (a card's accent, the chosen
+   option), not depth. */
+/* The sign-in card's glass, worn by the setup and sign-in panels and by the
+   app's popup dialogs, so a question asked in the app looks like the page
+   that let you in. Everything drawn on it is ink: text at full strength, and
+   the faint lines, fills and quieter text as the same colour mixed down. Ink
+   is white on the dark glass and near-black on the light, so one set of rules
+   serves both themes. */
+:root {
+  --glass-ink: #fff;
+  /* The controls overlay's glass, dark enough to carry body text. */
+  --glass-fill: linear-gradient(#282828e0, #242424e0);
+  /* The same shades opaque, for menus: small enough that the little that
+     showed through read as a fault rather than as glass. */
+  --glass-solid: linear-gradient(#282828, #242424);
+  --glass-field-bg: #00000052;
+  /* The shadow the glass casts, and with it the top highlight. A menu,
+     whose edge is its border, takes the cast shadow alone: the highlight
+     sits inside the border and read as a second line under it. */
+  --glass-drop: 0 24px 64px #0008;
+  --glass-shadow: inset 0 1px #ffffff24, var(--glass-drop);
+  /* The edge catching light along the top and round its corners, dimming
+     down the sides and coming back faintly along the bottom: with none
+     there, a panel's lower edge sank into the background. */
+  --glass-edge: linear-gradient(color-mix(in srgb, var(--glass-ink) 10%, transparent), color-mix(in srgb, var(--glass-ink) 6%, transparent) 12%, color-mix(in srgb, var(--glass-ink) 3%, transparent) 50%, color-mix(in srgb, var(--glass-ink) 7%, transparent));
+}
+:root[data-theme="light"] {
+  --glass-ink: #191c28;
+  --glass-fill: linear-gradient(#ffffffeb, #fafbfdeb);
+  --glass-solid: linear-gradient(#fff, #fafbfd);
+  --glass-field-bg: #fff;
+  /* The watch page's light cards' tight shadow. */
+  --glass-drop: var(--light-card-shadow);
+  --glass-shadow: var(--glass-drop);
+  /* An even line all round, in the light theme's border colour: white glass
+     on a near-white page needs it to hold its shape. */
+  --glass-edge: linear-gradient(var(--color-border), var(--color-border));
+}
+:is(.wizard, .confirm-dialog) {
+  background: var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+}
+:is(.wizard, .confirm-dialog)::after {
+  /* The edge as a ring cut out of a filled box, since a gradient border
+     cannot follow a radius; drawn above the panel's panes so it is one edge.
+     A menu, which scrolls, has it as its border instead (panels.css). */
+  content: ""; position: absolute; inset: 0; z-index: 1; padding: 1px;
+  border-radius: inherit; pointer-events: none;
+  background: var(--glass-edge);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* The status toast in the same glass, as a pill: it is raised over the page
+   as a dialog is. Its edge is a ring like theirs, since a border under the
+   translucent fill would show through it. An ordinary message is the plain
+   glass with the accent on its icon. */
+.status-toast {
+  padding: 10px 18px 10px 14px;
+  background: var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  color: var(--glass-ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.status-toast::after {
+  content: ""; position: absolute; inset: 0; padding: 1px;
+  border-radius: inherit; pointer-events: none;
+  background: var(--glass-edge);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.status-toast .status-toast-icon { color: var(--color-accent-light); }
+:root[data-theme="light"] .status-toast .status-toast-icon { color: var(--color-accent); }
+/* An error is glass tinted red and edged in the same red. A red wash over the
+   neutral glass, inside its grey edge, came out muddy on the dark glass and
+   soft-edged on the light. */
+.status-toast.is-error {
+  background: linear-gradient(oklch(34% .11 22 / .88), oklch(28% .1 22 / .88));
+  color: oklch(92% .05 22);
+}
+.status-toast.is-error::after { background: linear-gradient(oklch(70% .17 22 / .6), oklch(70% .17 22 / .22)); }
+:root[data-theme="light"] .status-toast.is-error {
+  background: linear-gradient(oklch(97% .025 22 / .9), oklch(94% .04 22 / .9));
+  color: oklch(40% .15 22);
+}
+:root[data-theme="light"] .status-toast.is-error::after { background: linear-gradient(oklch(58% .19 22 / .55), oklch(58% .19 22 / .38)); }
+.status-toast.is-error .status-toast-icon { color: inherit; }
+
 /* ---- downloads ---- */
-/* The delete question. A centred panel rather than a drawer: it is asked in
-   front of what it is about, and answering it is the only way on. It wears the
-   menu's own surface, and the copies inside it are menu rows — nothing here is
-   a card, so nothing is drawn as one. */
+/* The delete question, and the app's other questions. A centred panel rather
+   than a drawer: it is asked in front of what it is about, and answering it
+   is the only way on. It wears the sign-in card's glass, and the copies
+   inside it are menu rows — nothing here is a card, so nothing is drawn as
+   one. */
 .confirm-dialog {
   box-sizing: border-box;
   width: min(420px, calc(100vw - 32px));
   max-width: none;
   margin: auto;
-  padding: 18px;
+  /* One margin for everything inside, text and controls alike: a second,
+     deeper inset for the text read as misaligned against the buttons. */
+  padding: 28px;
   border: 0;
-  border-radius: var(--radius-xl);
-  background: var(--color-dialog-bg);
-  color: var(--shell-fg);
-  box-shadow: var(--shadow-menu);
+  border-radius: 28px;
+  color: var(--glass-ink);
+  /* The password parts (password-field.js) are drawn in the glass's ink. */
+  --field-ink: var(--glass-ink);
+}
+/* Fields and buttons at the sign-in card's size: a question asked once is
+   read slowly, so it is not set at the drawers' dense 12px. */
+.confirm-dialog input:is([type="text"], [type="password"]) {
+  --field-bg: var(--glass-field-bg); --field-border: color-mix(in srgb, var(--glass-ink) 12%, transparent);
+  min-height: 40px; font-size: 14px;
+}
+.confirm-dialog .form-field > span:first-child { font-size: 14px; }
+.confirm-dialog-actions :is(.confirm-dialog-button, .profile-save) { min-height: 40px; font-size: 14px; }
+/* setup.css's narrow panel, a size down. */
+@media (max-width: 560px) {
+  .confirm-dialog { padding: 24px 20px 20px; border-radius: 22px; }
 }
 .confirm-dialog::backdrop { background: #0009; }
 .topbar-new-playlist {
@@ -1136,8 +1247,8 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
 .confirm-dialog h2 { margin: 0 2px; font-size: var(--font-size-dialog-title); line-height: 1.3; }
 .confirm-dialog-note {
   margin: 8px 2px 0;
-  color: var(--shell-muted);
-  font-size: var(--font-size-helper);
+  color: color-mix(in srgb, var(--glass-ink) 68%, transparent);
+  font-size: var(--font-size-control);
   line-height: 1.45;
 }
 .confirm-dialog-list {
@@ -1213,10 +1324,13 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
   max-height: none;
   margin: 0;
   padding: 0;
+  /* Raised over the page, so it has an edge (see the glass): one even line
+     down the side it shows, since the lit edge's top is at the window's. */
   border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--glass-ink) 12%, transparent);
   background: var(--color-menu-bg);
   color: var(--shell-fg);
-  box-shadow: var(--shadow-menu);
+  box-shadow: var(--glass-drop);
   /* One inset for the heading and the rows alike, so every line of text in
      the drawer starts at the same place. */
   --drawer-inset: 20px;

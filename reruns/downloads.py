@@ -20,6 +20,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .oserrors import reason
+
 log = logging.getLogger(__name__)
 
 SENTINEL = "@@P@@"
@@ -1066,7 +1068,7 @@ class Downloader:
             partial.unlink()
         except (OSError, subprocess.SubprocessError, RuntimeError) as error:
             temporary.unlink(missing_ok=True)
-            return f"Could not save live recording: {error}"
+            return f"Could not save live recording: {reason(error)}"
         if target.name not in item.files:
             item.files.append(target.name)
         return ""

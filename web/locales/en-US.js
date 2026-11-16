@@ -8,6 +8,8 @@ export default {
   'appearance.video-colours.note': "Which parts of the page use the video's accent color.",
   'count.favourites': {one: '{count} favorite', other: '{count} favorites'},
   'stats.favourites': 'Favorites',
+  'accounts.confirmDelete': 'Delete {name}? Their favorites, playlists and settings go too. Videos stay where they are.',
+  'accounts.confirmDeleteOidc': 'Delete {name}? Their favorites, playlists and settings go too. They sign in through OIDC, so if the provider still lets them in they come back as a new account. To keep them out, disable the account instead.',
   'sponsor.subtitle': 'Default skipping behavior for every video',
   'shelf.rows': 'Favorite rows',
   'shelf.choose.channel': 'Choose the favorite rows on a channel\'s page',

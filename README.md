@@ -68,12 +68,15 @@ and a yt-dlp-supported JavaScript runtime such as deno separately.
 
 ## Setup
 
-1. Open <http://127.0.0.1:8800/>.
-2. Paste the one-time setup token from the server console or Docker log and
-   create your admin account.
-3. Configure the initial library path. Make sure to include it in your compose
-   file.
-4. Add or change folders later under **Settings > Library folders**. To share
+1. Open <http://127.0.0.1:8800/>. The setup page opens on a fresh install.
+2. Choose how people will sign in. Local accounts are made on the page; single
+   sign-on (OIDC) and no sign-in are set in the server's environment, and the
+   page shows what to set.
+3. For local accounts, paste the one-time setup token from the server console
+   or Docker log and create your admin account. The log also prints a
+   `/setup.html#token=…` link that fills the token in.
+4. Add the library folder. Make sure it is in your compose file too.
+5. Add or change folders later under **Settings > Library folders**. To share
    the library, add users and grant folder access under **Settings > Accounts**.
 
 ## No authentication
@@ -126,6 +129,13 @@ RERUNS_OIDC_USER_GROUP=reruns_user     # optional: members automatically become 
 ```
 
 Anyone not in either group will require manual admin approval.
+
+You can set which libraries are allowed by default for new users by specifying the claim
+name that contains a list of them:
+
+```sh
+RERUNS_OIDC_LIBRARIES_CLAIM=reruns_libraries   # optional: e.g. ["Films", "Music"], or "*" for all
+```
 
 ## Existing media
 

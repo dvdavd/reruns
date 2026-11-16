@@ -148,8 +148,15 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
     const rename = button(t('pl.rename'), () => { name.focus(); name.select(); },
       'icon-button close-icon-button', 'rename');
     heading.replaceChildren(name);
+    // Enter after naming a new, empty playlist is finishing the name, not the
+    // playlist: saving there closed the panel on a list with nothing in it.
+    // It moves on to the search, which is the next thing to do; once there is
+    // something to save, or when renaming one that exists, it saves.
     name.addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); submitPlaylist(); }
+      if (event.key !== 'Enter' || event.isComposing) return;
+      event.preventDefault();
+      if (!playlist && !selected.length && name.value.trim()) search.focus({preventScroll: true});
+      else submitPlaylist();
     });
     const library = items();
     const byId = new Map(library.map(item => [item.id, item]));

@@ -1,0 +1,314 @@
+/* First-run setup: a glass panel in the player controls' style, on the
+   main page's own background, in the app's dark or light theme. Borrows the
+   app's sheets for the font, buttons and fields.
+
+   Everything drawn on the glass is ink: text at full strength, and the faint
+   lines, fills and quieter text as the same colour mixed down. Ink is white
+   on the dark glass and near-black on the light, so one set of rules serves
+   both themes. Colours on the accent (the current step, badges, the tick)
+   stay white in both. */
+:root {
+  --wizard-code-bg: #0000006b;
+  /* The welcome side, a shade deeper than the pages. */
+  --wizard-side: linear-gradient(#00000024, #00000030);
+  /* How much accent is under a badge's white words. */
+  --wizard-badge: 35%;
+  /* The logo's light: a glow on dark glass, but a stain on light. */
+  --wizard-spill: 1;
+}
+:root[data-theme="light"] {
+  --wizard-code-bg: #191c2810;
+  --wizard-side: linear-gradient(#191c2808, #191c280f);
+  --wizard-badge: 85%;
+  --wizard-spill: .45;
+}
+
+/* The app's control text is 12px, sized for dense drawers; this page is
+   read once and slowly, so its words are larger. */
+.wizard-stage { --wizard-text: 14px; --wizard-small: 13px; min-height: 100dvh; margin: 0; overflow-x: hidden; background: var(--shell-bg); color: var(--color-text); }
+body.wizard-stage { display: grid; place-items: center; padding: 24px 16px; }
+/* The theme's scheme for the page's own controls only, not from the root as
+   tokens.css and light.css have it: a frame an extension adds to the page,
+   like a password manager's save prompt, is given a solid white backdrop
+   when its scheme differs from the page's. */
+:root, :root[data-theme="light"] { color-scheme: normal; }
+.wizard { color-scheme: dark; }
+:root[data-theme="light"] .wizard { color-scheme: light; }
+
+/* ---- The panel ---- */
+/* Its glass and edge are popups.css's, shared with the app's dialogs. */
+.wizard {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: 320px minmax(0, 1fr);
+  width: min(100%, 900px); min-height: 560px;
+  border-radius: 28px;
+  /* The welcome side deepens popups.css's glass a shade with its own fill. */
+}
+
+/* ---- Left: the welcome ---- */
+.wizard-intro {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start;
+  padding: 44px 34px 34px; border-right: 1px solid color-mix(in srgb, var(--glass-ink) 7%, transparent);
+  /* A deeper pane of the same glass, so the welcome reads as a darker side
+     the logo's light falls into. Isolated so the spill, at z-index -1, sits
+     on this fill rather than under it. */
+  isolation: isolate; border-radius: 28px 0 0 28px;
+  background: var(--wizard-side);
+}
+.wizard-logo {
+  width: 120px; height: 72px; margin-bottom: 22px;
+  /* The logo lit from within: its own colours thrown round it twice, near
+     and far. */
+  filter: drop-shadow(0 0 10px color-mix(in oklch, var(--logo-2) 40%, transparent))
+          drop-shadow(0 0 32px color-mix(in oklch, var(--logo-3) 28%, transparent));
+}
+/* On light the far glow spread past the panel's corner as a pink haze, so
+   only the near one is kept. */
+:root[data-theme="light"] .wizard-logo { filter: drop-shadow(0 0 10px color-mix(in oklch, var(--logo-2) 35%, transparent)); }
+/* Likewise the spill: on light it tinted the panel out to its edges, so it
+   is drawn smaller, a wash round the logo that fades well inside them. */
+:root[data-theme="light"] .wizard-spill::before { top: 0; left: -10%; width: 75%; height: 45%; }
+/* And the rim of light down the left edge, which on light read as a stray line. */
+:root[data-theme="light"] .wizard-spill::after { display: none; }
+/* The logo's light spilling down its side of the panel, inside the glass. */
+.wizard-spill {
+  opacity: var(--wizard-spill);
+  position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: 28px 0 0 28px; pointer-events: none;
+}
+.wizard-spill::before {
+  content: ""; position: absolute; top: -10%; left: -30%; width: 120%; height: 80%;
+  background: radial-gradient(ellipse 55% 50% at 40% 30%,
+    color-mix(in oklch, var(--logo-2) 22%, transparent),
+    color-mix(in oklch, var(--logo-1) 12%, transparent) 55%, transparent 80%);
+  filter: blur(20px);
+}
+.wizard-spill::after {
+  /* A thin bright rim down the left edge, as light catching glass. */
+  content: ""; position: absolute; top: 6%; bottom: 30%; left: 0; width: 1px;
+  background: linear-gradient(transparent, color-mix(in oklch, var(--logo-1) 80%, white), color-mix(in oklch, var(--logo-3) 60%, transparent), transparent);
+}
+.wizard-name { margin: 0; color: var(--glass-ink); font-size: 40px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+.wizard-version { margin: 8px 0 0; color: color-mix(in srgb, var(--glass-ink) 50%, transparent); font-size: var(--wizard-small); font-variant-numeric: tabular-nums; }
+.wizard-version[hidden] { display: none; }
+.wizard-welcome { max-width: 26ch; margin: 22px 0 0; color: color-mix(in srgb, var(--glass-ink) 77%, transparent); font-size: 16px; line-height: 1.5; text-wrap: balance; }
+
+.wizard-progress { display: grid; gap: 4px; margin: auto 0 0; padding: 28px 0 0; list-style: none; counter-reset: step; }
+.wizard-progress[hidden], .wizard-progress li[hidden] { display: none; }
+.wizard-progress li {
+  display: flex; align-items: center; gap: 10px; padding: 4px 0; color: color-mix(in srgb, var(--glass-ink) 42%, transparent);
+  font-size: var(--wizard-text); counter-increment: step; transition: color 300ms ease;
+}
+.wizard-progress li::before {
+  content: counter(step); display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 50%; background: color-mix(in srgb, var(--glass-ink) 8%, transparent); font-size: 11px; font-weight: 600;
+  transition: background 300ms ease, box-shadow 300ms ease;
+}
+.wizard-progress li[aria-current] { color: var(--glass-ink); }
+.wizard-progress li[aria-current]::before { background: var(--color-accent); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent), 0 0 18px var(--color-accent); }
+.wizard-progress li.is-done { color: color-mix(in srgb, var(--glass-ink) 66%, transparent); }
+.wizard-progress li.is-done::before { content: "✓"; background: color-mix(in srgb, var(--color-accent) 70%, #fff0); color: #fff; }
+
+/* ---- Right: the pages ---- */
+/* Clipped rather than hidden: a hidden overflow can still be scrolled, and
+   focusing or clicking a button mid-slide scrolled the pane sideways. */
+.wizard-pages { display: grid; padding: 44px 44px 32px; overflow: clip; border-radius: 0 28px 28px 0; }
+.wizard-pages > .wizard-page {
+  /* A column filling the pane, so the actions can sit on its bottom edge
+     on every page, wherever the content above them ends. */
+  grid-area: 1 / 1; display: flex; flex-direction: column; gap: 14px; min-width: 0;
+  min-height: 0; background: none;
+  transition: translate 520ms cubic-bezier(.2, .8, .2, 1), scale 520ms cubic-bezier(.2, .8, .2, 1),
+              opacity 380ms ease, filter 520ms ease, visibility 0s;
+}
+/* Waiting off to the right, and stacked behind to the left once passed. */
+.wizard-page[data-state="after"] { translate: 110% 0; opacity: 0; visibility: hidden; transition-property: translate, scale, opacity, filter, visibility; transition-delay: 0s, 0s, 0s, 0s, 520ms; }
+.wizard-page[data-state="before"] { translate: -14% 0; scale: .92; opacity: 0; filter: blur(6px); visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, 520ms; }
+.wizard-page[data-state="current"] { translate: 0 0; scale: 1; opacity: 1; filter: none; visibility: visible; }
+/* Until setup.js has placed them, every page sat in the one cell at
+   once and then slid away. So a page without a state is not shown, and
+   nothing moves until the pages are in place: then only the first page
+   slides in, rather than being there at load. */
+.wizard-pages > .wizard-page:not([data-state]) { opacity: 0; visibility: hidden; }
+body:not(.is-ready) .wizard-pages > .wizard-page { transition: none; }
+body:not(.is-ready) .wizard-page[data-state="current"] { translate: 18% 0; opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .wizard-pages > .wizard-page { transition: opacity 200ms ease, visibility 0s; translate: none !important; scale: none !important; filter: none !important; }
+}
+
+.wizard-page h2 { margin: 0; color: var(--glass-ink); font-size: 24px; font-weight: 650; letter-spacing: -.01em; outline: none; }
+.wizard-lede { margin: -6px 0 6px; color: color-mix(in srgb, var(--glass-ink) 68%, transparent); font-size: 15px; line-height: 1.5; }
+.wizard-small { color: color-mix(in srgb, var(--glass-ink) 56%, transparent); font-size: var(--wizard-small); line-height: 1.45; }
+.wizard-message { margin: 0; color: var(--color-danger-text); font-size: var(--wizard-text); }
+.wizard-message:empty { display: none; }
+.wizard-caution {
+  margin: 0; padding: 10px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--color-danger-text) 14%, transparent);
+  color: color-mix(in srgb, var(--color-danger-text) 60%, var(--glass-ink)); font-size: var(--wizard-text); line-height: 1.45;
+}
+.wizard-caution[hidden] { display: none; }
+
+/* Sign-in choices: glass tiles that light in the accent when chosen. */
+.wizard-options { display: grid; gap: 12px; }
+.wizard-option {
+  position: relative; display: grid; gap: 3px; width: 100%; margin: 0; padding: 13px 46px 13px 16px;
+  border: 0; border-radius: 14px; background: color-mix(in srgb, var(--glass-ink) 6%, transparent);
+  min-width: 0; color: inherit; font: inherit; text-align: start; white-space: normal; cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+/* Pressing one goes straight on, so the chevron says so, and leans that way
+   under the pointer. */
+.wizard-option-go {
+  position: absolute; top: 50%; right: 16px; width: 20px; height: 20px; translate: 0 -50%;
+  color: color-mix(in srgb, var(--glass-ink) 50%, transparent); transition: translate 160ms ease, color 160ms ease;
+}
+.wizard-option:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--color-accent) 16%, color-mix(in srgb, var(--glass-ink) 3%, transparent)); box-shadow: inset 0 0 0 1.5px var(--color-accent), 0 0 24px color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.wizard-option:focus-visible { outline: none; }
+.wizard-option:is(:hover, :focus-visible) .wizard-option-go { translate: 3px -50%; color: var(--glass-ink); }
+@media (prefers-reduced-motion: reduce) { .wizard-option-go { transition: none; } }
+.wizard-option-title { display: flex; align-items: center; gap: 8px; color: var(--glass-ink); font-size: 15px; font-weight: 600; }
+.wizard-option-title em {
+  padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent) var(--wizard-badge), transparent);
+  color: #fff; font-size: 12px; font-style: normal; font-weight: 600;
+}
+.wizard-option-note { color: color-mix(in srgb, var(--glass-ink) 64%, transparent); font-size: var(--wizard-text); line-height: 1.4; }
+
+.wizard-howto { padding: 4px 2px 0; color: color-mix(in srgb, var(--glass-ink) 76%, transparent); font-size: var(--wizard-text); line-height: 1.5; }
+.wizard-howto[hidden], .wizard-howto [hidden] { display: none; }
+.wizard-howto p { margin: 0; }
+/* A column that can shrink: a grid item is otherwise as wide as its longest
+   line, so the settings block pushed the steps off a phone's screen instead
+   of scrolling inside its box. */
+ol.wizard-howto { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0; padding-left: 20px; }
+.wizard-howto li > span { display: block; }
+.wizard-howto li > .wizard-code { display: flex; }
+.wizard-howto code, .wizard-small code { padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--glass-ink) 8%, transparent); font-size: .92em; white-space: nowrap; }
+.wizard-code {
+  display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; padding: 8px 6px 8px 12px; border-radius: 10px;
+  background: var(--wizard-code-bg);
+}
+.wizard-howto .wizard-code code { flex: 1; min-width: 0; padding: 3px 0; overflow-x: auto; background: none; color: var(--glass-ink); white-space: pre; }
+.wizard-copy {
+  display: grid; flex: none; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 7px; background: none; color: color-mix(in srgb, var(--glass-ink) 60%, transparent); cursor: pointer;
+}
+.wizard-copy:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--glass-ink) 9%, transparent); color: var(--glass-ink); }
+.wizard-copy .icon { width: 16px; height: 16px; }
+.wizard-optional { display: flex !important; align-items: center; gap: 2px; margin-top: 14px; }
+.wizard-info {
+  display: grid; place-items: center; width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: 6px; background: none; color: color-mix(in srgb, var(--glass-ink) 56%, transparent); cursor: pointer;
+}
+.wizard-info:is(:hover, :focus-visible, [aria-expanded="true"]) { background: color-mix(in srgb, var(--glass-ink) 9%, transparent); color: var(--glass-ink); }
+.wizard-info .icon { width: 16px; height: 16px; }
+/* Placed against its button by placePopover, so the popover's own centring
+   is undone; the glass is the menus' (panels.css). */
+.wizard-tip {
+  position: fixed; inset: auto; width: min(300px, calc(100vw - 24px)); margin: 0; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--glass-solid) padding-box, var(--glass-edge) border-box, var(--glass-solid) border-box;
+  box-shadow: var(--glass-drop);
+  color: var(--glass-ink); font-size: var(--wizard-small); line-height: 1.45;
+}
+.wizard-tip:not(:popover-open) { display: none; }
+.wizard-copy.is-copied, .wizard-library .library-row-action.is-copied { color: #3fb67a; }
+.wizard-wide { display: flex; align-items: center; justify-content: center; margin-top: 10px; text-decoration: none; }
+
+/* Fields: auth.css's, retinted for the glass. */
+.wizard-field { display: grid; gap: 5px; }
+.wizard-field[hidden] { display: none; }
+.wizard-field > span:first-child { color: color-mix(in srgb, var(--glass-ink) 68%, transparent); font-size: var(--wizard-text); }
+.wizard-page input:is([type="text"], [type="password"]) {
+  --field-bg: var(--glass-field-bg); --field-border: color-mix(in srgb, var(--glass-ink) 12%, transparent);
+  width: 100%; min-height: 40px; font-size: var(--wizard-text);
+}
+/* The password parts are panels.css's (password-field.js), in the glass's ink. */
+.wizard-stage { --field-ink: var(--glass-ink); }
+.wizard-stage .password-strength b { font-size: var(--wizard-small); }
+
+/* The Folders drawer's blocks: one rounded run, square where rows meet. */
+.wizard-libraries { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.wizard-library {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; min-height: 46px;
+  padding: 6px 8px 6px 14px; border-radius: 14px; background: color-mix(in srgb, var(--glass-ink) 6%, transparent);
+}
+.wizard-library:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
+.wizard-library:not(:last-child) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.wizard-library.is-empty { display: block; padding: 13px; color: color-mix(in srgb, var(--glass-ink) 52%, transparent); text-align: center; }
+.wizard-library > .icon { width: 18px; height: 18px; color: color-mix(in srgb, var(--glass-ink) 72%, transparent); }
+.wizard-library-path { overflow: hidden; color: var(--glass-ink); font-family: ui-monospace, monospace; font-size: .92em; text-overflow: ellipsis; white-space: nowrap; }
+.wizard-library.is-missing .wizard-library-path { color: var(--color-danger-text); }
+.wizard-library .library-row-action:not(.active, .danger) { background: color-mix(in srgb, var(--glass-ink) 8%, transparent); color: color-mix(in srgb, var(--glass-ink) 64%, transparent); }
+.wizard-library .library-row-action:not(.active, .danger):is(:hover, :focus-visible) { background: color-mix(in srgb, var(--glass-ink) 14%, transparent); color: var(--glass-ink); }
+.wizard-page [data-downloads-hint][hidden] { display: none; }
+.wizard-add { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px; }
+
+.wizard-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 8px; }
+.wizard-actions > * { min-width: 7.5rem; min-height: 40px; margin: 0; font-size: var(--wizard-text); }
+.wizard-actions [hidden] { display: none; }
+.wizard-open { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+.wizard-pages > .wizard-done { justify-content: center; align-items: center; text-align: center; }
+/* The finish is centred as a whole, buttons with it, not pinned to the edge. */
+.wizard-done .wizard-actions { margin-top: 0; }
+.wizard-tick { width: 64px; height: 64px; fill: none; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 18px var(--color-accent)); }
+.wizard-tick circle { fill: color-mix(in srgb, var(--color-accent) 22%, transparent); stroke: var(--color-accent); stroke-width: 2; }
+.wizard-tick path { stroke: #fff; stroke-width: 3.5; stroke-dasharray: 30; stroke-dashoffset: 30; }
+.wizard-done[data-state="current"] .wizard-tick path { animation: wizard-tick 480ms 360ms ease-out forwards; }
+@keyframes wizard-tick { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .wizard-tick path { stroke-dashoffset: 0; animation: none !important; } }
+.wizard-done .wizard-actions { justify-content: center; }
+
+/* ---- Narrow: one column, the welcome shrunk to a header ---- */
+/* The whole screen, as a phone's own setup is: the panel is as tall as its
+   tallest step, which as a floating card left short steps with a block of
+   nothing above their buttons. Filling the screen makes that space the gap
+   between the step and its actions, which sit at the bottom by the thumb.
+   The sign-in page is one panel, not a run of steps, so it stays a card. */
+@media (max-width: 760px) {
+  body.wizard-stage:not(.auth-page) { place-items: stretch; padding: 0; }
+  .wizard { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .wizard:not(.auth-card) { grid-template-rows: auto 1fr; min-height: 100dvh; border-radius: 0; box-shadow: none; }
+  /* The edge ring would draw a line round the screen itself. */
+  .wizard:not(.auth-card)::after { display: none; }
+  .wizard-intro {
+    display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 14px;
+    padding: 22px 22px 18px; border-right: 0; border-bottom: 1px solid color-mix(in srgb, var(--glass-ink) 7%, transparent);
+    border-radius: 0;
+  }
+  .wizard-spill { border-radius: 0; }
+  /* The header is a short strip, so the wide-layout light, sized for a tall
+     column, was cut off by the divider and its rim squeezed into a bright
+     stub starting inside the rounded corner. Here the glow fades out before
+     the divider, and the rim fades in below the corner and out again down
+     the strip, with no hard end. */
+  .wizard-spill::before {
+    top: -60%; left: -25%; width: 80%; height: 200%;
+    background: radial-gradient(closest-side at 50% 50%,
+      color-mix(in oklch, var(--logo-2) 20%, transparent),
+      color-mix(in oklch, var(--logo-1) 8%, transparent) 55%, transparent);
+  }
+  .wizard-spill::after {
+    top: 14px; bottom: 0;
+    background: linear-gradient(transparent, color-mix(in oklch, var(--logo-1) 45%, transparent) 40%, transparent);
+  }
+  /* That rim lights a card's edge; the setup screen's edge is the phone's.
+     The light catches the divider instead, only under the logo, laid over
+     the border so the plain line runs on either side of it. */
+  .wizard-intro .wizard-spill::after { display: none; }
+  /* The line, and a blurred band of the same light either side of it. */
+  .wizard-intro::before, .wizard-intro::after {
+    content: ""; position: absolute; left: 0; width: 180px; pointer-events: none;
+    /* Eased out over the right-hand end, so it dies away rather than stops. */
+    background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--logo-1) 80%, white) 29%,
+      color-mix(in oklch, var(--logo-3) 60%, transparent) 50%,
+      color-mix(in oklch, var(--logo-3) 30%, transparent) 68%,
+      color-mix(in oklch, var(--logo-3) 10%, transparent) 85%, transparent);
+  }
+  .wizard-intro::after { bottom: -1px; height: 1px; opacity: var(--wizard-spill); }
+  .wizard-intro::before { bottom: -4px; height: 7px; opacity: calc(var(--wizard-spill) * .5); filter: blur(5px); }
+  .wizard-logo { grid-row: span 2; width: 64px; height: 38px; margin: 0; }
+  .wizard-name { font-size: 26px; }
+  .wizard-version { margin-top: 4px; }
+  .wizard-welcome, .wizard-progress { display: none; }
+  .wizard-pages { padding: 24px 22px 22px; border-radius: 0; }
+}

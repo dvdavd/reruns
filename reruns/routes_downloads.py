@@ -15,6 +15,7 @@ from .archive import (REFRESH_FIELDS)
 from .channels import pick_largest
 from .downloads import canonical_url, validate_languages, validate_options
 from .job_changes import tracker_for
+from .oserrors import reason
 from .subscriptions import channel_root, subscription_kind
 
 
@@ -192,7 +193,7 @@ class DownloadRoutes:
                     job.state, job.error = "failed", "yt-dlp returned no usable metadata"
                     job.log(f"Metadata refresh for {job.label()} failed: {job.error}", logging.ERROR)
             except OSError as error:
-                job.state, job.error = "failed", f"Could not save the metadata: {error}"
+                job.state, job.error = "failed", f"Could not save the metadata: {reason(error)}"
                 job.log(f"Metadata refresh for {job.label()} failed: {job.error}", logging.ERROR)
             finally:
                 shutil.rmtree(scratch, ignore_errors=True)
@@ -242,7 +243,7 @@ class DownloadRoutes:
                     job.state, job.error = "failed", "yt-dlp returned no metadata for this video id"
                     job.log(f"Fetching metadata for {job.label()} failed: {job.error}", logging.ERROR)
             except OSError as error:
-                job.state, job.error = "failed", f"Could not save the metadata: {error}"
+                job.state, job.error = "failed", f"Could not save the metadata: {reason(error)}"
                 job.log(f"Fetching metadata for {job.label()} failed: {job.error}", logging.ERROR)
             finally:
                 shutil.rmtree(scratch, ignore_errors=True)
@@ -267,7 +268,7 @@ class DownloadRoutes:
             self.send_error(HTTPStatus.BAD_REQUEST, str(error))
             return
         except OSError as error:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {error}")
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {reason(error)}")
             return
         self._send_json(result, head_only=False)
 
@@ -280,7 +281,7 @@ class DownloadRoutes:
             self.send_error(HTTPStatus.BAD_REQUEST, str(error))
             return
         except OSError as error:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {error}")
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {reason(error)}")
             return
         self._send_json(result, head_only=False)
 

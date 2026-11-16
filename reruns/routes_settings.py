@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 from .archive import (literal_directory)
+from .auth import ALL_LIBRARIES
+from .oserrors import reason
 from .preferences import clean_values
 
 
@@ -35,7 +37,7 @@ class SettingsRoutes:
             self.send_error(HTTPStatus.BAD_REQUEST, str(error))
             return
         except OSError as error:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {error}")
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {reason(error)}")
             return
         self._send_json(result, head_only=False)
 
@@ -61,7 +63,7 @@ class SettingsRoutes:
             self.send_error(HTTPStatus.BAD_REQUEST, str(error))
             return
         except OSError as error:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {error}")
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {reason(error)}")
             return
         if result is None:
             self.send_error(HTTPStatus.NOT_FOUND, "No such download profile")
@@ -85,7 +87,7 @@ class SettingsRoutes:
             self.send_error(HTTPStatus.BAD_REQUEST, str(error))
             return
         except OSError as error:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {error}")
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {reason(error)}")
             return
         if result is None:
             self.send_error(HTTPStatus.NOT_FOUND, "No such library")
@@ -149,7 +151,7 @@ class SettingsRoutes:
         if not self._is_admin():
             payload["libraries"] = [dict(library, path=Path(library["path"]).name)
                                     for library in payload["libraries"]
-                                    if any(grant["library"] == library["id"] for grant in self.account["grants"])]
+                                    if any(grant["library"] in (library["id"], ALL_LIBRARIES) for grant in self.account["grants"])]
             payload["channelProfiles"] = {}
             payload["downloadProfiles"] = [dict(profile, library="") for profile in payload["downloadProfiles"]]
             payload.pop("subscriptionDefaults", None)

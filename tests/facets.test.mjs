@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {applyFacetParams, facetFromParams, facetName, matchesFacet} from '../web/facets.js';
+import {facetName, matchesFacet} from '../web/facets.js';
 import {toMediaItem} from '../web/item-adapter.js';
 
 // yt-dlp names a playlist "show" when a legacy /show/VL… URL gives it nothing
@@ -52,22 +52,7 @@ test('a filter names itself from the items it matches', () => {
   assert.equal(facetName(null, items), '');
 });
 
-test('a filter round-trips through the URL, one chip at a time', () => {
-  const url = new URL('https://archive.test/?q=bell');
-  applyFacetParams(url, {kind: 'playlist', id: 'show'});
-  assert.equal(url.search, '?q=bell&playlist=show');
-  assert.deepEqual(facetFromParams(url.searchParams),
-    {kind: 'playlist', id: 'show', name: ''});
-
-  applyFacetParams(url, {kind: 'channel', id: 'UCBa659'});
-  assert.equal(url.search, '?q=bell&channel=UCBa659');
-
-  applyFacetParams(url, null);
-  assert.equal(url.search, '?q=bell');
-  assert.equal(facetFromParams(url.searchParams), null);
-});
-
-test('statistics filters match quality and favourites and survive URL navigation', () => {
+test('statistics filters match quality and favourites', () => {
   const item = {parts: [{quality: '1080p'}], favourite: true};
   assert.equal(matchesFacet(item, {kind: 'quality', id: '1080p'}), true);
   assert.equal(matchesFacet(item, {kind: 'quality', id: '4K'}), false);
@@ -78,8 +63,4 @@ test('statistics filters match quality and favourites and survive URL navigation
   assert.equal(matchesFacet(track, {kind: 'quality', id: 'Unknown'}), false);
   assert.equal(matchesFacet(item, {kind: 'favourite', id: 'true'}), true);
   assert.equal(matchesFacet({}, {kind: 'favourite', id: 'true'}), false);
-  const url = new URL('https://archive.test/?channel=old');
-  applyFacetParams(url, {kind: 'quality', id: '1080p'});
-  assert.deepEqual(facetFromParams(url.searchParams), {kind: 'quality', id: '1080p', name: ''});
-  assert.equal(url.searchParams.has('channel'), false);
 });

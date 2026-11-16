@@ -3,27 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The background behind the browser's own bar: --color-bg, dark here and
+       light.css's when the script below finds the light theme. theme-colour.js
+       follows any later change. -->
+  <meta name="theme-color" content="#181818">
   <meta name="color-scheme" content="dark light">
   <script>
     try {
       const theme = localStorage.getItem('archive-theme');
       if (theme === 'light' || theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches) {
         document.documentElement.dataset.theme = 'light';
+        document.querySelector('meta[name="theme-color"]').content = '#f5f6f9';
       }
     } catch { /* The dark default still works without browser storage. */ }
   </script>
   <title>Reruns</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/media-ui/shared/chrome.css">
   <link rel="stylesheet" href="/media-ui/shared/styles.css">
   <link rel="stylesheet" href="/media-ui/shared/player.css">
-  <link rel="stylesheet" href="./styles/base.css">
-  <link rel="stylesheet" href="./styles/topbar.css">
-  <link rel="stylesheet" href="./styles/cards.css">
-  <link rel="stylesheet" href="./styles/popups.css">
-  <link rel="stylesheet" href="./styles/library.css">
-  <link rel="stylesheet" href="./styles/panels.css">
-  <link rel="stylesheet" href="./light.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <link rel="stylesheet" href="/styles/topbar.css">
+  <link rel="stylesheet" href="/styles/cards.css">
+  <link rel="stylesheet" href="/styles/popups.css">
+  <link rel="stylesheet" href="/styles/library.css">
+  <link rel="stylesheet" href="/styles/panels.css">
+  <link rel="stylesheet" href="/light.css">
   <script>
     // customisation.js keeps the chosen palette here, since it runs too late to
     // stop the default colours showing first. It goes after the stylesheets so
@@ -634,7 +639,7 @@
     <ol id="playlist-tracklist" class="tracklist" aria-labelledby="archive-heading" hidden></ol>
   </main>
 
-  <div id="status-toast" class="status-toast" role="status" aria-live="polite" hidden></div>
+  <div id="status-toast" class="status-toast" popover="manual" role="status" aria-live="polite" hidden></div>
 
   <dialog id="download-drawer" class="download-drawer" aria-labelledby="download-drawer-title">
     <div class="download-drawer-head">
@@ -775,6 +780,9 @@
       <div><h2 id="accounts-title" data-i18n="accounts.title">Accounts</h2>
         <p id="accounts-summary" data-i18n="accounts.none">No accounts yet</p></div>
       <div class="download-drawer-actions">
+        <button id="accounts-invite" class="profile-add drawer-add" type="button" aria-expanded="false" aria-controls="accounts-invite-form" data-i18n="accounts.invite.new">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#link"/></svg>Invite
+        </button>
         <button id="accounts-new" class="profile-add drawer-add" type="button" aria-expanded="false" aria-controls="accounts-form" data-i18n="accounts.add">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>Add account
         </button>
@@ -785,16 +793,30 @@
       </div>
     </div>
       <div class="drawer-editor" hidden><div>
-      <form id="accounts-form" class="libraries-form accounts-form">
-        <input name="username" type="text" required spellcheck="false" autocomplete="off"
-               aria-label="Username" placeholder="Username"
-               data-i18n-attrs="aria-label:accounts.username,placeholder:accounts.username">
-        <input name="password" type="password" required minlength="12" autocomplete="new-password"
-               aria-label="Initial password" placeholder="Password, 12+ characters"
-               data-i18n-attrs="aria-label:accounts.initialPassword,placeholder:accounts.passwordHint">
-        <button class="libraries-add" type="submit" aria-label="Add account" title="Add account" data-i18n-attrs="aria-label:accounts.add,title:accounts.add">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg>
-        </button>
+      <form id="accounts-form" class="accounts-form">
+        <label class="form-field"><span data-i18n="accounts.username">Username</span>
+          <input name="username" type="text" required spellcheck="false" autocapitalize="off" autocomplete="off" maxlength="120"></label>
+        <label class="form-field" data-account-password><span data-i18n="accounts.initialPassword">Initial password</span>
+          <span class="password-input"><input name="password" type="password" required minlength="12" maxlength="1024" autocomplete="new-password" aria-describedby="accounts-password-strength"><button class="password-reveal" type="button" aria-pressed="false"></button></span>
+          <span class="password-strength" id="accounts-password-strength" aria-live="polite"><i></i><b></b></span></label>
+        <p class="accounts-form-message" role="alert" data-form-message></p>
+        <div class="accounts-form-actions">
+          <button class="profile-save" type="submit" data-i18n="accounts.add">Add account</button>
+        </div>
+      </form>
+      </div></div>
+      <div class="drawer-editor" hidden><div>
+      <form id="accounts-invite-form" class="accounts-form">
+        <p class="accounts-form-note" data-i18n="accounts.invite.note">Whoever opens the link chooses their own username and password. It makes one account and stops working after 7 days.</p>
+        <div class="account-row accounts-invite-access" data-invite-access></div>
+        <span class="accounts-invite-link" data-invite-link hidden>
+          <input type="text" readonly aria-label="Invite link" data-i18n-attrs="aria-label:accounts.invite.link">
+          <button type="button" class="library-row-action" data-invite-copy aria-label="Copy" title="Copy" data-i18n-attrs="aria-label:setup.copy,title:setup.copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#copy"/></svg></button>
+        </span>
+        <p class="accounts-form-message" role="alert" data-form-message></p>
+        <div class="accounts-form-actions">
+          <button class="profile-save" type="submit" data-invite-submit data-i18n="accounts.invite.create">Create link</button>
+        </div>
       </form>
       </div></div>
     </div>
@@ -1190,51 +1212,14 @@
     </div>
   </dialog>
 
-  <dialog id="welcome-dialog" class="confirm-dialog welcome-dialog" aria-labelledby="welcome-dialog-title">
-    <form id="welcome-form" class="welcome-form">
-      <!-- The topbar's logo, borrowing its gradient so the chosen palette applies. -->
-      <svg class="welcome-logo" viewBox="0 0 40 24" width="75" height="45" aria-hidden="true">
-        <rect width="40" height="24" rx="6" fill="url(#reruns-rainbow)"/>
-        <g transform="translate(20 12) scale(.72) translate(-20.8 -12)" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-linejoin="round">
-          <path d="M10 12 20 6V8L16.13 10.33A1.95 1.95 0 0 0 16.13 13.67L20 16V18z"/><path d="M19.2 12l10-6v12z"/>
-        </g>
-      </svg>
-      <h2 id="welcome-dialog-title" data-i18n="welcome.title">Welcome to Reruns</h2>
-      <label class="welcome-field"><span data-i18n="welcome.location">Video library location (new or existing)</span>
-        <input id="welcome-path" name="path" type="text" required autocomplete="off" spellcheck="false"
-               placeholder="/full/path/to/archive"></label>
-      <p id="welcome-message" class="welcome-message" role="alert" hidden></p>
-      <p class="info-callout">
-        <svg class="info-callout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/>
-        </svg>
-        <span data-i18n="welcome.more">More library folders can be added later from Settings > Library folders.</span></p>
-      <p class="info-callout">
-        <svg class="info-callout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/>
-        </svg>
-        <span data-i18n="welcome.onlyExisting">Only existing videos with a <code>.info.json</code> file will be imported.</span></p>
-      <div class="confirm-dialog-actions">
-        <button class="confirm-dialog-button" type="button" id="welcome-later" data-i18n="welcome.later">Later</button>
-        <button class="profile-save" type="submit" data-i18n="folders.add">Add folder</button>
-      </div>
-    </form>
-  </dialog>
-
   <dialog id="password-dialog" class="confirm-dialog" aria-labelledby="password-dialog-title">
     <form id="password-form" class="password-form">
       <h2 id="password-dialog-title" data-i18n="password.title">Change your password</h2>
-      <input type="password" name="current" required autocomplete="current-password"
-             aria-label="Current password" placeholder="Current password"
-             data-i18n-attrs="aria-label:password.current,placeholder:password.current">
-      <input type="password" name="password" required minlength="12" autocomplete="new-password"
-             aria-label="New password" placeholder="New password, 12+ characters"
-             data-i18n-attrs="aria-label:password.new,placeholder:password.newHint">
-      <input type="password" name="repeat" required autocomplete="new-password"
-             aria-label="Repeat the new password" placeholder="Repeat new password"
-             data-i18n-attrs="aria-label:password.repeatLabel,placeholder:password.repeatHint">
+      <label class="form-field" data-field="current"><span data-i18n="password.current">Current password</span>
+        <span class="password-input"><input name="current" type="password" required autocomplete="current-password"><button class="password-reveal" type="button" aria-pressed="false"></button></span></label>
+      <label class="form-field" data-field="password"><span data-password-label data-i18n="password.new">New password</span>
+        <span class="password-input"><input name="password" type="password" required minlength="12" maxlength="1024" autocomplete="new-password" aria-describedby="password-strength"><button class="password-reveal" type="button" aria-pressed="false"></button></span>
+        <span class="password-strength" id="password-strength" aria-live="polite"><i></i><b></b></span></label>
       <p id="password-message" class="confirm-dialog-note" role="alert"></p>
       <div class="confirm-dialog-actions">
         <button class="confirm-dialog-button" type="button" id="password-cancel" data-i18n="common.cancel">Cancel</button>
@@ -1705,6 +1690,6 @@
     </div>
   </section>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

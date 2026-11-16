@@ -49,7 +49,7 @@
   font-size: var(--font-size-control);
   white-space: nowrap;
 }
-.subscription-interval-menu, .shelf-settings-menu, .directory-menu, .account-password-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu {
+.subscription-interval-menu, .shelf-settings-menu, .directory-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu {
   position: fixed;
   inset: auto;
   width: 160px;
@@ -62,7 +62,7 @@
   box-shadow: var(--shadow-menu);
 }
 .shelf-settings-menu { width: 200px; }
-:is(.subscription-interval-menu, .shelf-settings-menu, .directory-menu, .account-password-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu):not(:popover-open) { display: none; }
+:is(.subscription-interval-menu, .shelf-settings-menu, .directory-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu):not(:popover-open) { display: none; }
 .watch-overflow-menu { width: 260px; max-width: calc(100vw - 12px); }
 .watch-overflow-menu .danger { color: var(--color-danger-text); }
 .subscription-interval-menu [role="menuitemradio"]::after { content: '✓'; margin-left: auto; opacity: 0; }
@@ -84,6 +84,7 @@
    name what it is inside as well. */
 .customisation-choices label:has(:checked),
 .library-row .library-row-action.active,
+.wizard-library .library-row-action.active,
 .account-row .library-row-action.active,
 .profile-row .library-row-action[aria-checked="true"],
 .sponsorblock-drawer .sponsorblock-options .sponsorblock-modes button[aria-checked="true"] {
@@ -94,6 +95,7 @@
 /* Already the chosen one, so there is nothing to click towards. */
 .customisation-choices label:has(:checked):is(:hover, :has(:focus-visible)),
 .library-row .library-row-action.active:is(:hover, :focus-visible),
+.wizard-library .library-row-action.active:is(:hover, :focus-visible),
 .account-row .library-row-action.active:not(:disabled):is(:hover, :focus-visible),
 .profile-row .library-row-action[aria-checked="true"]:is(:hover, :focus-visible),
 .sponsorblock-drawer .sponsorblock-options .sponsorblock-modes button[aria-checked="true"]:is(:hover, :focus-visible) {
@@ -283,8 +285,6 @@ body[data-can-delete="false"] [data-watch-subscribe-channel],
 
 /* Accounts: the library list's rows, with a line of permission switches on
    each and the rarer edits folded under it. */
-.accounts-form { flex-wrap: wrap; }
-.accounts-form input { flex: 1 1 8rem; min-width: 0; }
 /* Raised blocks with a small gap, square where they face a neighbour, as the
    Appearance settings are. Accounts and library folders use them. */
 .account-list, .library-blocks, .subscription-blocks { gap: 4px; }
@@ -297,13 +297,28 @@ body[data-can-delete="false"] [data-watch-subscribe-channel],
 .account-row .account-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .account-row[data-disabled="true"] .account-name { color: var(--shell-muted); text-decoration: line-through; }
 .account-name { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+/* Adding an account and making an invite fold out of the drawer's heading,
+   labelled fields above an end-aligned submit. */
+.accounts-form { display: grid; gap: 12px; }
+.accounts-form input { width: 100%; min-height: 36px; }
+.accounts-form .form-field > span:first-child { margin-inline: 2px; }
+.accounts-form-note { margin: 0; color: var(--shell-muted); font-size: var(--font-size-control); line-height: 1.45; }
+.accounts-form-message { margin: 0; color: var(--color-danger-text); font-size: var(--font-size-control); }
+.accounts-form-message:empty { display: none; }
+.accounts-form-actions { display: flex; justify-content: flex-end; }
+/* The link once made, read-only and selected, with a copy button beside. */
+.accounts-invite-link { display: flex; align-items: center; gap: 8px; }
+.accounts-invite-link[hidden] { display: none; }
+.accounts-invite-link input { flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--font-size-control); }
+/* The invite's access sits in the form like its fields do, flush with their
+   edges, rather than framed as another account's card. */
+.account-row.accounts-invite-access { padding: 0; background: none; }
+/* Invite and Add account read as one pair of ways in, so they sit together. */
+.download-drawer-actions #accounts-invite { margin-inline-end: 6px; }
+.account-invites-heading { margin: 18px 0 8px; font-size: var(--font-size-control); font-weight: 600; color: var(--shell-muted); }
 .account-meta { color: var(--shell-muted); font-size: var(--font-size-control); }
 .account-row .library-row { display: block; padding: 0; border: 0; }
 .directory-menu button[aria-disabled="true"] { opacity: .5; cursor: default; }
-.account-password-menu { display: grid; gap: 8px; width: 260px; max-width: calc(100vw - 12px); }
-.account-password-menu:not(:popover-open) { display: none; }
-.account-password-menu input { width: 100%; min-height: 34px; }
-.account-password-menu .profile-save { justify-self: end; }
 /* Switched on, an account's action is lit like the other lists' chosen
    one (shared above); it stays clickable, so it keeps the pointer. */
 .account-row .library-row-action.active { cursor: pointer; }
@@ -319,12 +334,46 @@ body[data-can-delete="false"] [data-watch-subscribe-channel],
 }
 .account-row .library-row-action.active:disabled { opacity: .55; cursor: default; }
 
-/* Change your password: three fields and the dialog's usual buttons. */
-.password-form { display: grid; gap: 10px; }
-.password-form input { width: 100%; min-height: 36px; }
+/* A labelled field and the password parts (password-field.js), shared by
+   the app, the setup wizard and the sign-in page. The label stays above the
+   input rather than in it as a placeholder, which went as soon as anything
+   was typed and left a form of identical boxes. --field-ink is the text
+   colour the muted parts are mixed from; the wizard's glass sets its own. */
+.form-field { display: grid; gap: 5px; }
+.form-field[hidden] { display: none; }
+.form-field > span:first-child { color: color-mix(in srgb, var(--field-ink, var(--shell-fg)) 68%, transparent); font-size: var(--font-size-control); }
+.password-input { position: relative; display: block; }
+.password-input input { padding-right: 40px; }
+.password-reveal {
+  position: absolute; top: 50%; right: 4px; display: grid; place-items: center; width: 30px; height: 30px;
+  padding: 0; translate: 0 -50%; border: 0; border-radius: 7px; background: none;
+  color: color-mix(in srgb, var(--field-ink, var(--shell-fg)) 54%, transparent); cursor: pointer;
+}
+.password-reveal:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--field-ink, var(--shell-fg)) 8%, transparent); color: var(--field-ink, var(--shell-fg)); }
+.password-reveal .icon { width: 18px; height: 18px; }
+.password-strength { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; }
+.password-strength[hidden] { display: none; }
+.password-strength i { position: relative; height: 4px; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--field-ink, var(--shell-fg)) 8%, transparent); }
+.password-strength i::after {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%); border-radius: inherit;
+  background: color-mix(in srgb, var(--field-ink, var(--shell-fg)) 40%, transparent); transition: width 160ms ease, background 160ms ease;
+}
+.password-strength[data-level="short"] i::after { background: var(--color-danger-text); }
+.password-strength[data-level="fair"] i::after { background: #e0a431; }
+.password-strength[data-level="good"] i::after { background: #3fb67a; }
+.password-strength b { color: color-mix(in srgb, var(--field-ink, var(--shell-fg)) 56%, transparent); font-size: var(--font-size-helper); font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { .password-strength i::after { transition: none; } }
+
+/* The password dialog: changing your own, or an admin setting someone
+   else's, with only the fields each needs. */
+.password-form { display: grid; gap: 14px; }
+/* The sign-in card's air between its heading and the first field. */
+.password-form h2 { margin-bottom: 8px; }
+.password-form input { width: 100%; }
+.password-form .form-field > span:first-child { margin-inline: 2px; }
 .password-form .confirm-dialog-note { margin: 0; color: var(--color-danger-text); }
 .password-form .confirm-dialog-note:empty { display: none; }
-.password-form .confirm-dialog-actions { margin-top: 4px; }
+.password-form .confirm-dialog-actions { margin-top: 6px; }
 .password-form .confirm-dialog-actions .confirm-dialog-button { margin-right: auto; }
 
 /* The hover preview (hover-preview.js). The video sits over the thumbnail but
@@ -592,21 +641,26 @@ body[data-popup-player-size="large"] { --popup-player-width: 720px; }
   stroke: none;
 }
 
-/* Menus lift from the page through their solid surface and shadow, with the
-   same subtle light/dark shift as the drawer headings. */
+/* Menus wear the sign-in card's glass (popups.css) in its opaque shades:
+   a menu is too small for the page showing faintly through to read as
+   glass. The edge is the border, painted from under the fill: a ring drawn
+   over the panel, as the dialogs have it, would scroll away with a long
+   menu. The fill goes under the edge too, or the border shows the page
+   straight through and a bright thumbnail outlines the menu in its colours. */
 :is(.settings-menu, .menu-popover, .thumbnail-settings-popup,
     .actor-editor-popover, .thumbnail-type-menu,
     .channel-download-profile-menu, .subscription-profile-menu,
     .browse-options-menu, .subscription-interval-menu, .shelf-settings-menu,
-    .directory-menu, .account-password-menu) {
-  border: 0;
-  background: var(--raised-surface);
-  box-shadow: var(--shadow-menu);
+    .directory-menu, .playlist-add-menu, .collection-menu, .watch-overflow-menu) {
+  border: 1px solid transparent;
+  background: var(--glass-solid) padding-box, var(--glass-edge) border-box, var(--glass-solid) border-box;
+  box-shadow: var(--glass-drop);
 }
 @supports (appearance: base-select) {
   select::picker(select) {
-    border: 0;
-    background: var(--raised-surface);
+    border: 1px solid transparent;
+    background: var(--glass-solid) padding-box, var(--glass-edge) border-box, var(--glass-solid) border-box;
+    box-shadow: var(--glass-drop);
   }
 }
 
@@ -629,7 +683,7 @@ body[data-popup-player-size="large"] { --popup-player-width: 720px; }
   height: 1px;
   background: var(--color-menu-border);
 }
-.drawer-editor :is(.libraries-form, .profile-editor) {
+.drawer-editor :is(.libraries-form, .profile-editor, .accounts-form) {
   margin: 0;
   padding: 16px var(--drawer-inset);
   border: 0;
@@ -648,42 +702,12 @@ body[data-popup-player-size="large"] { --popup-player-width: 720px; }
 .drawer-editor[hidden] form { translate: 0 -12px; }
 @starting-style {
   .drawer-editor { grid-template-rows: 0fr; opacity: 0; }
-  .drawer-editor :is(.libraries-form, .profile-editor) { translate: 0 -12px; }
+  .drawer-editor :is(.libraries-form, .profile-editor, .accounts-form) { translate: 0 -12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .drawer-editor, .drawer-editor form { transition: none; }
 }
 
-
-/* The first-run welcome: the logo, a line of guidance and the one field that matters. */
-.welcome-dialog { max-width: 28rem; }
-.welcome-form { display: grid; gap: 12px; justify-items: stretch; }
-.welcome-field { display: grid; gap: 6px; }
-.welcome-field > span { color: var(--shell-muted); font-size: var(--font-size-control); }
-.welcome-form input { width: 100%; min-height: 36px; }
-.welcome-logo { justify-self: center; }
-.welcome-form h2 { text-align: center; }
-.welcome-form .confirm-dialog-note { margin: 0; text-align: center; }
-.welcome-form .info-callout { margin: 0; }
-.welcome-message { margin: 0; color: var(--color-danger-text); font-size: var(--font-size-control); }
-.welcome-message[hidden] { display: none; }
-.welcome-form .confirm-dialog-actions { justify-content: flex-end; margin-top: 4px; }
-
-/* An info callout, tinted with the accent so it follows the chosen palette. */
-.info-callout {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  /* The strong text colour with a little accent in it: near-white in dark, near-black in light. */
-  color: color-mix(in srgb, var(--color-accent) 30%, var(--color-text-strong));
-  font-size: var(--font-size-helper);
-  line-height: 1.4;
-}
-.info-callout-icon { flex: none; margin-top: 1px; color: var(--color-accent); }
 
 /* Idle immersion leaves layout space for the title and first action row.
    Exit has no stagger: every surface comes back together. */

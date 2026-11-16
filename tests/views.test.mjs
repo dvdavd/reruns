@@ -1,18 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {applyViewParam, displayedView, viewFromParams} from '../web/views.js';
+import {displayedView} from '../web/views.js';
 import {playlistsFrom} from '../web/playlists.js';
 import {collectionItem} from '../web/playlist-grid.js';
-
-test('the view comes from the URL, and home is the bare address', () => {
-  assert.equal(viewFromParams(new URLSearchParams('')), 'home');
-  assert.equal(viewFromParams(new URLSearchParams('view=playlists')), 'playlists');
-  assert.equal(viewFromParams(new URLSearchParams('view=nonsense')), 'home');
-  const url = new URL('http://x/?view=channels&q=a');
-  assert.equal(applyViewParam(url, 'home').search, '?q=a');
-  assert.equal(applyViewParam(url, 'videos').searchParams.get('view'), 'videos');
-});
 
 test('a chip filter always shows videos; a search only leaves home', () => {
   const facet = {kind: 'channel', id: 'UC1'};

@@ -39,6 +39,7 @@ export function createLibrariesUI({drawer, drawerClose, summary, list, form, pat
      then small round actions on the right. */
   function row(library) {
     return html`<li class="library-row" key=${library.id} data-missing=${String(!library.exists)}>
+      ${icon(library.downloads ? 'folder-down' : 'folder', 'library-row-icon')}
       <div class="library-row-text">
         <code class="library-path" title=${library.path}>${library.path}</code>
         ${library.exists ? null

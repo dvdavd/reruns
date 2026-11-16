@@ -1,20 +1,7 @@
-// The library's views, Home is the
-// default and so carries no parameter; the others are `?view=<name>`.
+// The library's views. Home is the default and so the bare address; the
+// others are `/<name>` (see routes.js).
 
 export const VIEWS = ['home', 'videos', 'playlists', 'channels'];
-
-/** The view a URL asks for; anything unknown is home. */
-export function viewFromParams(params) {
-  const view = params.get('view');
-  return VIEWS.includes(view) && view !== 'home' ? view : 'home';
-}
-
-/** Writes the view onto a URL, leaving home as the bare address. */
-export function applyViewParam(url, view) {
-  if (view && view !== 'home' && VIEWS.includes(view)) url.searchParams.set('view', view);
-  else url.searchParams.delete('view');
-  return url;
-}
 
 /**
  * What is actually on screen. A chip filter is always a list of videos. A

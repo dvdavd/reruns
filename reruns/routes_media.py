@@ -17,6 +17,15 @@ from .remux import playback_plan, remux_command
 # A channel's portrait is drawn 88px across at most (the channel page), so
 # this covers a screen of three device pixels to the CSS pixel.
 PORTRAIT_WIDTH = 256
+# The page's own addresses (see web/routes.js). Each is the one page, which
+# reads the path itself; without this a reload or a shared link would 404.
+PAGE_PATHS = ("/videos", "/playlists", "/channels", "/search", "/favourites")
+PAGE_PREFIXES = ("/watch/", "/channel/", "/playlist/", "/creator/", "/source/", "/quality/")
+
+
+def is_page_path(path: str) -> bool:
+    return path in PAGE_PATHS or path.startswith(PAGE_PREFIXES)
+
 FRAME_PORTRAIT_WIDTH = 480  # One of thumbnails.WIDTHS, as is the above
 
 

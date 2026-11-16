@@ -181,7 +181,7 @@ export function entrySubscriptionId(entry, subscriptions) {
 }
 
 export function createBrowseUI({drawer, drawerClose, backButton, title, summary, filter, optionsButton,
-  optionsMenu, list, moreButton, download, jobAction, playLocal, report}) {
+  optionsMenu, list, moreButton, download, jobAction, playLocal, localHref, report}) {
   // Back, and Escape, step down to the drawer beneath, its contents sliding
   // back in step with this one leaving; the dimmed page closes both.
   const controls = createDrawerControls(drawer, {
@@ -296,7 +296,7 @@ export function createBrowseUI({drawer, drawerClose, backButton, title, summary,
         onClick=${event => openNested(event, entry)}>${entry.title}</a>`;
     }
     if (entry.held && entry.localKey) {
-      return html`<a class="media-row-title" href=${`/?watch=${encodeURIComponent(entry.localKey)}`}
+      return html`<a class="media-row-title" href=${localHref?.(entry.localKey)}
         title=${t('downloads.playLocal')} onClick=${event => openLocal(event, entry)}>${entry.title}</a>`;
     }
     return html`<a class="media-row-title" href=${entry.url} target="_blank"

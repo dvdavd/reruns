@@ -166,6 +166,34 @@ class DirectoryTests(unittest.TestCase):
                              [4, 1, 2, 0])
 
 
+class LibraryFolderMessageTests(unittest.TestCase):
+    """A folder that cannot be made is refused in a short sentence, not in
+    Python's "[Errno 13] Permission denied: '/x'" with the path said twice."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.base = Path(self.directory.name)
+        self.settings = Settings(self.base / "config")
+
+    def refusal(self, error):
+        wanted = self.base / "new"
+        with mock.patch.object(Path, "mkdir", side_effect=error), \
+                self.assertRaises(ValueError) as raised:
+            self.settings.add(str(wanted))
+        return str(raised.exception).replace(str(wanted.resolve()), "<path>")
+
+    def test_each_common_failure_says_what_happened_plainly(self):
+        self.assertEqual(self.refusal(PermissionError(13, "Permission denied", "/x")),
+                         "No permission to create <path>")
+        self.assertEqual(self.refusal(OSError(30, "Read-only file system", "/x")),
+                         "<path> is on a read-only disk")
+        self.assertEqual(self.refusal(OSError(28, "No space left on device", "/x")),
+                         "No space left to create <path>")
+        self.assertEqual(self.refusal(OSError(36, "File name too long", "/x")),
+                         "Could not create <path>: File name too long")
+
+
 class ArchiveStateTests(unittest.TestCase):
     def test_delete_video_removes_only_its_files_and_favourite(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1375,6 +1403,17 @@ class JsonResponseTests(unittest.TestCase):
         body = response.read()
         connection.close()
         return response, body
+
+    def test_the_pages_own_addresses_serve_the_page(self):
+        _, index = self.get("/")
+        for path in ("/videos", "/search?q=zoo", "/watch/jNQXAC9IVRw?list=PL1",
+                     "/watch/~clip3.info.json", "/channel/UC1/playlists", "/favourites"):
+            with self.subTest(path=path):
+                response, body = self.get(path)
+                self.assertEqual(response.status, 200)
+                self.assertEqual(body, index)
+        self.assertEqual(self.get("/api/nope")[0].status, 404)
+        self.assertEqual(self.get("/watching")[0].status, 404)
 
     def test_item_details_are_served_per_video(self):
         response, body = self.get("/api/item-details/clip3.info.json")

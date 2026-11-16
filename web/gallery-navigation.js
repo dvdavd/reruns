@@ -1,19 +1,31 @@
-import {applyFacetParams, facetFromParams} from './facets.js';
-import {applyViewParam, viewFromParams} from './views.js';
+import {galleryRoute, routeFromLocation, urlForRoute} from './routes.js';
 import {startsLikeUrl} from './download-model.js';
+import {displayedView} from './views.js';
 
-const facetFromUrl = () => facetFromParams(new URLSearchParams(window.location.search));
+const here = () => `${window.location.pathname}${window.location.search}`;
 
 export function createGalleryNavigation({
   search, searchClear, player, nameOf,
   getState, onChange, draw,
 }) {
   function queryUrl(value, active, nextView) {
-    const url = new URL(window.location.href);
-    if (value) url.searchParams.set('q', value); else url.searchParams.delete('q');
-    applyFacetParams(url, active);
-    applyViewParam(url, nextView);
-    return `${url.pathname}${url.search}${url.hash}`;
+    return urlForRoute({view: nextView, facet: active, query: value}, window.location.search);
+  }
+  /**
+   * A watch page's address is the video's, so a filter changed behind it (a
+   * search cleared with Escape) is kept in its history state instead, as the
+   * gallery Back and the close button return to.
+   */
+  function writeHistory(mode, url) {
+    if (player.activeId()) {
+      window.history.replaceState({...window.history.state, gallery: url}, '');
+    } else if (mode === 'push') {
+      rememberScroll();
+      const {archiveScrollY, ...state} = window.history.state || {};
+      window.history.pushState(state, '', url);
+    } else {
+      window.history.replaceState({...window.history.state}, '', url);
+    }
   }
   /**
    * The two filters are one filter: picking a chip replaces whatever search
@@ -27,13 +39,7 @@ export function createGalleryNavigation({
     if (syncInput) search.value = active ? nameOf(active) : value;
     // Setting the field raises no input event, so say it changed.
     if (syncInput) search.dispatchEvent(new Event('searchsync'));
-    if (history === 'push') {
-      rememberScroll();
-      const {archiveScrollY, ...state} = window.history.state || {};
-      window.history.pushState(state, '', queryUrl(value, active, nextView));
-    } else if (history === 'replace') {
-      window.history.replaceState({...window.history.state}, '', queryUrl(value, active, nextView));
-    }
+    if (history !== 'none') writeHistory(history, queryUrl(value, active, nextView));
     draw();
     // A new filter is a new list, so it starts at its top rather than wherever
     // the last one was scrolled to; a chip deep in the gallery would otherwise
@@ -48,9 +54,11 @@ export function createGalleryNavigation({
    * Filters to exactly the chip's own videos. A chip with no id of its own is
    * all the archive knows about it, so that one falls back to a name search.
    */
-  /** `nextView` keeps a chip inside a view that can narrow by it, as the
-   *  playlists view does by channel. */
-  function filterByFacet(kind, target, {view: nextView = getState().view} = {}) {
+  /** The view becomes what the chip shows: its videos, or the playlists view
+   *  narrowed, as that one is by channel. A chip picked on Home is otherwise
+   *  still Home underneath, which its address cannot say, so clearing it
+   *  would land somewhere different after a reload. */
+  function filterByFacet(kind, target, {view: nextView = displayedView(getState().view, {facet: {kind}})} = {}) {
     const {facet, view} = getState();
     const id = String(target?.id ?? '');
     if (!id) return filterBy(target.name);
@@ -66,7 +74,7 @@ export function createGalleryNavigation({
   function setView(next) {
     const {query, facet, view} = getState();
     if (player.activeId()) player.close({scrollY: 0});
-    if (next !== view || query || facet || window.location.search) {
+    if (next !== view || query || facet || here() !== queryUrl('', null, next)) {
       setQuery('', {history: 'push', view: next});
     } else {
       draw();
@@ -118,10 +126,10 @@ export function createGalleryNavigation({
   }, {passive: true});
   window.addEventListener('popstate', event => {
     clearTimeout(scrollTimer);
-    const params = new URLSearchParams(window.location.search);
-    setQuery(params.get('q') || '', {active: facetFromUrl(), view: viewFromParams(params)});
+    const route = galleryRoute(window.location, event.state);
+    setQuery(route.query, {active: route.facet, view: route.view});
     // A video's entry is the player's to place; it scrolls the watch page to the top.
-    if (params.has('watch')) return;
+    if (routeFromLocation(window.location).watch) return;
     const scrollY = event.state?.archiveScrollY;
     window.scrollTo(0, Number.isFinite(scrollY) ? scrollY : 0);
   });
@@ -131,11 +139,8 @@ export function createGalleryNavigation({
    * here does. A channel opens its videos; a playlist opens its gallery.
    */
   function facetLink(kind, target) {
-    const url = new URL(queryUrl('', {kind, id: target.id, name: target.name || ''}, 'videos'),
-      window.location.origin);
-    url.searchParams.delete('watch');
     return {
-      href: `${url.pathname}${url.search}${url.hash}`,
+      href: queryUrl('', {kind, id: target.id, name: target.name || ''}, 'videos'),
       open: () => filterByFacet(kind, target, {view: 'videos'}),
     };
   }

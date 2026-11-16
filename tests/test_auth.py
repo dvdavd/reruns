@@ -1,3 +1,4 @@
+import hashlib
 import http.client
 import json
 import sqlite3
@@ -42,6 +43,92 @@ class AccountStoreTests(unittest.TestCase):
         self.auth.revoke(session)
         self.assertIsNone(self.auth.session(session))
 
+    def test_an_invite_makes_one_account_and_a_taken_name_leaves_it_good(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        self.auth.create_local("viewer", "another strong password")
+        invite = self.auth.create_invite(admin["id"])
+        self.assertTrue(self.auth.invite_valid(invite["token"]))
+        self.assertNotIn("token", self.auth.invites()[0])
+        with self.assertRaisesRegex(ValueError, "Username already exists"):
+            self.auth.redeem_invite(invite["token"], "viewer", "a third strong password")
+        self.assertTrue(self.auth.invite_valid(invite["token"]))
+        guest = self.auth.redeem_invite(invite["token"], "guest", "a third strong password")
+        self.assertEqual((guest["role"], guest["enabled"]), ("user", 1))
+        self.assertFalse(self.auth.invite_valid(invite["token"]))
+        with self.assertRaisesRegex(ValueError, "invalid, used or expired"):
+            self.auth.redeem_invite(invite["token"], "another", "a third strong password")
+
+    def test_an_invite_makes_the_account_with_the_access_chosen_for_it(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        libraries = [("lib", self.base)]
+        with self.assertRaisesRegex(ValueError, "No such library"):
+            self.auth.create_invite(admin["id"], {"grants": [{"library": "elsewhere", "folder": ""}]}, libraries)
+        with self.assertRaisesRegex(ValueError, "Invalid folder"):
+            self.auth.create_invite(admin["id"], {"grants": [{"library": "lib", "folder": "../up"}]}, libraries)
+        invite = self.auth.create_invite(admin["id"], {"fetch": True, "grants": [{"library": "lib", "folder": "Music"}]},
+                                         libraries)
+        listed = self.auth.invites()[0]
+        self.assertEqual((listed["role"], listed["fetch"], listed["grants"]),
+                         ("user", True, [{"library": "lib", "folder": "Music"}]))
+        guest = self.auth.redeem_invite(invite["token"], "guest", "a third strong password")
+        self.assertEqual((guest["role"], guest["fetch"], guest["grants"]),
+                         ("user", 1, [{"library": "lib", "folder": "Music"}]))
+
+    def test_an_invite_made_before_access_could_be_chosen_still_works(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        with sqlite3.connect(self.auth.path) as db:
+            db.execute("DROP TABLE invites")
+            db.execute("CREATE TABLE invites (id INTEGER PRIMARY KEY, token_hash TEXT UNIQUE NOT NULL, "
+                       "created_by INTEGER NOT NULL, expires REAL NOT NULL)")
+            db.execute("INSERT INTO invites(token_hash,created_by,expires) VALUES(?,?,?)",
+                       (hashlib.sha256(b"old-token").hexdigest(), admin["id"], time.time() + 3600))
+        self.auth = AuthStore(self.base / "config")
+        guest = self.auth.redeem_invite("old-token", "guest", "a third strong password")
+        self.assertEqual((guest["role"], guest["fetch"], guest["grants"]), ("user", 0, []))
+        # One made now, with no access chosen, starts where an added account does.
+        invite = self.auth.create_invite(admin["id"])
+        self.assertEqual(self.auth.redeem_invite(invite["token"], "later", "a third strong password")["grants"],
+                         [{"library": "*", "folder": ""}])
+
+    def test_an_invite_stops_working_when_revoked_expired_or_its_admin_goes(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        revoked = self.auth.create_invite(admin["id"])
+        self.auth.revoke_invite(revoked["id"])
+        self.assertFalse(self.auth.invite_valid(revoked["token"]))
+        expiring = self.auth.create_invite(admin["id"])
+        with mock.patch("reruns.auth.time.time", return_value=expiring["expires"] + 1):
+            self.assertFalse(self.auth.invite_valid(expiring["token"]))
+            self.assertEqual(self.auth.invites(), [])
+        second = self.auth.create_local("second", "another strong password")
+        self.auth.update_user(second["id"], {"role": "admin"}, [])
+        theirs = self.auth.create_invite(second["id"])
+        self.auth.delete_user(second["id"], admin["id"])
+        self.assertFalse(self.auth.invite_valid(theirs["token"]))
+
+    def test_deleting_an_account_takes_what_was_kept_for_it_and_spares_the_admins(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        user = self.auth.create_local("viewer", "another strong password")
+        self.auth.update_user(user["id"], {"enabled": True, "grants": [{"library": "lib", "folder": ""}]},
+                              [("lib", self.base)])
+        self.auth.set_personal(user["id"], "favourite", "clip", True)
+        session = self.auth.issue(user["id"])
+        with self.assertRaises(ValueError):
+            self.auth.delete_user(admin["id"], admin["id"])
+        self.auth.delete_user(user["id"], admin["id"])
+        self.assertIsNone(self.auth.session(session))
+        self.assertIsNone(self.auth.user(user["id"]))
+        # The id is free for SQLite to hand out again; nothing of the old account follows it.
+        again = self.auth.create_local("newcomer", "another strong password")
+        self.assertEqual(self.auth.personal(again["id"], "favourite"), {})
+        self.assertEqual(again["grants"], [{"library": "*", "folder": ""}])
+        with self.assertRaises(KeyError):
+            self.auth.delete_user(9999, admin["id"])
+        other = self.auth.create_local("second", "another strong password")
+        self.auth.update_user(other["id"], {"enabled": True, "role": "admin"}, [])
+        self.auth.update_user(admin["id"], {"enabled": False}, [])
+        with self.assertRaises(ValueError):
+            self.auth.delete_user(other["id"], admin["id"])
+
     def test_a_known_session_is_not_looked_up_again_until_something_changes(self):
         self.auth.setup(self.auth.setup_token, "admin", "strong password")
         viewer = self.auth.create_local("viewer", "another strong password")
@@ -55,7 +142,7 @@ class AccountStoreTests(unittest.TestCase):
         libraries = [("lib-a", Path("/a"))]
         viewer = self.auth.create_local("viewer", "another strong password")
         token = self.auth.issue(viewer["id"])
-        self.assertEqual(self.auth.session(token)["grants"], [])
+        self.assertEqual(self.auth.session(token)["grants"], [{"library": "*", "folder": ""}])
         self.auth.update_user(viewer["id"], {"grants": [{"library": "lib-a", "folder": ""}]}, libraries)
         self.assertEqual(self.auth.session(token)["grants"], [{"library": "lib-a", "folder": ""}])
         self.auth.update_user(viewer["id"], {"enabled": False}, libraries)
@@ -90,7 +177,7 @@ class AccountStoreTests(unittest.TestCase):
         viewer = self.auth.create_local("viewer", "another strong password")
         token = self.auth.issue(viewer["id"])
         self.auth.session(token)["grants"].append({"library": "x", "folder": ""})
-        self.assertEqual(self.auth.session(token)["grants"], [])
+        self.assertEqual(self.auth.session(token)["grants"], [{"library": "*", "folder": ""}])
 
     def test_oidc_identity_stays_pending_and_cannot_merge_by_name(self):
         first = self.auth.oidc_login("https://issuer.example", "sub-a", "Same name")
@@ -106,19 +193,37 @@ class AccountStoreTests(unittest.TestCase):
         issuer = "https://issuer.example"
         plain = self.auth.oidc_login(issuer, "plain", "Plain")
         self.assertFalse(plain["enabled"])
+        # Waiting, but with the libraries ready for when it is approved.
+        self.assertEqual(plain["grants"], [{"library": "*", "folder": ""}])
+        waiting = self.auth.oidc_login(issuer, "named", "Named", libraries=[("lib-b", Path("/media/Music"))],
+                                       library_names=["Music"])
+        self.assertEqual((waiting["enabled"], waiting["grants"]), (0, [{"library": "lib-b", "folder": ""}]))
         admin = self.auth.oidc_login(issuer, "boss", "Boss", access="admin", libraries=libraries)
         self.assertEqual((admin["role"], admin["enabled"]), ("admin", 1))
         self.assertTrue(self.auth.has_admin())
         member = self.auth.oidc_login(issuer, "member", "Member", access="user", libraries=libraries)
         self.assertEqual((member["role"], member["enabled"], member["fetch"]),
                          ("user", 1, 1))
-        self.assertEqual(sorted(grant["library"] for grant in member["grants"]), ["lib-a", "lib-b"])
+        self.assertEqual(member["grants"], [{"library": "*", "folder": ""}])
         # Joining a group later approves an account that was still waiting...
         self.assertEqual(self.auth.oidc_login(issuer, "plain", "Plain", access="user", libraries=libraries)["enabled"], 1)
         # ...but never undoes what an admin has done since.
         self.auth.update_user(member["id"], {"fetch": False, "grants": []}, libraries)
         again = self.auth.oidc_login(issuer, "member", "Member", access="admin", libraries=libraries)
         self.assertEqual((again["role"], again["fetch"], again["grants"]), ("user", 0, []))
+
+    def test_a_libraries_claim_chooses_where_a_user_group_member_starts(self):
+        libraries = [("lib-a", Path("/media/Films")), ("lib-b", Path("/media/Music")), ("lib-c", Path("/srv/Talks"))]
+        issuer = "https://issuer.example"
+        login = lambda subject, names: self.auth.oidc_login(issuer, subject, subject, access="user",
+                                                            libraries=libraries, library_names=names)
+        self.assertEqual(sorted(grant["library"] for grant in login("by-name", ["Music", "/srv/Talks/", "Missing"])["grants"]),
+                         ["lib-b", "lib-c"])
+        self.assertEqual(login("everything", ["Films", "*"])["grants"], [{"library": "*", "folder": ""}])
+        self.assertEqual(login("nothing", [])["grants"], [])
+        # An admin needs no grants, so the claim is not applied to one.
+        admin = self.auth.oidc_login(issuer, "boss", "Boss", access="admin", libraries=libraries, library_names=["Music"])
+        self.assertEqual(admin["grants"], [])
 
     def test_enable_history_survives_disable_and_provider_groups(self):
         user = self.auth.oidc_login("issuer", "subject", "Viewer")
@@ -225,6 +330,23 @@ class AuthRouteTests(unittest.TestCase):
             "action": "delete", "id": playlist_id}, token)[0], 200)
         self.assertTrue((self.roots[1] / "clip.mp4").exists())
 
+    def test_an_admin_deletes_another_account_and_its_playlists_but_not_their_own(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        user = self.auth.create_local("leaver", "another strong password")
+        self.auth.update_user(user["id"], {"enabled": True}, [])
+        user_token = self.auth.issue(user["id"])
+        self.assertEqual(self.call("POST", "/api/playlists", {"action": "create", "title": "Mine"}, user_token)[0], 200)
+        self.assertEqual(self.call("POST", f"/api/auth/users/{admin['id']}/delete", {}, user_token)[0], 403)
+        admin_token = self.auth.issue(admin["id"])
+        status, body, _ = self.call("POST", f"/api/auth/users/{admin['id']}/delete", {}, admin_token)
+        self.assertEqual(status, 400)
+        self.assertIn(b"You cannot delete your own account", body)
+        self.assertEqual(self.call("POST", f"/api/auth/users/{user['id']}/delete", {}, admin_token)[0], 200)
+        self.assertEqual(self.call("GET", "/api/auth/me", token=user_token)[0], 401)
+        self.assertEqual(self.settings.playlists.list(f"user:{user['id']}"), [])
+        self.assertEqual([entry["id"] for entry in json.loads(self.call("GET", "/api/auth/users", token=admin_token)[1])],
+                         [admin["id"]])
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
@@ -268,6 +390,25 @@ class AuthRouteTests(unittest.TestCase):
         connection.close()
         return result
 
+    def test_every_library_grant_covers_libraries_added_later(self):
+        self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        user = self.auth.create_local("viewer", "another strong password")
+        with self.assertRaisesRegex(ValueError, "Invalid folder"):
+            self.auth.update_user(user["id"], {"grants": [{"library": "*", "folder": "Music"}]}, self.settings.libraries())
+        self.auth.update_user(user["id"], {"grants": [{"library": "*", "folder": ""}]}, self.settings.libraries())
+        token = self.auth.issue(user["id"])
+        titles = lambda: sorted(item["title"] for item in json.loads(self.call("GET", "/api/items", token=token)[1]))
+        self.assertEqual(titles(), ["private", "shared"])
+        later = self.base / "later"
+        later.mkdir()
+        (later / "clip.info.json").write_text(json.dumps({"id": "later", "title": "later"}))
+        (later / "clip.mp4").write_bytes(b"video")
+        self.settings.add(str(later))
+        self.archive.scan()
+        self.assertEqual(titles(), ["later", "private", "shared"])
+        settings = json.loads(self.call("GET", "/api/settings", token=token)[1])
+        self.assertEqual(len(settings["libraries"]), 3)
+
     def test_archive_requires_sign_in_and_folder_grants_cover_direct_media(self):
         private_id, shared_id = [key for key, _ in self.settings.libraries()]
         admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
@@ -310,6 +451,22 @@ class AuthRouteTests(unittest.TestCase):
                 self.assertEqual(self.call("POST", path, {"id": "hidden", value_field: value}, token)[0], 403)
 
 
+    def test_a_fresh_install_sends_the_page_to_setup_and_then_to_sign_in(self):
+        def location(path="/"):
+            connection = http.client.HTTPConnection(*self.server.server_address)
+            connection.request("GET", path, headers={"Host": "localhost"})
+            response = connection.getresponse()
+            response.read()
+            connection.close()
+            return response.status, response.getheader("Location")
+        self.assertEqual(location(), (302, "/setup.html"))
+        self.assertEqual(self.call("GET", "/setup.html")[0], 200)
+        self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        self.assertEqual(location(), (302, "/auth.html"))
+        # A link to a video is followed once signed in.
+        self.assertEqual(location("/watch/abc?list=PL1"),
+                         (302, "/auth.html?next=%2Fwatch%2Fabc%3Flist%3DPL1"))
+
     def test_setup_and_login_issue_cookie(self):
         status, _, cookie = self.call("POST", "/api/auth/setup", {"token": self.auth.setup_token,
             "username": "admin", "password": "strong password"})
@@ -333,6 +490,25 @@ class AuthRouteTests(unittest.TestCase):
         login = lambda password: self.call("POST", "/api/auth/login", {"username": "viewer", "password": password})[0]
         self.assertEqual(login("another strong password"), 401)
         self.assertEqual(login("a brand new password"), 200)
+
+    def test_only_an_admin_makes_invites_and_anyone_with_the_link_redeems_one(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        user = self.auth.create_local("viewer", "another strong password")
+        self.assertEqual(self.call("POST", "/api/auth/invites", {}, self.auth.issue(user["id"]))[0], 403)
+        mine = self.auth.issue(admin["id"])
+        status, body, _ = self.call("POST", "/api/auth/invites", {}, mine)
+        self.assertEqual(status, 200)
+        token = json.loads(body)["token"]
+        self.assertEqual(len(json.loads(self.call("GET", "/api/auth/invites", token=mine)[1])), 1)
+        check = lambda: json.loads(self.call("POST", "/api/auth/invite", {"token": token})[1])["valid"]
+        self.assertTrue(check())
+        status, _, cookie = self.call("POST", "/api/auth/invite/redeem",
+                                      {"token": token, "username": "guest", "password": "a third strong password"})
+        self.assertEqual(status, 200)
+        self.assertIn("HttpOnly", cookie)
+        self.assertFalse(check())
+        self.assertEqual(self.call("POST", "/api/auth/invite/redeem",
+                                   {"token": token, "username": "other", "password": "a third strong password"})[0], 400)
 
     def test_setup_page_is_told_when_the_config_folder_is_unwritable(self):
         config = lambda: json.loads(self.call("GET", "/api/auth/config")[1])
@@ -382,6 +558,7 @@ class AuthRouteTests(unittest.TestCase):
     def test_browsing_needs_the_fetch_permission_and_a_grant(self):
         self.auth.setup(self.auth.setup_token, "admin", "strong password")
         user = self.auth.create_local("viewer", "another strong password")
+        self.auth.update_user(user["id"], {"grants": []}, self.settings.libraries())
         token = self.auth.issue(user["id"])
         shared_id = self.settings.libraries()[1][0]
         for path in ("/api/browse?kind=search&query=cats", "/browse-thumb/" + "0" * 20):
@@ -470,6 +647,7 @@ class AuthRouteTests(unittest.TestCase):
     def test_a_changed_grant_applies_to_the_next_request(self):
         self.auth.setup(self.auth.setup_token, "admin", "strong password")
         user = self.auth.create_local("viewer", "another strong password")
+        self.auth.update_user(user["id"], {"grants": []}, self.settings.libraries())
         shared_id = self.settings.libraries()[1][0]
         token = self.auth.issue(user["id"])
         self.assertEqual(json.loads(self.call("GET", "/api/items", token=token)[1]), [])
@@ -541,7 +719,8 @@ class OIDCTests(unittest.TestCase):
             return jwt.encode({"alg": "RS256", "kid": key.kid}, claims, key)
 
         with mock.patch.object(OAuth2Session, "fetch_token", return_value={"id_token": signed()}):
-            self.assertEqual(provider.finish("state", "code")["subject"], "person")
+            identity = provider.finish("state", "code")
+            self.assertEqual((identity["subject"], identity["library_names"]), ("person", None))
             with self.assertRaises(ValueError):
                 provider.finish("state", "code")
         for overrides in ({"nonce": "wrong"}, {"aud": "other"}, {"iss": "https://other.example"},
@@ -550,6 +729,13 @@ class OIDCTests(unittest.TestCase):
             with mock.patch.object(OAuth2Session, "fetch_token", return_value={"id_token": signed(**overrides)}):
                 with self.assertRaises(Exception):
                     provider.finish("state", "code")
+        provider.libraries_claim = "reruns_libraries"
+        for claimed, expected in (("Music", ["Music"]), (["Films", "Music"], ["Films", "Music"]), (None, None)):
+            provider._pending["state"] = (time.time() + 600, "expected", "verifier")
+            token = signed(reruns_libraries=claimed) if claimed is not None else signed()
+            with mock.patch.object(OAuth2Session, "fetch_token", return_value={"id_token": token}):
+                self.assertEqual(provider.finish("state", "code")["library_names"], expected)
+        provider.libraries_claim = ""
         other_key = RSAKey.generate_key(2048, private=True, auto_kid=True)
         provider._pending["state"] = (time.time() + 600, "expected", "verifier")
         invalid_signature = jwt.encode({"alg": "RS256", "kid": key.kid},

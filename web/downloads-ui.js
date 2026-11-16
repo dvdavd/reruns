@@ -518,7 +518,7 @@ export function createDownloadsUI({access = {role: 'admin'}, directory, form, ur
     if (row.state !== 'done' || !row.videoId || !playLocal) return null;
     const key = playLocal.keyFor(row.extractor, row.videoId);
     if (!key) return null;
-    return {href: `/?watch=${encodeURIComponent(key)}`, onClick: event => {
+    return {href: playLocal.href(key), onClick: event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       if (!playLocal.play(key, event)) return;
       event.preventDefault();

@@ -4,6 +4,7 @@ removing or retargeting a folder never loses anything else.
 """
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -12,6 +13,7 @@ import uuid
 from pathlib import Path
 
 from .downloads import validate_options
+from .oserrors import DENIED, reason
 from .preferences import clean_values
 from .playlists import PlaylistStore
 from .subscriptions import INTERVALS, validate_backlog
@@ -463,7 +465,15 @@ class Settings:
             try:
                 path.mkdir(parents=True)
             except OSError as error:
-                raise ValueError(f"Could not create {path}: {error}") from error
+                # The usual cause is a folder the server's user may not write
+                # to (a Docker bind mount, say), which is worth saying plainly.
+                if error.errno in DENIED:
+                    raise ValueError(f"No permission to create {path}") from error
+                if error.errno == errno.EROFS:
+                    raise ValueError(f"{path} is on a read-only disk") from error
+                if error.errno == errno.ENOSPC:
+                    raise ValueError(f"No space left to create {path}") from error
+                raise ValueError(f"Could not create {path}: {reason(error)}") from error
         with self._lock:
             for existing in self._paths:
                 if path == existing:

@@ -40,6 +40,7 @@ from .browse import Browser
 from .channels import ChannelImages, CommentAvatars, key_for as channel_image_key
 from .downloads import Downloader
 from .mediaprobe import MediaProbes
+from .oserrors import reason
 from .remux import playback_plan
 from .settings import Settings, default_config_dir
 from .sponsorblock import SponsorBlock
@@ -52,7 +53,7 @@ from .oidc import OIDC
 from .routes_accounts import AccountRoutes
 from .routes_downloads import DownloadRoutes, refresh_channel_pictures
 from .routes_library import LibraryRoutes
-from .routes_media import MediaRoutes
+from .routes_media import MediaRoutes, is_page_path
 from .routes_settings import SettingsRoutes
 
 
@@ -256,7 +257,7 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
                 raise
             log.exception("Could not write to the config folder")
             self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR,
-                            f"The config folder is not writable ({error}). Check its permissions")
+                            f"The config folder is not writable ({reason(error)}). Check its permissions")
 
     def _post(self) -> None:
         if self._wrong_host():
@@ -544,10 +545,13 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
                 self._send_file(self._sized(image), head_only=head_only)
         elif path.startswith("/media-ui/"):
             self._send_package(path[len("/media-ui/"):], head_only=head_only)
-        elif head_only:
-            super().do_HEAD()
         else:
-            super().do_GET()
+            if is_page_path(path):
+                self.path = "/index.html"
+            if head_only:
+                super().do_HEAD()
+            else:
+                super().do_GET()
 
 
     def _send_json(self, payload, *, head_only: bool, revalidate: bool = False,
@@ -735,7 +739,8 @@ def main() -> None:
         oidc = OIDC(issuer, client_id, client_secret, public_url,
                     os.environ.get("RERUNS_OIDC_NAME", ""),
                     os.environ.get("RERUNS_OIDC_ADMIN_GROUP", ""),
-                    os.environ.get("RERUNS_OIDC_USER_GROUP", ""))
+                    os.environ.get("RERUNS_OIDC_USER_GROUP", ""),
+                    os.environ.get("RERUNS_OIDC_LIBRARIES_CLAIM", ""))
     seeded = None
     if args.archive is not None:
         seeded = args.archive.expanduser().resolve()
@@ -821,12 +826,19 @@ def main() -> None:
     server = ArchiveHTTPServer((args.host, args.port), handler)
     if auth and not auth.has_admin():
         print(f"First admin setup token (expires in 30 minutes): {auth.setup_token}", flush=True)
+        # The setup page reads the token from the fragment, which stays in
+        # the browser. A wildcard host is no address to open, and behind
+        # Docker the port may be mapped, so then only the path is given.
+        base = os.environ.get("RERUNS_PUBLIC_URL", "").rstrip("/") or (
+            "" if args.host in ("", "0.0.0.0", "::")
+            else f"http://[{args.host}]:{args.port}" if ":" in args.host else f"http://{args.host}:{args.port}")
+        print(f"Or open : {base}/setup.html#token={auth.setup_token}", flush=True)
     print(f"Settings: {settings.path}")
     for _, path in settings.libraries():
         marker = "  (downloads)" if path == settings.download_root() else ""
         print(f"Library : {path}{'' if path.is_dir() else '  (MISSING)'}{marker}")
     if not settings.libraries():
-        print("Library : none yet - add one under Settings in the page")
+        print("Library : none yet - the page asks for one when it opens")
     print(f"Version : {DISPLAY_VERSION}")
     print(f"Package : {package}")
     print(f"yt-dlp  : {yt_dlp_version} ({args.yt_dlp})" if yt_dlp_version else
