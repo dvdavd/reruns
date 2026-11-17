@@ -1,4 +1,5 @@
 import {post, request} from './api.js';
+import {iconMarkup} from './icon.js';
 import {LOCALES, t, translateMarkup, useLocale} from './i18n.js';
 import {PALETTES, paletteStyle} from './palette.js';
 import {createPasswordField} from './password-field.js';
@@ -18,6 +19,12 @@ async function speak(tag) {
   document.title = t('auth.title');
   translateMarkup(document);
   passwordField.sync();
+  for (const button of document.querySelectorAll('[data-copy]')) {
+    button.innerHTML = iconMarkup('copy');
+    button.setAttribute('aria-label', t('setup.copy'));
+    button.title = t('setup.copy');
+  }
+  document.querySelector('#auth-forgot-close').innerHTML = iconMarkup('x');
 }
 let remembered = '';
 try { remembered = localStorage.getItem('archive-language') || ''; } catch { /* The default still works. */ }
@@ -49,6 +56,38 @@ const oidcLink = document.querySelector('#oidc-link');
 oidcLink.hidden = !config.oidc;
 document.querySelector('#auth-or').hidden = !config.oidc;
 oidcLink.textContent = t('auth.signInWith', {name: config.oidcName || 'OIDC'});
+// The advice opens in front of the card rather than on another page, as
+// there is nothing to fill in. Escape, the corner button or a click on the
+// dimmed page closes it.
+const forgotToggle = document.querySelector('#auth-forgot-toggle');
+const forgot = document.querySelector('#auth-forgot');
+forgotToggle.addEventListener('click', () => forgot.showModal());
+document.querySelector('#auth-forgot-close').addEventListener('click', () => forgot.close());
+// A click on the backdrop reaches the dialog itself, but so does one on its
+// padding, so only a click outside its box closes it.
+forgot.addEventListener('click', event => {
+  if (event.target !== forgot) return;
+  const box = forgot.getBoundingClientRect();
+  const inside = event.clientX >= box.left && event.clientX <= box.right
+    && event.clientY >= box.top && event.clientY <= box.bottom;
+  if (!inside) forgot.close();
+});
+for (const button of forgot.querySelectorAll('[data-copy]')) {
+  button.addEventListener('click', async () => {
+    const command = button.previousElementSibling;
+    try {
+      await navigator.clipboard.writeText(command.textContent);
+      button.classList.add('is-copied');
+      setTimeout(() => button.classList.remove('is-copied'), 1200);
+    } catch {
+      // No clipboard outside a secure origin: select it for a manual copy.
+      getSelection().selectAllChildren(command);
+    }
+  });
+}
+const forgotOidc = document.querySelector('#auth-forgot-oidc');
+forgotOidc.hidden = !config.oidc;
+forgotOidc.textContent = t('auth.forgot.oidc', {name: config.oidcName || 'OIDC'});
 if (location.search.includes('pending=1')) message.textContent = t('auth.pending');
 if (location.search.includes('error=oidc')) message.textContent = t('auth.oidcFailed');
 // An invite link (accounts-ui.js) carries its token in the fragment, which
@@ -68,6 +107,8 @@ if (inviting) {
   passwordField.sync();
   oidcLink.hidden = true;
   document.querySelector('#auth-or').hidden = true;
+  // Someone choosing their first password has none to forget.
+  forgotToggle.hidden = true;
 } else if (invite) {
   message.textContent = t('auth.invite.invalid');
 }

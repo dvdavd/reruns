@@ -33,7 +33,7 @@ export const DEFAULT_CARD_HOOKS = {
  * app's translations: whoever uses it hands over what it should say.
  */
 export const DEFAULT_LABELS = {
-  play: 'Play', favourites: 'favourite videos', addPerson: '+ Add name',
+  play: 'Play', favourites: 'favourite videos', addPerson: 'Add name',
   playbackProgress: 'Playback progress', details: 'Details', viewDetails: 'View details for {label}',
   addTo: 'Add to {noun}', removeFrom: 'Remove from {noun}',
   videoParts: 'Video parts', previousPart: 'Previous part', nextPart: 'Next part',

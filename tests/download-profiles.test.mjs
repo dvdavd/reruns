@@ -101,9 +101,9 @@ test('a folder is sent only when one was chosen', () => {
 test('the location choices put the default first and offer the current view', () => {
   const rows = [{key: 'lib1/Music/', name: 'Music', depth: 1}];
   assert.deepEqual(locationChoices(rows, '').map(choice => choice.label),
-    ['Profile Default', 'Music']);
+    ['Profile default', 'Music']);
   assert.deepEqual(locationChoices(rows, 'lib1/Music/').map(choice => choice.label),
-    ['Profile Default', 'Current view (Music)', 'Music']);
+    ['Profile default', 'Current view (Music)', 'Music']);
 });
 
 test('restricted locations contain only explicit grants, even for empty folders', () => {

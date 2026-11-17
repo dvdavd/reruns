@@ -105,18 +105,36 @@
         </g>
       </svg>
     <h1 class="wizard-name">Reruns</h1>
-    <p id="auth-intro" class="wizard-welcome" data-i18n="auth.intro">Sign in to your archive.</p>
+    <p id="auth-intro" class="wizard-welcome" data-i18n="auth.intro">Sign in to your library.</p>
     <form id="auth-form">
       <label class="wizard-field"><span data-i18n="auth.username">Username</span><input name="username" type="text" autocomplete="username" required></label>
-      <label class="wizard-field" data-password-field><span data-i18n="auth.password">Password</span>
-        <span class="password-input"><input name="password" type="password" autocomplete="current-password" required aria-describedby="auth-strength"><button class="password-reveal" type="button" aria-pressed="false"></button></span>
-        <span class="password-strength" id="auth-strength" aria-live="polite" hidden><i></i><b></b></span></label>
+      <!-- The link sits in the label's row but outside the label: a button
+           before the input would become what the label points at. -->
+      <div class="auth-password">
+        <label class="wizard-field" data-password-field><span data-i18n="auth.password">Password</span>
+          <span class="password-input"><input name="password" type="password" autocomplete="current-password" required aria-describedby="auth-strength"><button class="password-reveal" type="button" aria-pressed="false"></button></span>
+          <span class="password-strength" id="auth-strength" aria-live="polite" hidden><i></i><b></b></span></label>
+        <button id="auth-forgot-toggle" class="auth-forgot-toggle" type="button" aria-haspopup="dialog" aria-controls="auth-forgot" data-i18n="auth.forgot">Forgot your password?</button>
+      </div>
       <button id="auth-submit" class="profile-save" type="submit" data-i18n="auth.signIn">Sign in</button>
     </form>
     <div id="auth-or" class="auth-or" role="separator" hidden><span data-i18n="auth.or">or</span></div>
     <a id="oidc-link" class="profile-save auth-oidc" href="/auth/oidc/start" hidden>Sign in with OIDC</a>
     <p id="auth-message" role="status"></p>
   </main>
+  <!-- In front of the card rather than more of it: commands to copy want the
+       width, and the card stays the same size for everyone. -->
+  <dialog id="auth-forgot" class="confirm-dialog auth-forgot" aria-labelledby="auth-forgot-title">
+    <button id="auth-forgot-close" class="icon-button close-icon-button auth-forgot-close" type="button"
+            aria-label="Close" data-i18n-attrs="aria-label:auth.forgot.close,title:auth.forgot.close"></button>
+    <h2 id="auth-forgot-title" tabindex="-1" autofocus data-i18n="auth.forgot">Forgot your password?</h2>
+    <p data-i18n="auth.forgot.ask">Ask an admin to set a new one for you from Settings&nbsp;&gt;&nbsp;Accounts.</p>
+    <p data-i18n="auth.forgot.admin">If you are the admin, run this where the server runs:</p>
+    <span class="wizard-code"><code>reruns <span>--reset-password</span> <var data-i18n="auth.forgot.username">username</var></code><button type="button" class="wizard-copy" data-copy></button></span>
+    <p data-i18n="auth.forgot.docker">With Docker, run it in the container as the server&#39;s user (<code>PUID</code>, 1000 by default):</p>
+    <span class="wizard-code"><code>docker compose exec <span>--user</span> 1000 reruns reruns <span>--config</span> /config <span>--reset-password</span> <var data-i18n="auth.forgot.username">username</var></code><button type="button" class="wizard-copy" data-copy></button></span>
+    <p id="auth-forgot-oidc" hidden></p>
+  </dialog>
   <script type="module" src="/auth.js"></script>
 </body>
 </html>

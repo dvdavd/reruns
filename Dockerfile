@@ -7,13 +7,20 @@
 
 # Pinned by digest so the registry build cache stays valid: a moving tag
 # re-resolves on every run of the release builder, and a new base invalidates
-# every layer above it, ffmpeg's hour-long compile included. The tag is kept for
-# reading; the digest is what is pulled. To take a base update, replace the
-# digest with `docker buildx imagetools inspect python:3.13-slim-trixie`'s.
-ARG PYTHON_IMAGE=python:3.13-slim-trixie@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb
-ARG DENO_VERSION=2.9.7
-ARG FFMPEG_VERSION=8.1.3
-ARG FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3
+# every layer above it. The tag is kept for reading; the digest is what is
+# pulled, from `docker buildx imagetools inspect python:3.13-slim-trixie`.
+#
+# The image ships on PYTHON_IMAGE; ffmpeg and PyAV are compiled on BUILD_IMAGE,
+# so a base update for security fixes rebuilds minutes of layers rather than
+# ffmpeg's hour under arm64 emulation. Move BUILD_IMAGE only with ffmpeg or
+# PyAV. What crosses between them links against trixie's libraries and the
+# CPython 3.13 ABI, both stable within the release, so the two must share the
+# Debian release and Python minor version: changing either changes both.
+ARG BUILD_IMAGE=python:3.13-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+ARG PYTHON_IMAGE=python:3.13-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+ARG DENO_VERSION=2.9.8
+ARG FFMPEG_VERSION=9.0.2
+ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
 
 FROM denoland/deno:bin-${DENO_VERSION} AS deno
 
@@ -29,7 +36,7 @@ FROM denoland/deno:bin-${DENO_VERSION} AS deno
 # https and HLS) are the distribution's own, and get its security updates.
 # The release tarball is pinned by checksum rather than fetched from a moving
 # "latest", so the same Dockerfile gives the same ffmpeg.
-FROM ${PYTHON_IMAGE} AS ffmpeg
+FROM ${BUILD_IMAGE} AS ffmpeg
 ARG FFMPEG_VERSION
 ARG FFMPEG_SHA256
 RUN apt-get update && apt-get install -y --no-install-recommends \

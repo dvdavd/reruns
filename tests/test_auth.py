@@ -172,6 +172,35 @@ class AccountStoreTests(unittest.TestCase):
         self.assertIsNone(self.auth.session(other))
         self.assertIsNotNone(self.auth.session(kept))
 
+    def test_a_console_reset_sets_the_password_and_ends_every_session(self):
+        admin = self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        session = self.auth.issue(admin["id"])
+        self.auth.reset_password("admin", "a forgotten one replaced")
+        self.assertIsNone(self.auth.session(session))
+        self.assertIsNone(self.auth.local_login("admin", "strong password"))
+        self.assertIsNotNone(self.auth.local_login("admin", "a forgotten one replaced"))
+        with self.assertRaises(KeyError):
+            self.auth.reset_password("nobody", "a forgotten one replaced")
+        with self.assertRaisesRegex(ValueError, "12 characters"):
+            self.auth.reset_password("admin", "short")
+        # An OIDC account has no username, so there is nothing to name.
+        oidc = self.auth.oidc_login("https://issuer.example", "sub-a", "Someone")
+        self.assertIsNone(self.auth.user(oidc["id"])["username"])
+
+    def test_the_reset_command_reads_a_piped_password_and_refuses_a_wrong_config(self):
+        from reruns.server import reset_password
+        self.auth.setup(self.auth.setup_token, "admin", "strong password")
+        config = self.base / "config"
+        piped = mock.Mock(isatty=mock.Mock(return_value=False),
+                          readline=mock.Mock(return_value="a forgotten one replaced\n"))
+        with mock.patch("sys.stdin", piped), mock.patch("sys.stdout"), mock.patch("sys.stderr"):
+            self.assertEqual(reset_password(config, "admin"), 0)
+            self.assertEqual(reset_password(config, "nobody"), 1)
+            self.assertEqual(reset_password(self.base / "elsewhere", "admin"), 1)
+        self.assertIsNotNone(self.auth.local_login("admin", "a forgotten one replaced"))
+        # A mistyped --config is not left behind as an empty accounts folder.
+        self.assertFalse((self.base / "elsewhere").exists())
+
     def test_a_caller_changing_the_session_user_does_not_change_the_next_one(self):
         self.auth.setup(self.auth.setup_token, "admin", "strong password")
         viewer = self.auth.create_local("viewer", "another strong password")

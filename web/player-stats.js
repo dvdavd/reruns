@@ -101,8 +101,8 @@ export function createPlayerStats(element, mediaPlayer, {onClose} = {}) {
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'archive-player-stats-close';
-  close.setAttribute('aria-label', t('stats.close'));
-  close.title = t('stats.close');
+  close.setAttribute('aria-label', t('stats.hide'));
+  close.title = t('stats.hide');
   close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>';
   close.addEventListener('click', () => onClose?.());
   const list = document.createElement('dl');

@@ -228,7 +228,7 @@
   .channel-profile-subscribe, .playlist-profile-subscribe, .videos-heading-subscribe,
   .watch-subscribe, .confirm-dialog-button, .profile-cancel, .browse-more, .browse-subscribe,
   .archive-watch-action, .library-row-action, .download-row-action,
-  .download-clear, .download-drawer-head .close-icon-button,
+  .download-clear, :is(.download-drawer-head, .auth-forgot) .close-icon-button,
   .sponsorblock-modes button
 ) { background: #e9eaf0; box-shadow: none; color: #454a59; }
 :root[data-theme="light"] :is(
@@ -237,7 +237,7 @@
   .channel-profile-subscribe, .playlist-profile-subscribe, .videos-heading-subscribe,
   .watch-subscribe, .confirm-dialog-button, .profile-cancel, .browse-more, .browse-subscribe,
   .archive-watch-action, .library-row-action, .download-row-action,
-  .download-clear, .download-drawer-head .close-icon-button,
+  .download-clear, :is(.download-drawer-head, .auth-forgot) .close-icon-button,
   .sponsorblock-modes button
 ):is(:hover, :focus-visible, [aria-expanded="true"]) { background: #dfe1e9; box-shadow: none; color: #202431; }
 :root[data-theme="light"] .topbar-search[data-browse="search"][data-browse-missing="true"] .topbar-browse {
@@ -290,7 +290,7 @@
   box-shadow: none;
   color: var(--highlight-foreground);
 }
-:root[data-theme="light"] :is(.confirm-dialog-button, .archive-watch-action, .download-row-action, .library-row-action, .download-drawer-head .close-icon-button).danger:is(:hover, :focus-visible) {
+:root[data-theme="light"] :is(.confirm-dialog-button, .archive-watch-action, .download-row-action, .library-row-action, :is(.download-drawer-head, .auth-forgot) .close-icon-button).danger:is(:hover, :focus-visible) {
   background: var(--color-danger-bg);
   box-shadow: none;
   color: var(--color-danger);
@@ -445,7 +445,7 @@
    smudge. The coloured add and save buttons keep a softer glow. */
 :root[data-theme="light"] :is(
   .topbar :is(.topbar-navigation, .topbar-actions) .icon-button,
-  .archive-watch-actions .archive-watch-action, .download-drawer-head .close-icon-button,
+  .archive-watch-actions .archive-watch-action, :is(.download-drawer-head, .auth-forgot) .close-icon-button,
   .download-row-action, .download-clear, .library-row-action, .sponsorblock-modes button,
   .profile-actions .channel-profile-favourite,
   :is(.settings-menu, .menu-popover, .thumbnail-type-menu) button[role^="menuitem"],
@@ -530,10 +530,10 @@
 
 /* Header controls contrast with their surface in both themes: dark ink here
    mirrors the dark theme's translucent white button fill. */
-:root[data-theme="light"] .download-drawer-head .close-icon-button {
+:root[data-theme="light"] :is(.download-drawer-head, .auth-forgot) .close-icon-button {
   background: linear-gradient(rgb(32 35 59 / .08), rgb(32 35 59 / .08));
 }
-:root[data-theme="light"] .download-drawer-head .close-icon-button:is(:hover, :focus-visible, [aria-expanded="true"]) {
+:root[data-theme="light"] :is(.download-drawer-head, .auth-forgot) .close-icon-button:is(:hover, :focus-visible, [aria-expanded="true"]) {
   background: linear-gradient(rgb(32 35 59 / .16), rgb(32 35 59 / .16));
 }
 

@@ -9,7 +9,7 @@ import {
 
 test('the heading names a playlist, a creator, or just the videos', () => {
   assert.equal(galleryHeading(), 'Videos');
-  assert.equal(galleryHeading({creator: 'Tom Scott'}), "Tom Scott's Videos");
+  assert.equal(galleryHeading({creator: 'Tom Scott'}), "Tom Scott's videos");
   assert.equal(galleryHeading({source: 'Dropbox'}), 'Videos from Dropbox');
   assert.equal(galleryHeading({playlist: {title: 'England'}, creator: 'Tom Scott'}), 'England');
 });

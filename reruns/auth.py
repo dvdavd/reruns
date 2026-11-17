@@ -425,6 +425,27 @@ class AuthStore:
                        (user["id"], hashlib.sha256(keep_token.encode()).hexdigest()))
         self._forget()
 
+    def reset_password(self, username: str, new: str) -> dict:
+        """Set a local account's password without knowing the old one, for the
+        person who runs the server (--reset-password) when nobody can sign in
+        to do it from the Accounts drawer, such as a sole admin who forgot
+        theirs. Whoever can run it can already write accounts.sqlite3, so it
+        opens no way in that was not there. Every session of the account ends.
+
+        A server already running keeps trusting a session it looked up for up
+        to KNOWN_SECONDS, as with any change made behind its back."""
+        if not 12 <= len(new) <= 1024:
+            raise ValueError("Local passwords need at least 12 characters")
+        with self._db() as db:
+            row = db.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+        if row is None:
+            raise KeyError(username)
+        with self._lock, self._db() as db:
+            db.execute("UPDATE users SET password=? WHERE id=?", (_password_hash(new), row["id"]))
+            db.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))
+        self._forget()
+        return self.user(row["id"])
+
     def issue(self, user_id: int) -> str:
         token = secrets.token_urlsafe(32)
         with self._lock, self._db() as db:

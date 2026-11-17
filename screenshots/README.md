@@ -4,6 +4,10 @@
 
 ## Desktop
 
+### Home
+
+![Reruns home page showing favourite channels and videos](desktop-home.jpg)
+
 ### Browse
 
 ![Reruns desktop browsing view in light mode](desktop-browse-light.jpg)
@@ -20,13 +24,17 @@
 
 ![Reruns audio player and playlist](desktop-audio-playlist.jpg)
 
-### Download popup
+### Chat replay
 
-![Reruns download popup in light mode](desktop-download-popup-light.jpg)
+![Reruns watch page with a livestream's chat replay beside the player](desktop-chat-replay.jpg)
+
+### Download options
+
+![Reruns download options for another format of a library video](desktop-download.jpg)
 
 ### Appearance settings
 
-![Reruns appearance settings](desktop-appearance.jpg)
+![Reruns appearance settings in light mode](desktop-appearance-light.jpg)
 
 ## Mobile
 

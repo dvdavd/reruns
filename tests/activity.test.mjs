@@ -63,6 +63,6 @@ test('rows give the time alone, and a heading names the day', () => {
 });
 
 test('names each kind of work for people, passing unknown ones through', () => {
-  assert.equal(sourceLabel('portrait'), 'Portrait');
+  assert.equal(sourceLabel('portrait'), 'Channel picture');
   assert.equal(sourceLabel('something-new'), 'something-new');
 });

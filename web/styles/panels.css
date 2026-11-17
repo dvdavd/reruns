@@ -1558,7 +1558,10 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
 }
 .archive-comment-more:is(:hover, :focus-visible) { text-decoration: underline; }
 .archive-comment-more[hidden] { display: none; }
-.archive-comment-foot { margin-top: 4px; font-size: 12px; }
+/* A flex row, centred: inline, the likes took their baseline from the foot
+   of the thumb, which lifted the count above "Liked by the creator" beside
+   it. The gap stands in for the space a flex row trims from the text. */
+.archive-comment-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .3em; margin-top: 4px; font-size: 12px; }
 .archive-comment-likes { display: inline-flex; align-items: center; gap: 4px; }
 .archive-comment-likes .icon { width: 14px; height: 14px; }
 .archive-comment-time {

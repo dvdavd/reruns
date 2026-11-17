@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import errno
+import getpass
 import gzip
 import hashlib
 import json
@@ -621,6 +622,43 @@ class ArchiveHTTPServer(ThreadingHTTPServer):
     request_queue_size = 128
 
 
+def reset_password(config_dir: Path, username: str) -> int:
+    """--reset-password: set a local account's password from the server's own
+    console and exit, for a sole admin who forgot theirs and so has no one to
+    reset it from the Accounts drawer. Asked for twice at a terminal; piped in
+    (one line) otherwise, so a script or `docker exec` without -t can do it."""
+    # AuthStore makes the folder and database it is pointed at, so a mistyped
+    # --config would otherwise leave an empty one behind and blame the username.
+    if not (config_dir / "accounts.sqlite3").is_file():
+        print(f"There are no accounts in {config_dir}. Pass the --config the server runs with.",
+              file=sys.stderr)
+        return 1
+    try:
+        if sys.stdin.isatty():
+            password = getpass.getpass(f"New password for {username}: ")
+            if getpass.getpass("Again: ") != password:
+                print("The passwords do not match; nothing was changed.", file=sys.stderr)
+                return 1
+        else:
+            password = sys.stdin.readline().rstrip("\r\n")
+    except (EOFError, KeyboardInterrupt):
+        print(file=sys.stderr)
+        return 1
+    try:
+        user = AuthStore(config_dir).reset_password(username, password)
+    except KeyError:
+        print(f"No account in {config_dir} signs in with the username {username!r}. "
+              "OIDC accounts have their passwords kept by the provider.", file=sys.stderr)
+        return 1
+    except (ValueError, OSError, sqlite3.Error) as error:
+        print(f"{error}; nothing was changed.", file=sys.stderr)
+        return 1
+    print(f"Password changed for {username}; their sessions have ended.")
+    if not user["enabled"]:
+        print("The account is disabled, so it still cannot sign in until an admin enables it.")
+    return 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path, nargs="?",
@@ -680,6 +718,11 @@ def main() -> None:
                         in {"1", "true", "yes", "on"},
                         help="Disable sign-in and give every visitor full administrator access "
                              "(reads RERUNS_NO_AUTH)")
+    parser.add_argument("--reset-password", metavar="USERNAME",
+                        help="Set a local account's password, asking for it (or reading "
+                             "one line from standard input), end its sessions, and exit "
+                             "without starting the server. For an admin locked out of their "
+                             "own account; use the same --config as the server")
     parser.add_argument("--allowed-hosts", default=os.environ.get("RERUNS_ALLOWED_HOSTS", ""),
                         help="Comma or space separated Host names this server "
                              "answers to, e.g. the domain a reverse proxy serves "
@@ -689,6 +732,8 @@ def main() -> None:
                              "browser by pointing a name it owns at it. Loopback "
                              "names are always allowed. Reads RERUNS_ALLOWED_HOSTS.")
     args = parser.parse_args()
+    if args.reset_password is not None:
+        sys.exit(reset_password(args.config.expanduser().resolve(), args.reset_password))
 
     # Everything the workers log reaches the console, as before, and the
     # page's Activity drawer, which keeps the latest in memory.

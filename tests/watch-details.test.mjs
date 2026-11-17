@@ -246,7 +246,7 @@ test('the playlist control carries the position and both neighbours', () => {
   const nav = playlistNav(items[0], items);
   assert.equal(nav.title, 'Blender in 70 minutes');
   assert.equal(nav.position, '1/2');
-  assert.equal(nav.note, '2 of 3 archived');
+  assert.equal(nav.note, '2 of 3 in the library');
   assert.equal(nav.previous, null);
   assert.equal(nav.next.id, items[1].id);
   assert.equal(playlistNav(items[1], items).previous.id, items[0].id);
@@ -545,7 +545,7 @@ test('the playlist sidecar wins for the playlist, the video for its position', (
   assert.equal(items[0].facets.collections[0].name, 'Blender in 70 minutes (complete)');
   assert.equal(playlistLabel(items[0]), 'Blender in 70 minutes (complete) (1 of 12)');
   // Now that the true size is known, the playlist control says how much is held.
-  assert.equal(playlistNav(items[0], items).note, '2 of 12 archived');
+  assert.equal(playlistNav(items[0], items).note, '2 of 12 in the library');
 });
 
 test('items keep their own playlist data when no sidecar matches', () => {

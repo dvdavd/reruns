@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.cache/
+test-archive/
+build/
+dist/
+*.egg-info/
+.venv/
+.revision
+package-lock.json
+node_modules/.package-lock.json

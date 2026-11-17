@@ -92,7 +92,7 @@
         </g>
       </svg>
     </a>
-    <nav class="topbar-navigation" aria-label="Archive views" data-i18n-attrs="aria-label:nav.label">
+    <nav class="topbar-navigation" aria-label="Library views" data-i18n-attrs="aria-label:nav.label">
       <span class="topbar-navigation-thumb" aria-hidden="true"></span>
       <button class="icon-button" type="button" data-main-view="home" aria-label="Home" title="Home" aria-pressed="false"
               data-i18n-attrs="aria-label:nav.home,title:nav.home">
@@ -129,7 +129,7 @@
       <div class="topbar-search-field">
         <svg class="icon topbar-search-icon topbar-search-icon-search" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#search"/></svg>
         <svg class="icon topbar-search-icon topbar-search-icon-link" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#world"/></svg>
-        <input id="archive-search" type="search" placeholder="Search the archive or paste a link…"
+        <input id="archive-search" type="search" placeholder="Search or paste a link"
                aria-label="Search titles, channels, creators and playlists, or paste a link to download"
                data-i18n-attrs="placeholder:topbar.searchPlaceholder,aria-label:topbar.searchLabel"
                autocomplete="off" spellcheck="false">
@@ -166,8 +166,8 @@
       </button>
     </form>
     <button id="create-playlist" class="profile-add topbar-new-playlist" type="button"
-            aria-haspopup="dialog" aria-controls="playlist-editor" aria-label="New Playlist" title="New Playlist"
-            data-i18n-attrs="aria-label:topbar.newPlaylist,title:topbar.newPlaylist"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg><span data-i18n="topbar.newPlaylist">New Playlist</span></button>
+            aria-haspopup="dialog" aria-controls="playlist-editor" aria-label="New playlist" title="New playlist"
+            data-i18n-attrs="aria-label:topbar.newPlaylist,title:topbar.newPlaylist"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="/media-ui/shared/icons.svg#plus"/></svg><span data-i18n="topbar.newPlaylist">New playlist</span></button>
     <div class="topbar-actions">
       <button id="download-queue-toggle" class="icon-button" type="button" data-empty="true"
               aria-label="Open download queue" title="Downloads" aria-haspopup="dialog"
@@ -415,7 +415,7 @@
     <section id="library-loading" class="library-loading-panel" aria-live="polite">
       <div class="loading-spinner" aria-hidden="true"></div>
       <h2 data-i18n="shelf.loading">Loading library…</h2>
-      <p data-i18n="shelf.scanning">Scanning your video directories.</p>
+      <p data-i18n="shelf.scanning">Scanning your library folders.</p>
     </section>
     <section id="creator-shelf" class="home-shelf creator-shelf"
              aria-labelledby="creator-shelf-heading" hidden>
@@ -729,7 +729,7 @@
     </div>
     <div class="download-jobs">
       <div class="browse-tools">
-        <input id="browse-filter" type="search" placeholder="Filter these…" autocomplete="off"
+        <input id="browse-filter" type="search" placeholder="Filter" autocomplete="off"
                spellcheck="false" aria-label="Filter the listed videos by title or channel"
                data-i18n-attrs="placeholder:browse.filterPlaceholder,aria-label:browse.filterLabel">
       </div>
@@ -956,7 +956,7 @@
       <div class="customisation-setting customisation-row" role="group" aria-labelledby="popup-player-size-label">
         <span class="customisation-preview preview-popup-size" aria-hidden="true"><span class="preview-cards" style="--cols: 4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="preview-screen"></span></span>
         <div class="customisation-controls">
-          <span class="customisation-title" id="popup-player-size-label" data-i18n="appearance.popup" data-i18n-attrs="title:appearance.popup.note" title="How wide the player is while you browse the library.">Background / popup player size</span>
+          <span class="customisation-title" id="popup-player-size-label" data-i18n="appearance.popup" data-i18n-attrs="title:appearance.popup.note" title="How wide the player is while you browse the library.">Corner player size</span>
           <div class="statistics-ranking" role="group" aria-labelledby="popup-player-size-label">
             <button type="button" data-choice-for="popup-player-size" data-value="small" aria-pressed="false"><span data-i18n="appearance.small">Small</span></button>
             <button type="button" data-choice-for="popup-player-size" data-value="medium" aria-pressed="false"><span data-i18n="appearance.medium">Medium</span></button>
@@ -975,7 +975,7 @@
           </div>
           <p class="customisation-option-note" data-note-for="video-colours" data-note-value="on" data-i18n="appearance.video-colours.on.note" hidden>The entire page.</p>
           <p class="customisation-option-note" data-note-for="video-colours" data-note-value="player" data-i18n="appearance.video-colours.player.note" hidden>Just the player controls.</p>
-          <p class="customisation-option-note" data-note-for="video-colours" data-note-value="off" data-i18n="appearance.video-colours.off.note" hidden>Always use chosen theme.</p>
+          <p class="customisation-option-note" data-note-for="video-colours" data-note-value="off" data-i18n="appearance.video-colours.off.note" hidden>Always use the chosen theme.</p>
         </div>
       </div>
       </div>
@@ -1048,7 +1048,7 @@
         <div><dt>PyAV</dt><dd><a href="/licenses/pyav-LICENSE.txt" target="_blank" rel="noopener noreferrer">BSD-3-Clause</a></dd></div>
         <div><dt>Pillow</dt><dd><a href="/licenses/pillow-LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT-CMU</a></dd></div>
       </dl>
-      <p><a href="/licenses/requests-NOTICE.txt" target="_blank" rel="noopener noreferrer" data-i18n="about.requests">Requests notices</a></p>
+      <p><a href="/licenses/requests-NOTICE.txt" target="_blank" rel="noopener noreferrer" data-i18n="about.requests">Requests (Python library) notices</a></p>
       <h4 data-i18n="about.media">Media tools</h4>
       <dl class="about-license-list">
         <div><dt>yt-dlp</dt><dd><a href="https://github.com/yt-dlp/yt-dlp#license" target="_blank" rel="noopener noreferrer">Unlicense and bundled component licenses</a></dd></div>
@@ -1186,7 +1186,7 @@
       <section class="sponsorblock-overrides" aria-labelledby="sponsorblock-overrides-title">
         <h3 id="sponsorblock-overrides-title" data-i18n="sponsor.overrides">Channel overrides</h3>
         <div class="sponsorblock-block sponsorblock-overrides-block">
-          <input type="search" placeholder="Search channels…" aria-label="Search channel overrides"
+          <input type="search" placeholder="Search channels" aria-label="Search channel overrides"
                  data-i18n-attrs="placeholder:sponsor.searchPlaceholder,aria-label:sponsor.searchLabel"
                  data-sponsorblock-overrides-search>
           <p data-sponsorblock-overrides-empty data-i18n="sponsor.noOverrides">No channel overrides yet.</p>

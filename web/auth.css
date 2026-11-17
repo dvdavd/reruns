@@ -25,6 +25,34 @@
 .auth-card .auth-oidc { display: flex; align-items: center; justify-content: center; margin-top: 0; text-decoration: none; }
 #auth-message:empty { display: none; }
 #auth-message { width: 100%; margin: 16px 0 0; color: var(--color-danger-text); font-size: var(--wizard-text); text-align: center; }
+/* Quiet, at the end of the password label's row: most visits never need it.
+   Absolute, so the label keeps the field's full width and the row its height. */
+.auth-password { position: relative; }
+.auth-forgot-toggle {
+  position: absolute; top: 0; right: 0; padding: 0; border: 0; border-radius: 4px; background: none; cursor: pointer;
+  color: color-mix(in srgb, var(--glass-ink) 62%, transparent); font: inherit; font-size: var(--wizard-small);
+  line-height: calc(var(--wizard-text) * 1.5);
+}
+/* Text, not a button: chrome.css's button hover fill is not for it. */
+.auth-forgot-toggle:hover { background: none; color: var(--glass-ink); }
+.auth-forgot-toggle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+/* Its advice, in the app's question dialog, a little wider than the card. */
+.confirm-dialog.auth-forgot {
+  width: min(560px, calc(100vw - 32px)); padding: 26px 30px 28px;
+  color: color-mix(in srgb, var(--glass-ink) 78%, transparent); font-size: var(--wizard-text); line-height: 1.5;
+}
+.auth-forgot[open] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.auth-forgot-close { position: absolute; top: 16px; right: 16px; z-index: 2; }
+.auth-forgot h2 { margin: 0 36px 2px 0; color: var(--glass-ink); font-size: 18px; font-weight: 650; outline: none; }
+.auth-forgot p { margin: 0; }
+.auth-forgot .wizard-code + p { margin-top: 6px; }
+.auth-forgot p code { padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--glass-ink) 8%, transparent); color: var(--glass-ink); font-size: .92em; }
+/* setup.css's block scrolls sideways; here a command wraps between words,
+   never after the hyphen inside a flag, so all of it is in view. */
+.auth-forgot .wizard-code { margin: 0; }
+.auth-forgot .wizard-code code { flex: 1; min-width: 0; padding: 4px 0; color: var(--glass-ink); font-size: .92em; overflow-wrap: break-word; }
+.auth-forgot .wizard-code code span { white-space: nowrap; }
+.auth-forgot .wizard-copy.is-copied { color: #3fb67a; }
 /* Last, so the hidden attribute wins over every display above. */
 .auth-card [hidden] { display: none; }
 
@@ -37,4 +65,6 @@
   .auth-card .wizard-logo { width: 96px; height: 58px; margin-bottom: 18px; }
   .auth-card .wizard-name { font-size: 32px; }
   .auth-card .wizard-welcome { display: block; margin: 10px 0 22px; }
+  .confirm-dialog.auth-forgot { padding: 22px 20px 24px; }
+  .auth-forgot-close { top: 12px; right: 12px; }
 }

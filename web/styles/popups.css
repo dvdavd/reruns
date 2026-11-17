@@ -537,6 +537,11 @@ body[data-video-colours="player"][data-watch-accent] .archive-watch {
   .archive-watch-lower > .archive-watch-story { grid-area: story; }
   .archive-watch-lower > .archive-watch-discussion { grid-area: comments; }
   .archive-watch-lower > .archive-related { grid-area: related; }
+  /* With no neighbours the column stood empty; the words take its width. */
+  .archive-watch-lower:has(> .archive-related[hidden]) {
+    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-areas: "facts story" "facts comments";
+  }
 }
 /* A flat tint of the page's hue, as the creator and video cards wear. The
    player's accent is left to the player: this card keeps the theme's. */
@@ -860,8 +865,10 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
    threshold is where another track of that size fits alongside the 14px gaps,
    n * width + (n - 1) * 14, so they are written out per size - a container
    query cannot read the custom property above. */
-@container archive-related (max-width: 573.99px) {
-  body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+@media (width > 700px) {
+  @container archive-related (max-width: 573.99px) {
+    body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+  }
 }
 @container archive-related (min-width: 574px) and (max-width: 867.99px) {
   body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 3) { display: none; }
@@ -881,8 +888,10 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
 @container archive-related (min-width: 2044px) {
   body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 8) { display: none; }
 }
-@container archive-related (max-width: 773.99px) {
-  body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+@media (width > 700px) {
+  @container archive-related (max-width: 773.99px) {
+    body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+  }
 }
 @container archive-related (min-width: 774px) and (max-width: 1167.99px) {
   body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 3) { display: none; }
@@ -896,8 +905,10 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
 @container archive-related (min-width: 1956px) {
   body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 6) { display: none; }
 }
-@container archive-related (max-width: 973.99px) {
-  body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+@media (width > 700px) {
+  @container archive-related (max-width: 973.99px) {
+    body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 2) { display: none; }
+  }
 }
 @container archive-related (min-width: 974px) and (max-width: 1467.99px) {
   body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 3) { display: none; }
@@ -907,6 +918,21 @@ body[data-card-size="large"] .archive-related-list { --related-card: 480px; }
 }
 @container archive-related (min-width: 1962px) {
   body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 5) { display: none; }
+}
+/* On a phone a row is one card, and one suggestion was all a phone was
+   offered. The page there is a single column that scrolls anyway, so the
+   one-row rule gives way to a short stack. Only where a single card fills
+   the row: wide enough for two, the row above still holds. */
+@media (max-width: 700px) {
+  @container archive-related (max-width: 573.99px) {
+    body[data-card-size="small"] .archive-related-list > .video-card:nth-child(n + 4) { display: none; }
+  }
+  @container archive-related (max-width: 773.99px) {
+    body[data-card-size="medium"] .archive-related-list > .video-card:nth-child(n + 4) { display: none; }
+  }
+  @container archive-related (max-width: 973.99px) {
+    body[data-card-size="large"] .archive-related-list > .video-card:nth-child(n + 4) { display: none; }
+  }
 }
 /* The heart stays off a related card - it is a pointer to a video, not the
    place to curate it - but the menu is the same one the gallery card has, and
@@ -1207,6 +1233,14 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
 .playlist-editor-search input { width: 100%; height: 38px; box-sizing: border-box; padding-left: 36px; }
 .playlist-editor-members { list-style: none; margin: 0; padding: 0; }
 .playlist-editor-hint, .playlist-editor-empty { margin: 10px 0 0; color: var(--shell-muted); font-size: var(--font-size-helper); line-height: 1.5; }
+/* The field, the row that makes a new playlist and any error stay at the top;
+   only the playlists scroll, so a long list never hides where to type. */
+.playlist-add-menu:popover-open { display: flex; flex-direction: column; overflow: hidden; }
+.playlist-add-menu > :not(.playlist-add-rows) { flex: none; }
+.playlist-add-rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.playlist-add-menu button[role^="menuitem"] > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.playlist-add-menu button[hidden] { display: none; }
+.playlist-add-create .icon { flex: none; width: 16px; height: 16px; }
 .playlist-add-name { width: calc(100% - 16px); box-sizing: border-box; margin: 4px 8px; }
 .playlist-add-menu .playlist-editor-error { padding: 4px 12px 8px; }
 /* Armed, the bin widens to a pill saying Confirm, in the red the delete

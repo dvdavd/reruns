@@ -129,7 +129,7 @@ test('an empty people list only offers the add affordance when it has an action'
   assert.match(empty, /card-footer card-footer--single-row/);
   assert.match(
     draw({item: baseItem(), onAddPerson() {}}),
-    /add-actor-chip[^>]*>\+ Add name/,
+    /add-actor-chip[^>]*>Add name/,
   );
 });
 

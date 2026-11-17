@@ -915,14 +915,14 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
    padding box repeats under one, leaving a bright line along the bottom. The
    flat fills stay gradients of one colour so that `background` keeps a
    background-image from state to state and never flickers between them. */
-:is(.topbar :is(.topbar-navigation, .topbar-actions) .icon-button, .archive-watch-actions .archive-watch-action, .download-drawer-head .close-icon-button, .download-row-action, .download-clear, .library-row-action, .sponsorblock-modes button) {
+:is(.topbar :is(.topbar-navigation, .topbar-actions) .icon-button, .archive-watch-actions .archive-watch-action, :is(.download-drawer-head, .auth-forgot) .close-icon-button, .download-row-action, .download-clear, .library-row-action, .sponsorblock-modes button) {
   border: 0;
   background: linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.08));
   box-shadow: none;
   color: rgba(255,255,255,.72);
   transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
-:is(.topbar :is(.topbar-navigation, .topbar-actions) .icon-button, .archive-watch-actions .archive-watch-action, .download-drawer-head .close-icon-button, .download-row-action, .download-clear, .library-row-action, .sponsorblock-modes button):is(:hover, :focus-visible, [aria-expanded="true"]) {
+:is(.topbar :is(.topbar-navigation, .topbar-actions) .icon-button, .archive-watch-actions .archive-watch-action, :is(.download-drawer-head, .auth-forgot) .close-icon-button, .download-row-action, .download-clear, .library-row-action, .sponsorblock-modes button):is(:hover, :focus-visible, [aria-expanded="true"]) {
   background: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16));
   box-shadow: none;
   color: #fff;
@@ -933,7 +933,7 @@ body[data-loading] #archive-home > :not(#library-loading) { display: none; }
    look above, which lists these same buttons at the same specificity and
    would otherwise keep them white under the pointer. */
 .download-drawer :is(.download-row-action, .library-row-action).danger:is(:hover, :focus-visible),
-.download-drawer-head .close-icon-button.danger:is(:hover, :focus-visible),
+:is(.download-drawer-head, .auth-forgot) .close-icon-button.danger:is(:hover, :focus-visible),
 .archive-watch-actions .archive-watch-action.danger:is(:hover, :focus-visible) {
   /* A gradient, like the resting look it replaces: `background` resets
      background-image, so a flat colour drops that gradient on the frame the

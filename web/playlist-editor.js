@@ -15,6 +15,8 @@ const node = (tag, text, className) => {
   return element;
 };
 const videoCount = count => plural('count.videos', count);
+/** A name as the add menu's filter compares it, whatever its case. */
+const folded = text => text.trim().toLocaleLowerCase();
 
 /** One draft playlist per panel, saved before returning to the gallery. */
 export function createPlaylistEditor({items, playlists, reload, onCreated}) {
@@ -351,6 +353,9 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
       const row = node('button', '', '');
       row.type = 'button';
       row.setAttribute('role', 'menuitemcheckbox');
+      // A long name is cut to one line; the whole of it is a hover away.
+      row.title = playlist.title;
+      row.dataset.match = folded(playlist.title);
       const mark = () => row.setAttribute('aria-checked', String(members.has(String(playlist.id))));
       mark();
       row.append(node('span', playlist.title));
@@ -372,18 +377,24 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
       });
       return row;
     });
+    // One field both finds a playlist among many and names a new one. What is
+    // typed narrows the rows, and Enter makes a playlist of it, unless a row
+    // has that name already, which is ticked instead of making a second.
     const name = node('input', '', 'playlist-add-name');
     name.type = 'text';
     name.maxLength = 200;
-    name.placeholder = t('pl.newPlaylist');
-    name.setAttribute('aria-label', t('pl.newName'));
-    // Keys typed here are not menu navigation, except Left with nowhere left
-    // to go, which still backs out of a submenu.
-    name.addEventListener('keydown', async event => {
-      if (event.key === 'ArrowLeft' && name.selectionStart === 0 && name.selectionEnd === 0) return;
-      event.stopPropagation();
-      if (event.key !== 'Enter' || !name.value.trim() || name.disabled) return;
-      event.preventDefault();
+    name.placeholder = t('pl.findOrNew');
+    name.setAttribute('aria-label', t('pl.findOrNewLabel'));
+    // Spelled out as a row too, so a pointer can make one without knowing
+    // that Enter does.
+    const create = node('button', '', 'playlist-add-create');
+    create.type = 'button';
+    create.setAttribute('role', 'menuitem');
+    create.hidden = true;
+    create.insertAdjacentHTML('afterbegin', iconMarkup('plus'));
+    create.append(node('span'));
+    const make = async () => {
+      if (!name.value.trim() || name.disabled) return;
       name.disabled = true;
       try {
         await post('/api/playlists', {action: 'create', title: name.value, videos: [target.id]});
@@ -395,17 +406,69 @@ export function createPlaylistEditor({items, playlists, reload, onCreated}) {
         name.disabled = false;
         name.focus();
       }
+    };
+    create.addEventListener('click', make);
+    let held = false;
+    const filter = () => {
+      // Held at the height it opened at, so the field does not slide about
+      // under the typing as rows drop out of the list and come back.
+      if (!held) {
+        held = true;
+        menu.element.style.height = `${menu.element.getBoundingClientRect().height}px`;
+      }
+      const wanted = folded(name.value);
+      let exact = null;
+      for (const row of rows) {
+        row.hidden = Boolean(wanted) && !row.dataset.match.includes(wanted);
+        if (wanted && row.dataset.match === wanted) exact = row;
+      }
+      create.hidden = !wanted || Boolean(exact);
+      create.lastChild.textContent = t('pl.createNamed', {name: name.value.trim()});
+      return exact;
+    };
+    name.addEventListener('input', filter);
+    // Keys typed here are not menu navigation, except Left with nowhere left
+    // to go, which still backs out of a submenu, and Up and Down, which leave
+    // for the rows.
+    name.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft' && name.selectionStart === 0 && name.selectionEnd === 0) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') return;
+      event.stopPropagation();
+      if (event.key !== 'Enter' || !name.value.trim() || name.disabled) return;
+      event.preventDefault();
+      const exact = filter();
+      if (exact) exact.click();
+      else make();
     });
     const divider = node('div', '', 'menu-divider');
     divider.setAttribute('role', 'separator');
+    // The field and what it says stay at the top while a long list scrolls
+    // beneath them; at the foot of the list they began out of sight.
+    const list = node('div', '', 'playlist-add-rows');
+    list.setAttribute('role', 'group');
+    list.append(...rows);
+    menu.element.style.height = '';
     // A card menu's row says its submenu is open, which is also what keeps
     // the row lit while the pointer is in it; any other opener keeps its
     // aria-expanded to itself.
-    if (menu.open(from, [...rows, ...(rows.length ? [divider] : []), name, problem], {reflect: side, side})
+    if (menu.open(from, [name, create, problem, ...(rows.length ? [divider, list] : [])], {reflect: side, side})
         && focus) {
-      (rows[0] || name).focus({preventScroll: true});
+      // Straight into the field where typing is near at hand; a phone would
+      // put its keyboard up over the list for a tap that may only want a tick.
+      (matchMedia('(pointer: fine)').matches ? name : rows[0] || name).focus({preventScroll: true});
     }
   }
+  // Up and Down walk the field and the rows the filter left, since a long
+  // list is a long way to Tab through.
+  menu.element.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const stops = [...menu.element.querySelectorAll('.playlist-add-name, button[role^="menuitem"]:not([hidden])')];
+    const at = stops.indexOf(document.activeElement);
+    if (at < 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stops[Math.max(0, Math.min(stops.length - 1, at + (event.key === 'ArrowDown' ? 1 : -1)))].focus();
+  });
   // Left closes a submenu back to the row it came from, as in the format one.
   menu.element.addEventListener('keydown', event => {
     const row = menu.opener();
