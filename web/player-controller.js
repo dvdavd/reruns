@@ -471,9 +471,10 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     const bar = controlBar.getBoundingClientRect();
     // With the bar under the picture there is no reason to stop at the
     // picture's top edge: the panel may rise over the page above it, as far
-    // as the viewport allows.
-    const barBelow = window.matchMedia('(max-width: 700px)').matches
-      && document.fullscreenElement !== element;
+    // as the viewport allows. The stylesheet decides whether there is a
+    // strip (none in fullscreen, nor under a portrait video), so it is asked
+    // rather than the window's width.
+    const barBelow = parseFloat(getComputedStyle(element).getPropertyValue('--bar-strip')) > 0;
     const roomAbove = bar.top - (barBelow ? 0 : player.top);
     const roomBelow = window.innerHeight - bar.bottom;
     if (barBelow && roomBelow > roomAbove) {

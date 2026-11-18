@@ -1,6 +1,8 @@
 """Serving files: subtitles, scrub previews, channel pictures, remuxed streams and the media-ui package."""
 from __future__ import annotations
 
+import functools
+import gzip
 import math
 import mimetypes
 import re
@@ -109,6 +111,30 @@ def _shorten_automatic_cues(text: str) -> str:
 REMUX_SLOTS = threading.BoundedSemaphore(4)
 CHUNK = 1024 * 1024
 PACKAGE_ROOTS = ("shared", "vendor/preact", "fonts")
+# Below this a body is sent as it is; gzip's header and the work outweigh it.
+GZIP_MINIMUM = 1024
+# Above this a file is never read whole to compress it. The page's own text
+# is a few tens of kilobytes a file; nothing near this size is text worth it.
+GZIP_LARGEST = 4 * 1024 * 1024
+# The page's stylesheets, modules and markup went out uncompressed, 1.6 MB of
+# them on a cold load that gzip makes a quarter of that. Fonts and pictures
+# are compressed already, so only text is worth the work.
+COMPRESSIBLE_TYPES = frozenset({
+    "application/javascript", "application/json", "application/manifest+json",
+    "image/svg+xml",
+})
+
+
+def _compressible(content_type: str) -> bool:
+    return content_type.startswith("text/") or content_type in COMPRESSIBLE_TYPES
+
+
+@functools.lru_cache(maxsize=512)
+def _gzipped(path: str, mtime_ns: int, size: int) -> bytes:
+    """A file's gzipped body, kept for as long as its mtime and size say it
+    is the same file. Every page load asks for the same hundred-odd modules,
+    so compressing once and keeping it is what makes this nearly free."""
+    return gzip.compress(Path(path).read_bytes(), compresslevel=9)
 
 
 class MediaRoutes:
@@ -280,13 +306,42 @@ class MediaRoutes:
             return
         stat = path.stat()
         size = stat.st_size
-        etag = f'"{stat.st_mtime_ns:x}-{size:x}"'
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        compressible = _compressible(content_type)
+        # A range counts bytes of the file as it is on disk, so a request for
+        # one gets those bytes rather than a slice of the gzipped body.
+        send_gzip = (compressible and GZIP_MINIMUM <= size <= GZIP_LARGEST
+                     and not self.headers.get("Range")
+                     and "gzip" in (self.headers.get("Accept-Encoding") or "").lower())
+        # The two encodings are different bytes, so each has its own ETag; a
+        # cache holding one must not be told it has the other.
+        etag = f'"{stat.st_mtime_ns:x}-{size:x}{"-gz" if send_gzip else ""}"'
         requested_tags = self.headers.get("If-None-Match") or ""
         if etag in (tag.strip() for tag in requested_tags.split(",")):
             self.send_response(HTTPStatus.NOT_MODIFIED)
             self.send_header("ETag", etag)
             self.send_header("Cache-Control", cache)
+            if compressible:
+                self.send_header("Vary", "Accept-Encoding")
             self.end_headers()
+            return
+        if send_gzip:
+            try:
+                body = _gzipped(str(path), stat.st_mtime_ns, size)
+            except OSError:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", cache)
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+            self.end_headers()
+            if not head_only:
+                self.wfile.write(body)
             return
         try:
             requested = parse_byte_range(self.headers.get("Range"), size)
@@ -299,10 +354,10 @@ class MediaRoutes:
         start, end = requested or (0, size - 1)
         self.send_response(
             HTTPStatus.PARTIAL_CONTENT if requested else HTTPStatus.OK)
-        self.send_header(
-            "Content-Type",
-            mimetypes.guess_type(path.name)[0] or "application/octet-stream")
+        self.send_header("Content-Type", content_type)
         self.send_header("Accept-Ranges", "bytes")
+        if compressible:
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(end - start + 1))
         self.send_header("Cache-Control", cache)
         self.send_header("ETag", etag)

@@ -54,7 +54,7 @@ from .oidc import OIDC
 from .routes_accounts import AccountRoutes
 from .routes_downloads import DownloadRoutes, refresh_channel_pictures
 from .routes_library import LibraryRoutes
-from .routes_media import MediaRoutes, is_page_path
+from .routes_media import GZIP_MINIMUM, MediaRoutes, is_page_path
 from .routes_settings import SettingsRoutes
 
 
@@ -79,7 +79,6 @@ CHAT_SPAN_LIMIT_MS = 600_000
 # so the download's own record survives however often the live one is updated.
 # Kept out of /api/items and served per video by /api/item-details. Only the
 # watch page reads either, and together they were 73% of a listing.
-GZIP_MINIMUM = 1024
 # Gzipped bodies kept for responses whose ETag names what they are built from,
 # so browsers on the same library revision share one build. At 50k videos a
 # listing took 0.9 s to build and gzip, and is about 6 MB once compressed.
@@ -549,7 +548,15 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
         else:
             if is_page_path(path):
                 self.path = "/index.html"
-            if head_only:
+            # The page's own files go out as _send_file sends anything: with
+            # an ETag to revalidate against, and gzipped. The base handler
+            # does neither, and is left the directory redirects and 404s.
+            static = Path(self.translate_path(self.path))
+            if static.is_dir() and path.endswith("/"):
+                static = static / "index.html"
+            if static.is_file():
+                self._send_file(static, head_only=head_only)
+            elif head_only:
                 super().do_HEAD()
             else:
                 super().do_GET()

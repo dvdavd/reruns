@@ -1254,7 +1254,7 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
   /* A layer over the strip alone, leaving each theme its own colour behind
      the picture. */
   background-image: linear-gradient(var(--shell-bg), var(--shell-bg));
-  background-size: 100% var(--bar-strip, 48px);
+  background-size: 100% var(--bar-strip, 0px);
   background-position: bottom;
   background-repeat: no-repeat;
   background-origin: border-box;

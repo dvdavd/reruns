@@ -61,7 +61,7 @@ def free_port():
         return sock.getsockname()[1]
 
 
-def make_clip(folder, name, title, *, video):
+def make_clip(folder, name, title, *, video, size=(160, 120)):
     """A clip with its sidecar. VP8 and Opus because the browsers Playwright
     ships have no H.264 or AAC; long enough to still be playing when the
     test leaves the page."""
@@ -69,7 +69,7 @@ def make_clip(folder, name, title, *, video):
     command = ["ffmpeg", "-nostdin", "-v", "error", "-y",
                "-f", "lavfi", "-i", "sine=frequency=440:duration=30"]
     if video:
-        command += ["-f", "lavfi", "-i", "testsrc=size=160x120:rate=10:duration=30",
+        command += ["-f", "lavfi", "-i", f"testsrc=size={size[0]}x{size[1]}:rate=10:duration=30",
                     "-c:v", "libvpx", "-b:v", "50k"]
     command += ["-c:a", "libopus", str(folder / f"{name}.{suffix}")]
     subprocess.run(command, check=True)
@@ -80,7 +80,7 @@ def make_clip(folder, name, title, *, video):
         "channel": "Smoke", "channel_id": "UCsmoke", "uploader": "Smoke",
         "upload_date": "20240101", "ext": suffix,
         "vcodec": "vp8" if video else "none", "acodec": "opus",
-        "width": 160 if video else None, "height": 120 if video else None,
+        "width": size[0] if video else None, "height": size[1] if video else None,
     }), encoding="utf-8")
 
 
@@ -143,8 +143,8 @@ class _BrowserCase(unittest.TestCase):
         cls.log.close()
         cls.temp.cleanup()
 
-    def open_page(self, background=None, autoplay=None, stored=()):
-        context = self.browser.new_context()
+    def open_page(self, background=None, autoplay=None, stored=(), viewport=None):
+        context = self.browser.new_context(**({"viewport": viewport} if viewport else {}))
         self.addCleanup(context.close)
         for key, value in ((BACKGROUND_KEY, background), (AUTOPLAY_KEY, autoplay), *stored):
             if value:
@@ -278,6 +278,47 @@ class BrowserSmokeTests(_BrowserCase):
         self.assertEqual(page.evaluate('window.batchAction'),
                          {'id': 'batch-job', 'action': 'cancel'})
         self.assertEqual(self.failures, [])
+
+
+class PhoneControlStripTests(_BrowserCase):
+    """On a phone the bar has a strip under a wide picture and floats over a
+    tall one. Whatever depends on which must follow the same decision."""
+    PHONE = {"width": 390, "height": 844}
+
+    @classmethod
+    def fill_archive(cls, archive):
+        make_clip(archive, "stripwide", "Strip Wide", video=True)
+        make_clip(archive, "striptall", "Strip Tall", video=True, size=(120, 214))
+
+    def watch(self, title):
+        page = self.open_page(stored=(("archive-theme", "light"),), viewport=self.PHONE)
+        page.click(f'.thumbnail-button[aria-label="View details for {title}"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.wait_for_function(
+            "() => document.querySelector('#archive-player video')?.currentTime > 0.3", timeout=10000)
+        return page
+
+    def test_a_tall_video_keeps_light_buttons_on_its_dark_pill(self):
+        page = self.watch("Strip Tall")
+        found = page.evaluate("""() => {
+            const player = document.querySelector('#archive-player .media-player');
+            return {strip: getComputedStyle(player).getPropertyValue('--bar-strip'),
+                    ink: getComputedStyle(player.querySelector('.media-player-controls button')).color};
+        }""")
+        self.assertIn(found["strip"], ("", "0px"))
+        self.assertEqual(found["ink"], "rgb(255, 255, 255)")
+
+    def test_the_part_arrows_centre_on_the_picture_above_the_strip(self):
+        page = self.watch("Strip Wide")
+        found = page.evaluate("""() => {
+            const player = document.querySelector('#archive-player .media-player');
+            const bottom = e => e.getBoundingClientRect().bottom;
+            return {strip: getComputedStyle(player).getPropertyValue('--bar-strip'),
+                    picture: bottom(player.querySelector('video')),
+                    arrows: bottom(player.querySelector('.archive-part-nav'))};
+        }""")
+        self.assertEqual(found["strip"], "48px")
+        self.assertAlmostEqual(found["arrows"], found["picture"], delta=1)
 
 
 class AutoplayTests(_BrowserCase):

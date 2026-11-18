@@ -1385,7 +1385,7 @@ class JsonResponseTests(unittest.TestCase):
             (root / f"clip{index}.mp4").write_bytes(b"video")
         # Settled, or every request would rescan and name a new revision.
         os.utime(root, (time.time() - 100,) * 2)
-        handler = partial(Handler, archive=Archive(root), package=root,
+        handler = partial(Handler, archive=Archive(root), package=default_package(),
                           downloader=None, previews=None, channels=None,
                           subscriptions=None)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -1438,6 +1438,38 @@ class JsonResponseTests(unittest.TestCase):
         self.assertIsNone(plain.getheader("Content-Encoding"))
         self.assertEqual(plain.getheader("ETag"), etag)
         self.assertEqual(len(json.loads(body)), 20)
+
+    def test_the_pages_own_files_are_gzipped_and_revalidate_to_304(self):
+        for path in ("/app.js", "/", "/styles/cards.css", "/media-ui/shared/styles.css"):
+            with self.subTest(path=path):
+                plain, original = self.get(path)
+                self.assertIsNone(plain.getheader("Content-Encoding"))
+                self.assertEqual(plain.getheader("Vary"), "Accept-Encoding")
+                response, body = self.get(path, {"Accept-Encoding": "gzip, br"})
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.getheader("Content-Encoding"), "gzip")
+                self.assertEqual(gzip.decompress(body), original)
+                self.assertLess(len(body), len(original))
+                etag = response.getheader("ETag")
+                self.assertNotEqual(etag, plain.getheader("ETag"))
+                again, body = self.get(path, {"Accept-Encoding": "gzip", "If-None-Match": etag})
+                self.assertEqual(again.status, 304)
+                self.assertEqual(body, b"")
+                # Holding the gzipped copy says nothing about the plain one.
+                self.assertEqual(self.get(path, {"If-None-Match": etag})[0].status, 200)
+
+    def test_a_range_of_a_page_file_counts_bytes_on_disk(self):
+        _, original = self.get("/app.js")
+        response, body = self.get("/app.js", {"Accept-Encoding": "gzip", "Range": "bytes=0-99"})
+        self.assertEqual(response.status, 206)
+        self.assertIsNone(response.getheader("Content-Encoding"))
+        self.assertEqual(body, original[:100])
+
+    def test_fonts_are_not_gzipped_again(self):
+        response, _ = self.get("/media-ui/fonts/InterVariable.woff2", {"Accept-Encoding": "gzip"})
+        self.assertEqual(response.status, 200)
+        self.assertIsNone(response.getheader("Content-Encoding"))
+        self.assertIsNone(response.getheader("Vary"))
 
     def test_a_second_browser_gets_the_same_gzipped_listing_without_a_rebuild(self):
         response, first = self.get("/api/items", {"Accept-Encoding": "gzip"})
