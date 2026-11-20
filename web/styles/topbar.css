@@ -122,7 +122,22 @@ body.is-leaving-watch .topbar-shell { transition: none; }
   position: absolute;
   left: calc(-1 * var(--search-offset));
 }
-.topbar-search-field { position: relative; display: flex; flex: 1; min-width: 0; }
+.topbar-search-field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  container: search-field / inline-size;
+}
+/* The input's padding cannot shrink, and 40px for the glass and 105px for the
+   count held it wider than a narrow field: it ran under the Search button and
+   left what was typed a character or two between the glass and the count. A
+   field that narrow drops the count, whose results are just below anyway,
+   and gives its room back to the text. */
+@container search-field (max-width: 240px) {
+  .topbar-search .entity-summary { display: none; }
+  .topbar .topbar-search:has(.entity-summary:not([hidden])) input { padding-right: 35px; }
+}
 .topbar-go { display: flex; flex-shrink: 0; height: 36px; }
 .topbar-go button, .topbar-subscribe {
   display: inline-flex;
@@ -210,6 +225,21 @@ body.is-leaving-watch .topbar-shell { transition: none; }
 .topbar-search:not([data-mode="link"]) .topbar-browse { margin-left: 0; }
 .topbar-search[data-browse="link"]:not([data-mode="link"]) .topbar-browse { margin-left: 6px; }
 .topbar-search[data-browse="search"]:not([data-mode="link"]) .topbar-browse { margin-left: 6px; }
+/* Folded away, the button keeps its words out of the layout as well, so they
+   do not hang clipped past the bar's edge; only once the fold has finished,
+   so they do not vanish while it closes. */
+.topbar-search:not([data-browse="link"], [data-browse="search"]) .topbar-browse > span {
+  display: none;
+  transition: display 0s 220ms allow-discrete;
+}
+/* A narrow search row (a phone with a folder picker, or a zoomed window)
+   could not fit the field beside a worded button, so the button keeps only
+   its source's icon. */
+.topbar-search { container: topbar-search / inline-size; }
+@container topbar-search (max-width: 400px) {
+  .topbar-search:is([data-browse="link"], [data-browse="search"]) .topbar-browse { width: 36px; padding: 0; }
+  .topbar-browse > span { display: none; }
+}
 .topbar-search[data-browse="search"][data-browse-missing="true"] .topbar-browse {
   background: linear-gradient(color-mix(in srgb, var(--highlight-fill), #fff 10%), var(--highlight-fill));
   color: var(--highlight-foreground);

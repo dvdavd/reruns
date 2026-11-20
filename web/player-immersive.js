@@ -3,6 +3,14 @@ import {plural, t} from './i18n.js';
 
 const DELAY_KEY = 'archive-immersive-delay';
 const ON_KEY = 'archive-immersive-delay-on';
+// On the watch page's title block while the title spans the actions' column
+// (cards.css).
+const WIDE_TITLE = 'has-immersive-title';
+// When the title is back in sight: its margin waits 350ms and then runs
+// 900ms (panels.css), but on a curve that has it within a pixel or two by
+// about 700ms, and waiting out the tail left it missing for a beat too long.
+const TITLE_SETTLED_MS = 700;
+const TITLE_FADE_MS = 150;
 export function immersiveDelayMs(value) {
   const seconds = value == null || value === '' ? 20 : Number(value);
   return [0, 2, 5, 10, 20, 30].includes(seconds) ? seconds * 1000 : 20_000;
@@ -19,7 +27,7 @@ export function immersiveOverlapsLogo(rect, logo, scale, drop) {
 /**
  * How far the stage grows (`extra` pixels of height, as `scale`) and comes
  * down (`drop`) for a stage at `rect` in a window `width` by `height`.
- * `headBottom` is the foot of the title block as laid out before immersion,
+ * `headBottom` is the foot of the title block as it will be laid out in immersion,
  * or null where there is none; the title comes down by `drop` too, so it
  * stays as far under the picture as it was.
  */
@@ -47,6 +55,12 @@ export function immersiveLayout(rect, {width, height, landscape = false, desktop
       bottom -= grow;
     }
     drop += (bottom - top) / 2;
+    // A title wrapped to many lines leaves less room below than above, and
+    // centring the pair then lifted the picture's top out of the window. The
+    // picture keeps its top band, as far as it had one; the faded title is
+    // what runs on past the foot.
+    const floor = Math.min(rect.top, 20);
+    drop += Math.max(0, floor - (rect.top - extra + drop));
   }
   return {extra, scale: 1 + extra / rect.height, drop};
 }
@@ -107,6 +121,8 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
   }
   drawDelay();
   let timer;
+  let titleTimer;
+  let titleFade = null;
   // A press-and-hold on the picture (hold-to-speed) sends no further pointer
   // events while it is held still, so the idle timer started by its
   // pointerdown would otherwise run out mid-hold and scale the stage
@@ -150,16 +166,33 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
     visibleChrome.reverse().forEach((node, index) => node.style.setProperty('--immersive-delay', `${index * 65}ms`));
     // The logo is the final step in the same right-to-left wave.
     header?.style.setProperty('--immersive-logo-delay', `${visibleChrome.length * 65}ms`);
-    // Hidden format/subscription actions should not leave pauses in the wave.
-    [...page.querySelectorAll('.archive-watch-actions > button, .archive-watch-actions > a')]
-      .filter(node => node.getClientRects().length)
-      .forEach((node, index) => node.style.setProperty('--immersive-delay', `${index * 65}ms`));
     const landscape = matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
     const desktop = !landscape && !matchMedia('(max-width: 700px)').matches;
     const head = page.querySelector('.archive-watch-head');
+    // Text on one line keeps it with more room; text that wraps gains words
+    // on its first line. Only then does the title fade to take its new width.
+    const fadeTitle = Boolean(head) && !matchMedia('(prefers-reduced-motion: reduce)').matches
+      && [...head.querySelectorAll('.archive-watch-heading > *')].some(line =>
+        line.getBoundingClientRect().height > parseFloat(getComputedStyle(line).lineHeight) * 1.5);
+    // Hidden format/subscription actions should not leave pauses in the wave.
+    const actions = [...page.querySelectorAll('.archive-watch-actions > button, .archive-watch-actions > a')]
+      .filter(node => node.getClientRects().length);
+    // A title that fades goes first (widenTitle), and the wave follows it.
+    const lead = fadeTitle ? TITLE_FADE_MS : 0;
+    actions.forEach((node, index) => node.style.setProperty('--immersive-delay', `${lead + index * 65}ms`));
+    // The title takes the actions' room once they have gone, and so wraps to
+    // fewer lines; the picture is placed against it as it will be then.
+    // On the title block, not the page: the page's class is watched below,
+    // and any change to it ends immersion.
+    const narrowHeight = head?.getBoundingClientRect().height;
+    head?.classList.add(WIDE_TITLE);
+    const headBottom = head?.getBoundingClientRect().bottom ?? null;
+    // Shorter once widened, it would draw the cards below up while they are
+    // still fading; it keeps the lines it gave up as space under itself.
+    head?.style.setProperty('--immersive-title-saved', `${Math.max(0, narrowHeight - head.getBoundingClientRect().height)}px`);
+    head?.classList.remove(WIDE_TITLE);
     const {extra, scale, drop} = immersiveLayout(rect, {
-      width: window.innerWidth, height: window.innerHeight, landscape, desktop,
-      headBottom: head?.getBoundingClientRect().bottom ?? null,
+      width: window.innerWidth, height: window.innerHeight, landscape, desktop, headBottom,
     });
     stage.style.setProperty('--immersive-scale', String(scale));
     stage.style.setProperty('--immersive-drop', `${drop}px`);
@@ -173,10 +206,32 @@ export function initialisePlayerImmersive(page, player, {idleMs} = {}) {
       body.classList.add('is-immersive-logo-overlapped');
     }
     body.classList.add('is-player-immersive');
+    if (fadeTitle) widenTitle(head);
+    else head?.classList.add(WIDE_TITLE);
+  }
+
+  /** Rewrapped in sight, the title's lines jumped. It fades out as
+   *  immersion begins, ahead of the actions' wave, takes the actions' column
+   *  unseen, and fades back in once it has finished coming down. */
+  function widenTitle(head) {
+    const heading = head.querySelector('.archive-watch-heading');
+    titleFade = heading.animate([{opacity: 1}, {opacity: 0}], {duration: TITLE_FADE_MS, easing: 'ease-in', fill: 'forwards'});
+    titleFade.finished.then(() => {
+      head.classList.add(WIDE_TITLE);
+      titleTimer = setTimeout(() => {
+        titleFade.cancel();
+        titleFade = heading.animate([{opacity: 0}, {opacity: 1}], {duration: 450, easing: 'ease-out'});
+      }, TITLE_SETTLED_MS - TITLE_FADE_MS);
+    }, () => {});
   }
 
   function restore() {
     clearTimeout(timer);
+    clearTimeout(titleTimer);
+    // Cancelled mid-fade, the title must not go on to widen after all.
+    titleFade?.cancel();
+    titleFade = null;
+    page.querySelector('.archive-watch-head')?.classList.remove(WIDE_TITLE);
     const wasImmersive = body.classList.contains('is-player-immersive');
     body.classList.remove('is-player-immersive');
     body.classList.remove('is-immersive-logo-overlapped');

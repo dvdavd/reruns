@@ -127,6 +127,9 @@
 .media-player-seek-preview-time { padding: 7px 11px; border: 0; border-radius: 999px; background: linear-gradient(to bottom, rgba(34,34,34,.72), rgba(18,18,18,.72)); box-shadow: inset 0 1px rgba(255,255,255,.14); font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .media-player:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; }
 @media (max-width: 620px) { .media-player-controls [data-media-volume], .media-player-controls [data-media-time] { display: none; } }
+/* A sheet's full-size tile covered most of a phone's picture above the bar.
+   Zoom rather than resizing, so the sprite's offsets scale with the tile. */
+@media (max-width: 620px) { .media-player-seek-preview-image { zoom: .6; } }
 /* Inline, the slider's wrapper is no box at all, so the slider sits in the bar
    as its own flex item. Once the bar has dropped it, the volume button stands
    it up in a pill above itself instead (see openVolume), with the mute

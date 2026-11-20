@@ -1260,6 +1260,13 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
   background-origin: border-box;
   background-clip: border-box;
 }
+/* The ring of page colour behind the glow (cards.css) reaches 280px past the
+   stage, and with the stage raised over the chat it covered the top of it, a
+   blank block under the player. The chat is the backdrop below, so the ring
+   stops at the stage's foot. */
+.archive-watch.has-chat-pinned:not(.is-mini) .archive-watch-main > .archive-watch-stage::before {
+  clip-path: inset(-280px -280px 0);
+}
 /* Still mid-zoom, as the stage is anywhere else (see cards.css). */
 .archive-watch.has-chat-pinned.is-thumbnail-transitioning:not(.is-mini) .archive-watch-main > .archive-watch-stage,
 .archive-watch.has-chat-pinned.is-window-resizing:not(.is-mini) .archive-watch-main > .archive-watch-stage { transition: none; }

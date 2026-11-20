@@ -705,6 +705,9 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
     box-shadow: none;
     backdrop-filter: none;
   }
+  /* Nor the glass's edge (player.css), which is a ring of its own and would
+     otherwise outline the bare strip. */
+  .archive-watch:not(.is-mini, [data-tall-video]:not(.has-chat-pinned)) .media-player:not(:fullscreen) .media-player-controls::after { display: none; }
   .archive-watch:not(.is-mini, [data-tall-video]:not(.has-chat-pinned)) .archive-watch-stage > .media-player:not(:fullscreen) {
     --audio-controls-bottom: calc(var(--bar-strip) + 12px);
     --audio-video-bottom: calc(var(--bar-strip) + 12px);
@@ -817,6 +820,16 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   .archive-watch-actions { grid-area: actions; flex-wrap: wrap; gap: 4px; justify-content: flex-start; margin-top: 0; }
   .archive-watch-actions .is-secondary { display: none; }
   .archive-watch-actions .archive-watch-overflow:not([hidden]) { display: grid; }
+}
+/* In immersion the actions have faded, and the title runs on over their
+   column rather than wrapping beside an empty one: wrapped to many lines,
+   it pushed the picture it is centred with up out of the window. The actions
+   keep their cell, under the title, to come back into. player-immersive.js
+   sets the class once they have gone, and measures the title with it. */
+@container watch-main (min-width: 641px) {
+  .archive-watch-head.has-immersive-title { margin-bottom: calc(20px + var(--immersive-title-saved, 0px)); }
+  .archive-watch-head.has-immersive-title .archive-watch-heading { grid-row: 1; grid-column: 2 / -1; }
+  .archive-watch-head.has-immersive-title .archive-watch-actions { grid-row: 1; grid-column: 3; }
 }
 .archive-watch-action {
   display: grid;
@@ -1235,9 +1248,6 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   .archive-part-side,
   .archive-part-side.is-announcing { transition: none; }
 }
-@container part-nav (max-width: 600px) {
-  .archive-part-card { display: none; }
-}
 .archive-part-card-body {
   display: flex;
   width: 100%;
@@ -1327,4 +1337,59 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
 @keyframes part-countdown {
   from { transform: scaleX(var(--countdown-from, 0)); }
   to { transform: scaleX(1); }
+}
+
+/* A narrow player has no room for a card beside its arrow: hiding the card
+   there once took the autoplay countdown and its dismiss with it, so a phone
+   moved on to the next video unannounced. Instead the card becomes a strip
+   across the foot of the picture, just clear of the control bar, and the
+   arrows stay at the middle. The side spans the layer so the card can be
+   placed against it; it takes no pointer itself, so the picture keeps its
+   taps, and its hover target is dropped, since across the whole layer it
+   would swallow them while a card is announcing. */
+@container part-nav (max-width: 600px) {
+  /* Not [hidden]: a side with nowhere to go must stay hidden. */
+  .archive-part-side:not([hidden]),
+  .archive-part-side[data-part-side]:not([hidden]) {
+    inset: 0;
+    display: block;
+    transform: none;
+  }
+  .archive-part-side::before { display: none; }
+  .archive-part-side .archive-part-step {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .archive-part-side[data-part-side="-1"] .archive-part-step { left: 16px; }
+  .archive-part-side[data-part-side="1"] .archive-part-step { right: 16px; }
+  .archive-part-side .archive-part-card,
+  .media-player:is([data-player-state="playing"].is-controls-hidden, .is-autoplay-ending) .archive-part-side.is-announcing .archive-part-card {
+    position: absolute;
+    right: 12px;
+    bottom: max(10px, var(--subtitle-controls-bottom, 70px) - var(--bar-strip, 0px) - 10px);
+    left: 12px;
+    width: auto;
+    max-width: 420px;
+    margin-inline: auto;
+  }
+  /* It rises into place rather than sliding in from a side, and with nothing
+     beside it there is no arrow's place to tuck into. */
+  .archive-part-side .archive-part-card { transform: translateY(8px); }
+  .archive-part-side:hover .archive-part-card,
+  .archive-part-step:focus-visible + .archive-part-card,
+  .archive-part-side.is-announcing .archive-part-card,
+  .media-player:is([data-player-state="playing"].is-controls-hidden, .is-autoplay-ending) .archive-part-side.is-announcing .archive-part-card {
+    transform: none;
+  }
+  /* Both cards share the one strip, so the one pointed at covers the other. */
+  .archive-part-nav:has(.archive-part-side:hover) .archive-part-side.is-announcing:not(:hover) .archive-part-card {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .archive-part-card-body { gap: 8px; padding: 6px 36px 6px 6px; }
+  .archive-part-thumb img { width: 64px; height: 36px; border-radius: 5px; }
+  .archive-part-text { gap: 1px; }
+  .archive-part-title { -webkit-line-clamp: 1; }
+  .archive-part-dismiss { top: 50%; translate: 0 -50%; }
 }

@@ -320,6 +320,16 @@ class PhoneControlStripTests(_BrowserCase):
         self.assertEqual(found["strip"], "48px")
         self.assertAlmostEqual(found["arrows"], found["picture"], delta=1)
 
+    def edge(self, page):
+        return page.evaluate("""() => getComputedStyle(
+            document.querySelector('#archive-player .media-player-controls'), '::after').display""")
+
+    def test_the_strip_wears_no_glass_edge(self):
+        self.assertEqual(self.edge(self.watch("Strip Wide")), "none")
+
+    def test_a_tall_video_keeps_the_glass_edge_on_its_pill(self):
+        self.assertNotEqual(self.edge(self.watch("Strip Tall")), "none")
+
 
 class AutoplayTests(_BrowserCase):
     """Two videos from one channel, so each is the other's recommendation,
@@ -423,6 +433,40 @@ class AutoplayTests(_BrowserCase):
         self.assertGreater(announced["card"], opened["card"] + 40)
         self.assertLessEqual(announced["cardBottom"], announced["bar"])
         self.assertGreater(announced["cardBottom"], announced["bar"] - 40)
+        self.assertEqual(self.failures, [])
+
+    def test_a_phone_still_announces_the_next_video(self):
+        # Too narrow for a card beside its arrow, the announced card becomes a
+        # strip across the foot of the picture, countdown and dismiss with it.
+        page = self.open_page(autoplay="on", viewport={"width": 390, "height": 844})
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.wait_for_function(
+            """() => { const v = document.querySelector('#archive-player video');
+                      return v && !v.paused && v.currentTime > 0.3; }""", timeout=10000)
+        page.evaluate("""() => { const v = document.querySelector('#archive-player video');
+                                 v.pause(); v.currentTime = v.duration - 2; }""")
+        page.wait_for_selector('[data-part-side="1"].is-announcing')
+        page.wait_for_timeout(400)
+        shape = page.evaluate("""() => {
+            const side = document.querySelector('[data-part-side="1"]');
+            const box = e => e.getBoundingClientRect();
+            const card = side.querySelector('.archive-part-card');
+            const picture = box(document.querySelector('#archive-player video'));
+            return {card: box(card), arrow: box(side.querySelector('.archive-part-step')),
+                    picture, opacity: getComputedStyle(card).opacity,
+                    dismiss: box(side.querySelector('[data-part-dismiss]')).width,
+                    playerWidth: box(document.querySelector('#archive-player')).width,
+                    previous: getComputedStyle(document.querySelector('[data-part-side="-1"]')).display};
+        }""")
+        self.assertEqual(shape["opacity"], "1")
+        # Outside a playlist there is nothing before, so no arrow back.
+        self.assertEqual(shape["previous"], "none")
+        self.assertGreater(shape["dismiss"], 0)
+        # Inside the picture, below its arrow, and nearly as wide as the player.
+        self.assertGreaterEqual(shape["card"]["top"], shape["arrow"]["bottom"])
+        self.assertLessEqual(shape["card"]["bottom"], shape["picture"]["bottom"])
+        self.assertGreater(shape["card"]["width"], shape["playerWidth"] - 40)
         self.assertEqual(self.failures, [])
 
     def test_playlist_only_stops_outside_a_playlist(self):

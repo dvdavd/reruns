@@ -14,8 +14,11 @@ test('background shelf redraws do not postpone or exit immersion, while menu cha
     remove: name => classes.delete(name)};
   const stage = {style: {setProperty() {}},
     getBoundingClientRect: () => ({width: 640, height: 360, top: 100})};
+  const headClasses = new Set();
+  const head = {style: {setProperty() {}}, querySelector: () => null, querySelectorAll: () => [], getBoundingClientRect: () => ({bottom: 560}),
+    classList: {add: name => headClasses.add(name), remove: name => headClasses.delete(name)}};
   const page = {hidden: false, classList: {contains: () => false},
-    querySelector: selector => selector === '.archive-watch-stage' ? stage : null,
+    querySelector: selector => ({'.archive-watch-stage': stage, '.archive-watch-head': head})[selector] ?? null,
     querySelectorAll: () => []};
   const observers = [];
   const timers = new Map();
@@ -56,12 +59,15 @@ test('background shelf redraws do not postpone or exit immersion, while menu cha
   timers.delete(initialTimer);
   callback();
   assert.equal(classes.has('is-player-immersive'), true);
+  // A title on one line has nothing to fade for, and takes the actions' column at once.
+  assert.equal(headClasses.has('has-immersive-title'), true);
   menuObserver.callback(shelfRedraw);
   assert.equal(classes.has('is-player-immersive'), true, 'background redraw must not exit immersion');
   menuOpen = true;
   menuObserver.callback([{attributeName: 'aria-expanded', oldValue: 'false',
     target: {getAttribute: () => 'true'}}]);
   assert.equal(classes.has('is-player-immersive'), false);
+  assert.equal(headClasses.has('has-immersive-title'), false, 'the title narrows again on the way out');
   assert.equal(timers.size, 0);
   menuOpen = false;
   menuObserver.callback([{attributeName: 'aria-expanded', oldValue: 'true',
@@ -128,6 +134,13 @@ test('a picture short of width is centred with its title, not on its own', () =>
   const {top, bottom} = gaps(...WIDTH_SHORT);
   assert.equal(Math.round(top), Math.round(bottom));
   assert.ok(top > 0);
+});
+
+test('a title too tall to centre with the picture never lifts it out of the window', () => {
+  const [rect, window] = HEIGHT_SHORT;
+  // Wrapped to many lines, the title's foot is near the window's.
+  const {top} = gaps(rect, window, window.height - 10);
+  assert.equal(Math.round(top), 20);
 });
 
 test('without a title to balance, the picture only grows from its foot', () => {
