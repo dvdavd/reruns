@@ -14,7 +14,10 @@
   border-radius: 24px;
   background: linear-gradient(#222b, #121212c2);
   color: #fff;
-  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  /* The player's glass edge (player.css) as inset shadows, not its ring: the
+     settings and quality popups scroll themselves, and a ring laid over the
+     box scrolled away with what was in it, where shadows stay on the box. */
+  box-shadow: var(--player-glass-edge-shadow), 0 4px 18px #0005;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   --shell-muted: #ffffffa0;
@@ -542,6 +545,34 @@ body[data-video-colours="player"][data-watch-accent] .archive-watch {
     grid-template-columns: 250px minmax(0, 1fr);
     grid-template-areas: "facts story" "facts comments";
   }
+  /* With no words the middle stood empty beside a column of cards; the
+     neighbours take both and lay out as a grid. The facts stay where they
+     are, so moving between videos with and without a description changes
+     only what is beside them. A comments section that holds none and only
+     offers a fetch is not words: its heading sits in a slim row above the
+     grid, and the page goes back to three columns once comments arrive. */
+  .archive-watch-lower:has(> .archive-related:not([hidden])):not(:has(
+      > .archive-watch-story > :not([hidden]),
+      > .archive-watch-discussion > .archive-watch-chat:not([hidden]),
+      > .archive-watch-discussion > .archive-watch-comments[data-held]:not([hidden]))) {
+    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-areas: "facts comments" "facts related";
+    grid-template-rows: auto 1fr;
+    /* Sized from the gallery's own card, which grows with the window, since
+       a grid that wraps has no row to keep whole. The floor is four fifths of
+       it: at the full one, two tracks stretched across an area just short of
+       three and the cards were half as wide again as the gallery's. Lower,
+       a track grows at most about half again its floor, so the cards stay
+       about the gallery's size or a little under, as the column's are. */
+    & .archive-related-list { grid-template-columns: repeat(auto-fill, minmax(min(calc(var(--video-card-min) * .8), 100%), 1fr)); }
+    /* With not even that heading, the empty row's gap would still stand
+       above the cards. */
+    &:not(:has(> .archive-watch-discussion > :not([hidden]))) {
+      grid-template-areas: "facts related";
+      grid-template-rows: auto;
+      & > .archive-watch-discussion { display: none; }
+    }
+  }
 }
 /* A flat tint of the page's hue, as the creator and video cards wear. The
    player's accent is left to the player: this card keeps the theme's. */
@@ -826,6 +857,10 @@ button.archive-watch-action { padding: 0; background: none; cursor: pointer; }
 }
 
 .archive-related[hidden] { display: none; }
+/* The description's own toggle, centred under the cards it lays on; only
+   fitRelated shows it, in the wide layout. */
+.archive-related-more { display: flex; justify-content: center; margin-top: 14px; }
+.archive-related-more[hidden] { display: none; }
 /* Wide: a column beside the facts and words. Dropping the container makes the
    row-fitting queries below find nothing to match, so every neighbour stays. */
 @container watch-main (min-width: 980px) {
@@ -836,8 +871,10 @@ button.archive-watch-action { padding: 0; background: none; cursor: pointer; }
   .archive-watch-lower .archive-related-list > .video-card[data-fit="hidden"] { display: none; }
 }
 /* One row of neighbours under the details, not a rail beside the video: the
-   page stays a single column, so the player keeps the full width. */
-.archive-related { container: archive-related / inline-size; margin: 24px 2px 0; }
+   page stays a single column, so the player keeps the full width. The lower
+   block's gap spaces it from the comments, as it does every other section; a
+   top margin here as well left twice the room above it. */
+.archive-related { container: archive-related / inline-size; margin: 0 2px; }
 /* The heading (more from the channel, or the playlist's name) is kept for
    screen readers and not drawn: the cards say whose they are. */
 .archive-related-head {
@@ -1366,6 +1403,8 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
    blank strip there and cut off the drawer's own scrollbar. */
 :root:has(dialog:modal) { overflow: hidden; }
 :root:has(dialog:modal) body { padding-inline-end: var(--page-scrollbar, 0px); }
+/* The panel holds focus when it opens (drawer.js); it is not a control. */
+.download-drawer:focus { outline: none; }
 .download-drawer[open] { transform: translateX(0); }
 .download-drawer.is-closing { transform: translateX(100%); }
 @starting-style {

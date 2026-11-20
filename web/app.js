@@ -224,6 +224,7 @@ const browse = createBrowseUI({
   title: document.querySelector('#browse-title'),
   summary: document.querySelector('#browse-summary'),
   filter: document.querySelector('#browse-filter'),
+  when: document.querySelector('#browse-when'),
   optionsButton: document.querySelector('#browse-options'),
   optionsMenu: document.querySelector('#browse-options-menu'),
   list: document.querySelector('#browse-list'),

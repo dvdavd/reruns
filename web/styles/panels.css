@@ -1327,12 +1327,21 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
   border-radius: 24px;
   background: linear-gradient(#222b, #121212c2);
   color: #fff;
-  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  box-shadow: 0 4px 18px #0005;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   pointer-events: none;
   transition: top 180ms ease, bottom 180ms ease, padding 180ms ease;
 }
+/* The player's glass edge (player.css). */
+.media-player > .archive-watch-chat.is-overlay:not([hidden])::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; padding: 1px;
+  border-radius: inherit; pointer-events: none;
+  background: var(--player-glass-edge);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* Docked, it meets the player's edges and has nothing to lift off. */
+.media-player > .archive-watch-chat.is-overlay.is-docked:has(> .archive-chat-list:not([hidden]))::after { display: none; }
 .archive-watch-chat.is-overlay.on-right { right: 12px; }
 .archive-watch-chat.is-overlay.on-left { left: 12px; }
 /* Docked, the chat fills the column of black the picture left it, edge to
@@ -1537,6 +1546,10 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
 .archive-comments { display: grid; gap: 14px; margin-top: 12px; color: var(--color-text); }
 .archive-comment { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
 .archive-comment.is-reply { grid-template-columns: 28px minmax(0, 1fr); margin-top: 12px; }
+/* A thread far off screen is not laid out or painted until it nears the
+   window, then keeps the height it was drawn at. Without that, every comment
+   drawn so far was laid out again on each change to the page. */
+.archive-comment:not(.is-reply) { content-visibility: auto; contain-intrinsic-block-size: auto 96px; }
 .archive-comment-avatar {
   display: block; width: 100%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
   background: color-mix(in srgb, var(--button-hue) 30%, var(--color-surface));

@@ -24,6 +24,7 @@ itself reported for it.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -43,10 +44,23 @@ from .subscriptions import CHANNEL_PAGE, subscription_kind
 
 log = logging.getLogger(__name__)
 
-# yt-dlp's ytsearch prefix only finds videos. YouTube's own results page takes
-# a filter for the other kinds, and yt-dlp lists that page like any other.
-SEARCH_FILTERS = {"search-playlists": "EgIQAw==", "search-channels": "EgIQAg=="}
-KINDS = {"channel", "playlist", "search", *SEARCH_FILTERS}
+# yt-dlp's ytsearch prefix only finds videos, newest or oldest alike. YouTube's
+# own results page takes a filter for the other kinds and for when a video was
+# posted, and yt-dlp lists that page like any other. The filter is a small
+# protobuf (field 2 holding {1: upload date, 2: type}), built here rather than
+# kept as YouTube's opaque strings so the two can be combined.
+SEARCH_TYPES = {"search": 1, "search-channels": 2, "search-playlists": 3}
+# YouTube's own windows; it offers no other range. Its page does not offer them
+# for a playlist or channel search, so neither does this.
+UPLOAD_DATES = {"hour": 1, "today": 2, "week": 3, "month": 4, "year": 5}
+KINDS = {"channel", "playlist", *SEARCH_TYPES}
+
+
+def search_filter(kind: str, when: str = "") -> str:
+    """The results page's sp= value for a search of this kind and age."""
+    fields = bytes([0x08, UPLOAD_DATES[when]]) if when else b""
+    fields += bytes([0x10, SEARCH_TYPES[kind]])
+    return base64.b64encode(bytes([0x12, len(fields)]) + fields).decode()
 DEFAULT_COUNT = 30
 MAX_COUNT = 240
 # A flat listing is one or two page fetches, so a minute is generous; longer
@@ -69,26 +83,30 @@ IMAGE_KEEP_SECONDS = 7 * 86400
 WANTED_WIDTH = 320
 
 
-def normalise_source(kind: str, value: str, count: int = DEFAULT_COUNT) -> tuple[str, str, int]:
+def normalise_source(kind: str, value: str, count: int = DEFAULT_COUNT,
+                     when: str = "") -> tuple[str, str, int]:
     """(the argument yt-dlp is given, the cache key, the clamped count).
+    `when` is one of UPLOAD_DATES, for a video search only, or empty.
 
     Raises ValueError for anything that is not a listing worth fetching."""
     if kind not in KINDS:
         raise ValueError("Unknown kind of source")
+    if when and (kind != "search" or when not in UPLOAD_DATES):
+        raise ValueError("Unknown upload date")
     value = value.strip()
     if not value:
         raise ValueError("Nothing to look at")
     count = max(1, min(int(count), MAX_COUNT))
-    if kind == "search":
+    if kind == "search" and not when:
         # ytsearchN: is yt-dlp's own prefix; the query is never a URL or a flag
         # because it sits after the prefix and after a "--".
         return f"ytsearch{count}:{value}", f"search\0{value.lower()}\0{count}", count
-    if kind in SEARCH_FILTERS:
+    if kind in SEARCH_TYPES:
         # Quoted into a YouTube address of our making, so the words can name
         # nothing but a search.
         target = "https://www.youtube.com/results?" + urllib.parse.urlencode(
-            {"search_query": value, "sp": SEARCH_FILTERS[kind]})
-        return target, f"{kind}\0{value.lower()}\0{count}", count
+            {"search_query": value, "sp": search_filter(kind, when)})
+        return target, f"{kind}\0{value.lower()}\0{count}\0{when}", count
     if not value.startswith(("http://", "https://")):
         raise ValueError("Provide an http:// or https:// address")
     if kind == "channel":
@@ -208,10 +226,10 @@ class Browser:
         for _ in range(workers):
             threading.Thread(target=self._worker, daemon=True).start()
 
-    def request(self, kind: str, value: str, count: int = DEFAULT_COUNT) -> dict:
+    def request(self, kind: str, value: str, count: int = DEFAULT_COUNT, when: str = "") -> dict:
         """The listing, or where its fetch has got to. Raises ValueError for a
         source that cannot be listed."""
-        target, key, count = normalise_source(kind, value, count)
+        target, key, count = normalise_source(kind, value, count, when)
         with self._lock:
             cached = self._results.get(key)
             if cached is not None:
@@ -256,8 +274,8 @@ class Browser:
             # upload date. Ask its tab extractor to turn that text into an
             # approximate timestamp for the panel's date line.
             command += ["--extractor-args", "youtubetab:approximate_date"]
-            if kind != "search":
-                # The count is part of the cache key, so a longer listing is a
+            if not target.startswith("ytsearch"):
+                # ytsearchN: carries its own count. The count is part of the cache key, so a longer listing is a
                 # new fetch from the top; a flat listing is cheap enough that
                 # this is simpler than paging and cannot skip or repeat one.
                 command += ["--playlist-end", str(count)]
@@ -345,10 +363,10 @@ class Browser:
         temporary.replace(path)
         return path
 
-    def answer(self, kind: str, value: str, count: int, held) -> dict:
+    def answer(self, kind: str, value: str, count: int, held, when: str = "") -> dict:
         """request(), shaped for the page: the private picture address is
         swapped for the server's own, and each entry says whether it is held."""
-        result = self.request(kind, value, count)
+        result = self.request(kind, value, count, when)
         if result["state"] != "ready":
             return result
         count = max(1, min(int(count), MAX_COUNT))

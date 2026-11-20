@@ -140,7 +140,7 @@ function drawComment(comment, context, {reply = false} = {}) {
     summary.insertAdjacentHTML('beforeend', REPLIES_CHEVRON);
     replies.append(summary, ...comment.replies.map(item => drawComment(item, context, {reply: true})));
     // A closed reply has no layout to measure, so it is judged as it opens.
-    replies.addEventListener('toggle', () => { if (replies.open) measure(replies); });
+    replies.addEventListener('toggle', () => { if (replies.open) measure(textsIn(replies)); });
     body.append(replies);
   }
   node.append(avatar, body);
@@ -148,15 +148,25 @@ function drawComment(comment, context, {reply = false} = {}) {
 }
 
 const CLAMP_LINES = 4;
+// Threads drawn at a time. A video can hold thousands, and building, sorting
+// into and measuring all of them before the first appeared held the page up;
+// the next lot is drawn as the reader nears the end of what is there.
+const PAGE = 50;
+// How far outside the window a comment is drawn and judged ahead of being
+// seen: a screen, so a quick scroll does not reach the end of what is ready.
+const NEXT_PAGE_MARGIN = '0px 0px 100% 0px';
+const CLAMP_MARGIN = '100% 0px';
+
+const textsIn = root => [...root.querySelectorAll('.archive-comment-text')];
 
 /** Clamps each comment that runs past four lines, with Show more under it,
  *  unless the clamp would hide just one line: a toggle to reveal a single line
  *  takes the room it saves. Only a laid-out paragraph can say how many lines
- *  it has, so this runs once the comments are in the page and again when their
- *  width changes. One the viewer has opened is left open, with its toggle. */
-function measure(root) {
-  const texts = [...root.querySelectorAll('.archive-comment-text')]
-    .filter(text => text.nextElementSibling.getAttribute('aria-expanded') !== 'true');
+ *  it has, so this runs on comments as they come near the window, and again
+ *  when their width changes. One the viewer has opened is left open, with its
+ *  toggle. */
+function measure(all) {
+  const texts = all.filter(text => text.nextElementSibling.getAttribute('aria-expanded') !== 'true');
   // Clamped while measured: its scrollHeight is still the whole text's. All
   // are clamped, then all read, then all settled: a write between reads laid
   // the page out again for each comment, and a resize measures every frame,
@@ -209,12 +219,45 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
   // next has opened.
   let token = 0;
 
+  // Threads sorted for the mode but not drawn yet.
+  let pending = [];
+  // A comment is judged for its clamp as it comes near the window, once. The
+  // stylesheet skips laying out comments far off screen, and reading the
+  // height of every one of them would make it lay them all out after all.
+  const clamps = new IntersectionObserver(entries => {
+    const near = entries.filter(entry => entry.isIntersecting).map(entry => entry.target);
+    if (!near.length) return;
+    for (const comment of near) clamps.unobserve(comment);
+    measure(near.flatMap(textsIn));
+  }, {rootMargin: CLAMP_MARGIN});
+  const nextPage = new IntersectionObserver(entries => {
+    if (entries.some(entry => entry.isIntersecting)) drawPage();
+  }, {rootMargin: NEXT_PAGE_MARGIN});
+
+  function drawPage() {
+    nextPage.disconnect();
+    // Asked each time: the duration may only be known after the first page.
+    const context = {seek, duration: duration()};
+    const drawn = pending.splice(0, PAGE).map(comment => drawComment(comment, context));
+    list.append(...drawn);
+    for (const comment of drawn) clamps.observe(comment);
+    // Watching the last comment rather than a marker after it, which the
+    // list's gap would leave a space for. A page short enough that the last
+    // is already in reach is followed at once: observing reports straight away.
+    if (pending.length && drawn.length) nextPage.observe(drawn[drawn.length - 1]);
+  }
+
   // A narrower card wraps more lines, so a comment that fitted may not now.
-  // Measured once the width settles: re-clamping every comment restyles them
-  // all, and done on each frame of a window being dragged it cost ten times
-  // the rest of the page together.
+  // Judged again once the width settles, and only as each comes near the
+  // window: re-clamping every comment restyles them all, and done on each
+  // frame of a window being dragged it cost ten times the rest of the page
+  // together.
   let width = 0;
   let settle = 0;
+  const rejudge = () => {
+    clamps.disconnect();
+    for (const comment of list.children) clamps.observe(comment);
+  };
   new ResizeObserver(([entry]) => {
     const next = Math.round(entry.contentRect.width);
     if (next === width) return;
@@ -223,8 +266,8 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     const appearing = !width;
     width = next;
     clearTimeout(settle);
-    if (appearing) measure(list);
-    else settle = setTimeout(() => measure(list), 150);
+    if (appearing) rejudge();
+    else settle = setTimeout(rejudge, 150);
   }).observe(list);
 
   const holds = () => (threads ? threads.length > 0 : item?.archive.commentCount > 0);
@@ -249,9 +292,15 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     }
     modes.querySelector('[data-comments-mode="none"]').textContent =
       t(holds() ? 'watch.comments.modeHide' : 'watch.comments.modeNone');
+    // The watch page lays the related videos across the middle when there are
+    // no words there; a section offering only a fetch does not count as words.
+    node.toggleAttribute('data-held', holds());
     refresh.hidden = !canFetch();
     refresh.disabled = fetching;
     refresh.classList.toggle('is-spinning', fetching);
+    nextPage.disconnect();
+    clamps.disconnect();
+    pending = [];
     list.hidden = mode === 'none';
     if (mode === 'none') return;
     if (fetching) list.replaceChildren(status(t('watch.comments.fetching'), {busy: true}));
@@ -259,9 +308,9 @@ export function createCommentsSection(page, {seek, duration, canFetch, fetchComm
     else if (!threads) list.replaceChildren(status(t('watch.comments.loading'), {busy: true}));
     else if (!threads.length) list.replaceChildren(status(t('watch.comments.none')));
     else {
-      const context = {seek, duration: duration()};
-      list.replaceChildren(...sortComments(threads, mode).map(comment => drawComment(comment, context)));
-      measure(list);
+      list.replaceChildren();
+      pending = sortComments(threads, mode);
+      drawPage();
     }
   }
 

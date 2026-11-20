@@ -389,6 +389,42 @@ class AutoplayTests(_BrowserCase):
                 self.assertEqual(at < 10, lands_early, at)
                 self.assertEqual(self.failures, [])
 
+    def test_the_card_that_comes_up_by_itself_sits_low(self):
+        page = self.open_page(autoplay="on")
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.wait_for_function(
+            """() => { const v = document.querySelector('#archive-player video');
+                      return v && !v.paused && v.currentTime > 0.3; }""", timeout=10000)
+        page.evaluate("document.querySelector('#archive-player video').pause()")
+        measure = """() => {
+            const side = document.querySelector('[data-part-side="1"]');
+            const box = e => e.getBoundingClientRect();
+            const card = box(side.querySelector('.archive-part-card'));
+            const arrow = box(side.querySelector('.archive-part-step'));
+            return {card: (card.top + card.bottom) / 2, cardBottom: card.bottom,
+                    arrow: (arrow.top + arrow.bottom) / 2,
+                    bar: box(document.querySelector('#archive-player .media-player-controls')).top};
+        }"""
+        # Opened from its arrow, the card comes out beside it, at the middle.
+        page.hover('[data-part-step="1"]')
+        page.wait_for_timeout(400)
+        opened = page.evaluate(measure)
+        self.assertAlmostEqual(opened["card"], opened["arrow"], delta=1)
+        page.mouse.move(5, 5)
+        page.evaluate("""() => { const v = document.querySelector('#archive-player video');
+                                 v.currentTime = v.duration - 2; }""")
+        page.wait_for_selector('[data-part-side="1"].is-announcing')
+        page.wait_for_timeout(400)
+        announced = page.evaluate(measure)
+        # Come up by itself, it drops to just over the control bar, and
+        # takes its arrow with it.
+        self.assertAlmostEqual(announced["arrow"], announced["card"], delta=1)
+        self.assertGreater(announced["card"], opened["card"] + 40)
+        self.assertLessEqual(announced["cardBottom"], announced["bar"])
+        self.assertGreater(announced["cardBottom"], announced["bar"] - 40)
+        self.assertEqual(self.failures, [])
+
     def test_playlist_only_stops_outside_a_playlist(self):
         # '1' was the old switch's on, which only ever knew playlists.
         for stored in ("playlist", "1"):

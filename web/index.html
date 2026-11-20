@@ -732,6 +732,16 @@
         <input id="browse-filter" type="search" placeholder="Filter" autocomplete="off"
                spellcheck="false" aria-label="Filter the listed videos by title or channel"
                data-i18n-attrs="placeholder:browse.filterPlaceholder,aria-label:browse.filterLabel">
+        <!-- YouTube's own upload-date windows, for a video search only. -->
+        <select id="browse-when" class="browse-when" hidden aria-label="Upload date"
+                data-i18n-attrs="aria-label:browse.uploadDate">
+          <option value="" data-i18n="browse.when.any">Any time</option>
+          <option value="hour" data-i18n="browse.when.hour">Last hour</option>
+          <option value="today" data-i18n="browse.when.today">Today</option>
+          <option value="week" data-i18n="browse.when.week">This week</option>
+          <option value="month" data-i18n="browse.when.month">This month</option>
+          <option value="year" data-i18n="browse.when.year">This year</option>
+        </select>
       </div>
       <div id="browse-list"></div>
       <button id="browse-more" class="browse-more" type="button" hidden data-i18n="browse.more">Show more</button>
@@ -1472,6 +1482,11 @@
           <h2 data-related-heading data-i18n="watch.moreFromChannel">More from this channel</h2>
         </div>
         <div class="archive-related-list"></div>
+        <div class="archive-watch-description-toggle archive-related-more statistics-ranking" hidden>
+          <button type="button" data-related-more aria-expanded="false">
+            <span data-shelf-more-label data-i18n="watch.showMore">Show more</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg>
+          </button>
+        </div>
       </section>
       </div>
     </div>

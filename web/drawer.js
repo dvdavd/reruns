@@ -24,6 +24,13 @@ export function createDrawerControls(drawer, {beforeClose = () => true, dismiss 
     drawer.classList.remove('is-closing');
     if (drawer.open) return;
     if (drawer.showModal) showModalOverPage(drawer); else drawer.setAttribute('open', '');
+    /* Left to itself the dialog focuses its first control, which is a header
+       action (Browse options, New profile, Add folder), and after a key - Enter
+       in the search field opening Browse - that wears a focus ring as though it
+       had been chosen. The panel takes focus instead, so Tab starts from the top
+       and nothing is lit. A drawer that wants a field focused does so after. */
+    drawer.tabIndex = -1;
+    drawer.focus({preventScroll: true});
   }
   function close() {
     if (!drawer.open || drawer.classList.contains('is-closing')) return;

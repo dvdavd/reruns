@@ -746,6 +746,10 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   }
   :root[data-theme="light"] .archive-watch:not(.is-mini, [data-tall-video]:not(.has-chat-pinned)) .media-player:not(:fullscreen) .archive-autoplay-track { background: rgb(32 35 59 / .22); }
   :root[data-theme="light"] .archive-watch:not(.is-mini, [data-tall-video]:not(.has-chat-pinned)) .media-player:not(:fullscreen) .archive-subtitle-toggle[aria-pressed="true"] .subtitle-line { stroke: #fff; }
+  /* The strip already leaves 8px under its buttons, so the header's usual
+     14px, meant for clearing the picture, put the title well adrift of the
+     bar it follows. */
+  .archive-watch:not(.is-mini, [data-tall-video]:not(.has-chat-pinned)) .archive-watch-head { margin-top: 4px; }
 }
 .archive-watch.is-thumbnail-transitioning .archive-watch-stage { background: var(--shell-bg); }
 .archive-watch.is-thumbnail-transitioning .archive-watch-stage > * { visibility: hidden; }
@@ -1104,7 +1108,8 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   position: absolute;
   inset: 0 0 var(--bar-strip, 0px);
   z-index: 2;
-  container: part-nav / inline-size;
+  /* Sized both ways: the announced card drops by the layer's own height. */
+  container: part-nav / size;
   pointer-events: none;
 }
 .archive-part-side {
@@ -1114,6 +1119,20 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   align-items: center;
   gap: 10px;
   transform: translateY(-50%);
+  /* Back up from the drop below only once the card has faded out. */
+  transition: translate .2s ease .2s;
+}
+/* The card that comes up by itself near the end sits low, just clear of the
+   control bar, out of the middle of the picture the viewer is still watching,
+   and takes its arrow down with it; a card opened from the arrow at any other
+   time still comes out beside it at the middle. The drop is the side's own
+   height off the layer's half. Where the layer is too narrow for a card there
+   is nothing to make room for, so the arrow stays put. */
+@container part-nav (min-width: 601px) {
+  .archive-part-side.is-announcing {
+    translate: 0 max(0px, calc(50cqh - 50% - max(20px, var(--subtitle-controls-bottom, 70px) - var(--bar-strip, 0px))));
+    transition: translate .2s ease;
+  }
 }
 .archive-part-side[hidden] { display: none; }
 /* While a card is out, the whole side — arrow, the gap and the card — is one
@@ -1139,7 +1158,7 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   border-radius: 50%;
   background: linear-gradient(#222b, #121212c2);
   color: #fff;
-  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  box-shadow: 0 4px 18px #0005;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   position: relative;
@@ -1155,6 +1174,13 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   outline: none;
 }
 .archive-part-step .icon { width: 22px; height: 22px; }
+/* The player's glass edge (player.css), on the arrows and their cards alike. */
+:is(.archive-part-step, .archive-part-card)::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; padding: 1px;
+  border-radius: inherit; pointer-events: none;
+  background: var(--player-glass-edge);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
 /* Keep arrows tucked through the autoplay tail, until pointer movement
    reveals the controls or the countdown is cancelled. */
 .media-player.is-autoplay-ending .media-player-controls,
@@ -1176,7 +1202,7 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   /* The same glass as the player's control bar. */
   background: linear-gradient(#222b, #121212c2);
   color: #fff;
-  box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005;
+  box-shadow: 0 4px 18px #0005;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   opacity: 0;
@@ -1205,6 +1231,9 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
     transform: none;
     transition: opacity .2s ease;
   }
+  /* The drop happens, but without the glide. */
+  .archive-part-side,
+  .archive-part-side.is-announcing { transition: none; }
 }
 @container part-nav (max-width: 600px) {
   .archive-part-card { display: none; }

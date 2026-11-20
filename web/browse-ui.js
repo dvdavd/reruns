@@ -33,10 +33,12 @@ const SEARCH_TITLES = {
 export const isSearch = source => Boolean(SEARCH_TITLES[source?.kind]);
 
 /** The query string for one listing. A search names its text, the others an
- *  address. */
+ *  address; a video search may also name how recent (`when`, one of YouTube's
+ *  own windows: hour, today, week, month, year). */
 export function listingPath(source, count) {
   const params = new URLSearchParams({kind: source.kind, count: String(count)});
   params.set(isSearch(source) ? 'query' : 'url', isSearch(source) ? source.query : source.url);
+  if (source.kind === 'search' && source.when) params.set('when', source.when);
   return `/api/browse?${params}`;
 }
 
@@ -180,7 +182,7 @@ export function entrySubscriptionId(entry, subscriptions) {
   return null;
 }
 
-export function createBrowseUI({drawer, drawerClose, backButton, title, summary, filter, optionsButton,
+export function createBrowseUI({drawer, drawerClose, backButton, title, summary, filter, when, optionsButton,
   optionsMenu, list, moreButton, download, jobAction, playLocal, localHref, report}) {
   // Back, and Escape, step down to the drawer beneath, its contents sliding
   // back in step with this one leaving; the dimmed page closes both.
@@ -204,6 +206,9 @@ export function createBrowseUI({drawer, drawerClose, backButton, title, summary,
   let subscriptions = null;
   const subscribing = new Set();
   let hideDownloaded = false;
+  // The last upload date chosen, kept for the session so a run of searches
+  // for recent videos need not choose it each time.
+  let uploadDate = '';
   let profile = '';
   let profileOptions = browseProfileOptions([], '');
   let count = PAGE;
@@ -335,6 +340,8 @@ export function createBrowseUI({drawer, drawerClose, backButton, title, summary,
     const shown = visible();
     // The person's own words for a search, the page's name for a channel.
     title.textContent = source?.title || listing?.title || '';
+    when.hidden = source?.kind !== 'search';
+    when.value = source?.when || '';
     backButton.hidden = !parent && !over;
     const backLabel = t(parent ? 'browse.back' : 'browse.backToSubscriptions');
     backButton.title = backLabel;
@@ -371,6 +378,17 @@ export function createBrowseUI({drawer, drawerClose, backButton, title, summary,
   }
 
   filter.addEventListener('input', draw);
+  // A different age is a different listing from YouTube, so it starts again
+  // from the top, keeping the filter's words.
+  when.addEventListener('change', () => {
+    uploadDate = when.value;
+    source = {...source, when: uploadDate};
+    count = PAGE;
+    listing = null;
+    error = '';
+    drawer.scrollTop = 0;
+    load();
+  });
   moreButton.addEventListener('click', () => {
     // A failed page is asked for again as it was; a good one is widened.
     if (status !== 'failed') count += PAGE;
@@ -437,8 +455,10 @@ export function createBrowseUI({drawer, drawerClose, backButton, title, summary,
   }
 
   function show(next) {
+    if (next.kind === 'search' && next.when === undefined) next = {...next, when: uploadDate};
     const same = source && source.kind === next.kind
-      && (isSearch(next) ? source.query === next.query : source.url === next.url);
+      && (isSearch(next) ? source.query === next.query && source.when === next.when
+        : source.url === next.url);
     source = next;
     if (!same) {
       count = PAGE;

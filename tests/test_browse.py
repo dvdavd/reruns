@@ -63,6 +63,19 @@ class SourceTests(unittest.TestCase):
         self.assertNotEqual(key, normalise_source("search-channels", "lofi & rain", 10)[1])
         self.assertNotEqual(key, normalise_source("search", "lofi & rain", 10)[1])
 
+    def test_a_dated_search_asks_youtube_for_videos_of_that_age(self):
+        target, key, _ = normalise_source("search", " cats ", 10, "week")
+        # YouTube's own string for "this week" and "video", as its page builds it.
+        self.assertEqual(target, "https://www.youtube.com/results?search_query=cats&sp=EgQIAxAB")
+        self.assertNotEqual(key, normalise_source("search", "cats", 10)[1])
+        self.assertNotEqual(key, normalise_source("search", "cats", 10, "month")[1])
+
+    def test_only_a_video_search_takes_an_upload_date_youtube_knows(self):
+        for kind, when in [("search", "decade"), ("search-playlists", "week"),
+                           ("channel", "week")]:
+            with self.assertRaises(ValueError, msg=(kind, when)):
+                normalise_source(kind, "https://www.youtube.com/@name", 10, when)
+
     def test_count_is_clamped(self):
         self.assertEqual(normalise_source("playlist", "https://x/y?list=PL1", 99999)[2], browse.MAX_COUNT)
         self.assertEqual(normalise_source("playlist", "https://x/y?list=PL1", -4)[2], 1)
@@ -143,6 +156,12 @@ class BrowserTests(unittest.TestCase):
         command, _ = self.run_worker_once()
         self.assertNotIn("--playlist-end", command)
         self.assertEqual(command[-1], "ytsearch12:cats")
+
+    def test_a_dated_search_is_paged_like_the_results_page_it_is(self):
+        self.browser.request("search", "cats", 12, "today")
+        command, _ = self.run_worker_once()
+        self.assertEqual(command[command.index("--playlist-end") + 1], "12")
+        self.assertTrue(command[-1].startswith("https://www.youtube.com/results?search_query=cats&"))
 
     def test_a_filtered_search_is_paged_and_shows_only_its_kind(self):
         self.browser.request("search-channels", "lofi", 12)
@@ -328,6 +347,11 @@ class BrowseRouteTests(unittest.TestCase):
     def test_a_filtered_search_reads_its_words_from_the_query(self):
         status, body = self.get("/api/browse?kind=search-playlists&query=lofi&count=10")
         self.assertEqual((status, json.loads(body)["state"]), (200, "queued"))
+
+    def test_a_search_reads_its_upload_date_from_the_query(self):
+        status, body = self.get("/api/browse?kind=search&query=cats&count=10&when=year")
+        self.assertEqual((status, json.loads(body)["state"]), (200, "queued"))
+        self.assertEqual(self.get("/api/browse?kind=search&query=cats&when=soon")[0], 400)
 
     def test_a_bad_source_is_a_400(self):
         self.assertEqual(self.get("/api/browse?kind=channel&url=file:///etc/passwd")[0], 400)

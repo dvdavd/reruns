@@ -11,7 +11,7 @@ from pathlib import Path
 
 from reruns.downloads import (DEFAULT_OPTIONS, _Rate, _end_process, _format_eta, _format_rate, _single_youtube_video, canonical_url, describe_format, final_extension,
                        Downloader, Job, VideoItem, folder_fields,
-                       split_arguments, validate_options)
+                       recording_finalise_command, split_arguments, validate_options)
 
 
 def _fake_remux(command, **_):
@@ -1144,6 +1144,33 @@ class PauseResumeTests(unittest.TestCase):
             downloader._end_recordings(job)
             self.assertEqual((job.state, item.state), ('cancelled', 'cancelled'))
             self.assertEqual([path.name for path in root.iterdir()], ['Live 20_10.mp4'])
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
+    def test_a_recording_whose_audio_rate_changes_at_a_splice_is_finalised_at_one_rate(self):
+        """Twitch splices a 48 kHz ad onto a 44.1 kHz stream. A copy into MP4
+        labels all of it 48 kHz, so the 44.1 kHz half decodes short."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, rate, offset in (('ad.ts', 48000, 0), ('stream.ts', 44100, 3)):
+                subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=s=64x64:r=30',
+                                '-f', 'lavfi', '-i', f'sine=f=440:r={rate}', '-t', '3',
+                                '-c:v', 'libx264', '-g', '30', '-c:a', 'aac', '-ar', str(rate),
+                                '-output_ts_offset', str(offset), '-f', 'mpegts', str(root / name)],
+                               check=True)
+            (root / 'live.m3u8').write_text(
+                '#EXTM3U\n#EXT-X-TARGETDURATION:3\n#EXTINF:3,\nad.ts\n'
+                '#EXT-X-DISCONTINUITY\n#EXTINF:3,\nstream.ts\n#EXT-X-ENDLIST\n')
+            # What yt-dlp's FFmpeg downloader writes while it records.
+            subprocess.run(['ffmpeg', '-v', 'error', '-i', str(root / 'live.m3u8'), '-c', 'copy',
+                            '-f', 'mpegts', str(root / 'Live.mp4.part')], check=True)
+
+            subprocess.run(recording_finalise_command(root / 'Live.mp4.part', root / 'Live.mp4'),
+                           check=True, capture_output=True)
+            decoded = subprocess.run(['ffmpeg', '-v', 'quiet', '-i', str(root / 'Live.mp4'),
+                                      '-map', '0:a', '-f', 's16le', '-ac', '1', '-ar', '48000', '-'],
+                                     check=True, capture_output=True).stdout
+            # A copy decodes to about 5.82 s, because the 44.1 kHz half loses 8%.
+            self.assertAlmostEqual(len(decoded) / 2 / 48000, 6.05, delta=0.08)
 
     def test_stopping_a_recording_in_a_batch_leaves_the_batch_running(self):
         downloader = Downloader(Path('/tmp/archive'))

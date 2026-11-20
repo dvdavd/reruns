@@ -22,6 +22,15 @@ test('a playlist or channel search names its text too', () => {
     '/api/browse?kind=search-channels&count=30&query=lofi');
 });
 
+test('only a video search names how recent its videos are', () => {
+  assert.equal(listingPath({kind: 'search', query: 'cats', when: 'week'}, 30),
+    '/api/browse?kind=search&count=30&query=cats&when=week');
+  assert.equal(listingPath({kind: 'search', query: 'cats', when: ''}, 30),
+    '/api/browse?kind=search&count=30&query=cats');
+  assert.equal(listingPath({kind: 'search-channels', query: 'lofi', when: 'week'}, 30),
+    '/api/browse?kind=search-channels&count=30&query=lofi');
+});
+
 test('the filter matches every word against title and channel', () => {
   assert.deepEqual(filterEntries(entries, {text: 'cats'}).map(entry => entry.id), ['a', 'c']);
   assert.deepEqual(filterEntries(entries, {text: 'rex cats'}).map(entry => entry.id), ['c']);

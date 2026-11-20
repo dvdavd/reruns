@@ -4,6 +4,7 @@
    is what stands out. */
 .browse-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 0 0 4px; }
 .browse-tools input[type="search"] { flex: 1 1 200px; min-width: 0; min-height: 36px; }
+.browse-tools select { flex: 0 0 auto; min-height: 36px; }
 /* The button shares the line with the age and channel text, as in the download
    queue, rather than taking a row of its own. Its negative margin lets the 28px
    circle overhang the text line instead of pushing the row taller. */

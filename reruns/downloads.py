@@ -552,6 +552,34 @@ AUDIO_EXTENSIONS = (("mp4a", "m4a"), ("aac", "m4a"), ("opus", "opus"), ("vorbis"
                     ("mp3", "mp3"), ("flac", "flac"))
 
 
+# The audio encoder for a recording's container, where AAC does not fit it.
+RECORDING_AUDIO_CODECS = {".webm": "libopus", ".opus": "libopus", ".ogg": "libopus",
+                          ".mp3": "libmp3lame", ".flac": "flac"}
+
+
+def recording_finalise_command(partial: Path, target: Path) -> list[str]:
+    """FFmpeg's command for turning a live capture's transport stream into the
+    file it was meant to become.
+
+    The video is copied but the audio is encoded again. Twitch splices its
+    48 kHz pre-roll ad onto a stream that may be 44.1 kHz. The transport stream
+    keeps that change, because every AAC frame carries its own header, but MP4
+    and Matroska hold one header per track and a copy takes it from the first
+    frame. A whole broadcast was then labelled 48 kHz, so each frame played
+    short with a gap after it. The decoder reads every frame's own rate and
+    FFmpeg resamples across the change, so the track comes out at one rate.
+
+    The splice can also leave the new segment's first frames with a
+    presentation time hours ahead of their decode time. Firefox took that as
+    the duration and seeked into nothing past the real end. B-frames never
+    reorder by more than a fraction of a second, so the clamp only catches
+    those frames."""
+    return ["ffmpeg", "-nostdin", "-y", "-i", str(partial), "-c:v", "copy",
+            "-bsf:v", r"setts=pts=if(gt(PTS-DTS\,10/TB)\,DTS\,PTS)",
+            "-c:a", RECORDING_AUDIO_CODECS.get(target.suffix.lower(), "aac"), "-b:a", "192k",
+            "-movflags", "+faststart", str(target)]
+
+
 def final_extension(options: dict[str, str], ext: str, acodec: str) -> str:
     """The extension a download ends with: a chosen container is remuxed or
     converted into, and extracted audio is named for its codec."""
@@ -1054,13 +1082,9 @@ class Downloader:
             return "" if target.is_file() else "The live recording was not saved"
         temporary = target.with_name(f".{target.stem}.finalizing{target.suffix}")
         try:
-            # A copy, not an encode, but hours of stream are still gigabytes
-            # to read and write.
-            result = subprocess.run(
-                ["ffmpeg", "-y", "-i", str(partial), "-c", "copy", "-movflags", "+faststart",
-                 str(temporary)],
-                capture_output=True, text=True, timeout=3600,
-            )
+            # Hours of stream are still gigabytes to read and write.
+            result = subprocess.run(recording_finalise_command(partial, temporary),
+                                    capture_output=True, text=True, timeout=3600)
             if result.returncode:
                 raise RuntimeError(result.stderr.strip().splitlines()[-1] if result.stderr.strip()
                                    else "ffmpeg could not finalise the recording")

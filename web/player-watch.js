@@ -152,7 +152,12 @@ export function createWatchPage({
       row.type = 'button';
       row.setAttribute('role', 'menuitem');
       row.classList.toggle('danger', control === deleteButton);
-      row.textContent = t(key);
+      // The button's own icon, so the row and the button it stands in for
+      // look alike, and an icon changed in the markup changes here too.
+      const icon = control.querySelector('svg.icon')?.cloneNode(true);
+      const label = document.createElement('span');
+      label.textContent = t(key);
+      row.replaceChildren(...(icon ? [icon] : []), label);
       row.addEventListener('click', () => {
         overflowMenu.close();
         // The source page opens off-site, so it keeps the link's own
@@ -314,6 +319,12 @@ export function createWatchPage({
    */
   function drawRelated(item = relatedItem) {
     relatedItem = item;
+    // The gallery redraws this row whenever a card changes, so only another
+    // video folds it back up.
+    if (item?.id !== relatedFor) {
+      relatedFor = item?.id ?? null;
+      setRelatedExpanded(false);
+    }
     const panel = item ? relatedPanel(item, getItems()) : {entries: [], heading: ''};
     relatedPane.hidden = panel.entries.length === 0;
     if (relatedPane.hidden) return render(null, relatedRoot);
@@ -332,33 +343,72 @@ export function createWatchPage({
   /**
    * In the wide layout the related videos are a column beside the facts, the
    * description and the comments. It shows as many whole cards as reach the
-   * bottom of the tallest of those, so opening the comments lengthens the
-   * column with them and closing them takes it back, and it never stands
-   * far past what is beside it. Narrow, the row-fitting rules in the
-   * stylesheet decide instead. The marker is the page's own, not Preact's:
-   * a card's attributes are left alone by the render.
+   * bottom of the words in the middle, so opening the comments lengthens the
+   * column with them and closing them takes it back. It was fitted to the
+   * facts as well, but they are often the tallest, and a short description
+   * then stood between two long columns. Show more lays the rest on below.
+   * Narrow, the row-fitting rules in the stylesheet decide instead. The
+   * marker is the page's own, not Preact's: a card's attributes are left
+   * alone by the render.
    */
   const WIDE_LOWER = 980; // the watch column's width at which the stylesheet goes three columns
   const lowerNode = page.querySelector('.archive-watch-lower');
+  const relatedMore = page.querySelector('[data-related-more]');
   const RELATED_OVERSHOOT = 48;
-  const RELATED_MINIMUM = 2;
+  let relatedExpanded = false;
+  let relatedFor = null;
   function fitRelated() {
     const cards = [...relatedRoot.children];
     for (const card of cards) delete card.dataset.fit;
-    if (lowerNode.clientWidth < WIDE_LOWER || relatedPane.hidden) return;
+    // The toggle is shown or hidden once, after measuring: hidden while the
+    // cards were measured, it was out of the layout when its chevron turned,
+    // and the turn jumped rather than spun.
+    if (lowerNode.clientWidth < WIDE_LOWER || relatedPane.hidden) {
+      relatedMore.parentElement.hidden = true;
+      return;
+    }
+    // With no words beside them the cards are a grid across both columns
+    // rather than a column, fitted to the facts instead, and a row's cards
+    // share a bottom, so the same test drops whole rows. Two rows are kept
+    // there; one card is in a column, which is all a short description has
+    // room beside it for.
+    const firstTop = cards[0]?.getBoundingClientRect().top;
+    const perRow = Math.max(1, cards.filter(card => card.getBoundingClientRect().top === firstTop).length);
+    const grid = perRow > 1;
+    let bottom = sidesBottom(grid ? [factsSide] : wordSides);
+    if (!bottom) bottom = sidesBottom([factsSide]);
+    const minimum = grid ? 2 * perRow : 1;
+    let trimmed = false;
+    cards.forEach((card, index) => {
+      if (index >= minimum && card.getBoundingClientRect().bottom > bottom + RELATED_OVERSHOOT) {
+        trimmed = true;
+        if (!relatedExpanded) card.dataset.fit = 'hidden';
+      }
+    });
+    relatedMore.parentElement.hidden = !trimmed;
+  }
+  function sidesBottom(sides) {
     let bottom = 0;
-    for (const side of fitSides) {
+    for (const side of sides) {
       if (side.hidden || !side.offsetParent) continue;
       bottom = Math.max(bottom, side.getBoundingClientRect().bottom);
     }
-    cards.forEach((card, index) => {
-      if (index >= RELATED_MINIMUM && card.getBoundingClientRect().bottom > bottom + RELATED_OVERSHOOT) {
-        card.dataset.fit = 'hidden';
-      }
-    });
+    return bottom;
   }
-  const fitSides = ['.archive-watch-facts', '.archive-watch-story', '.archive-watch-discussion']
+  function setRelatedExpanded(expanded) {
+    relatedExpanded = expanded;
+    relatedMore.setAttribute('aria-expanded', String(expanded));
+    relatedMore.querySelector('[data-shelf-more-label]').textContent =
+      t(expanded ? 'watch.showLess' : 'watch.showMore');
+  }
+  relatedMore.addEventListener('click', () => {
+    setRelatedExpanded(!relatedExpanded);
+    fitRelated();
+  });
+  const factsSide = page.querySelector('.archive-watch-facts');
+  const wordSides = ['.archive-watch-story', '.archive-watch-discussion']
     .map(selector => page.querySelector(selector));
+  const fitSides = [factsSide, ...wordSides];
   // The siblings' own sizes decide the column, and the column does not decide
   // theirs, so watching them cannot loop. The width is watched too: a wider
   // column makes taller cards.

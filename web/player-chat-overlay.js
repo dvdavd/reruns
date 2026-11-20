@@ -170,6 +170,11 @@ export function createChatOverlay(node, player) {
     drag = null;
     if (!moved) return;
     const before = node.getBoundingClientRect();
+    // The new spot is taken at once, its own top and foot transitions held
+    // off until it is measured: left on, they eased the panel between rows
+    // by a second curve under the slide below, and the two summed to a
+    // lurch away from the spot and back (middle to top dipped first).
+    node.style.transition = 'none';
     node.classList.remove('is-dragging');
     node.style.translate = '';
     if (event.type === 'pointerup') {
@@ -179,6 +184,7 @@ export function createChatOverlay(node, player) {
       apply();
     }
     const after = node.getBoundingClientRect();
+    node.style.transition = '';
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     node.animate([
       {translate: `${before.left - after.left}px ${before.top - after.top}px`},

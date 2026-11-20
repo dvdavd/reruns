@@ -1,4 +1,18 @@
 .media-player, .media-player *, .media-player *::before, .media-player *::after { box-sizing: border-box; }
+/* The edge of the player's glass, the one the app's dialogs wear: lit along
+   the top and round its corners, dimming down the sides and back faintly
+   along the foot, where an inset top highlight alone left the lower edge to
+   sink into the picture. Always the dark glass's, spelt in white, since the
+   player's glass is dark over the picture in either theme. Drawn as a ring
+   cut from a filled box, as a gradient border cannot follow a radius. */
+:root {
+  --player-glass-edge: linear-gradient(#ffffff1a, #ffffff0f 12%, #ffffff08 50%, #ffffff12);
+  /* The same edge as inset shadows, for a box that scrolls: a ring over it
+     scrolls with its content. Top and foot follow the curve; the sides take
+     the ring's middle. */
+  --player-glass-edge-shadow: inset 0 1px #ffffff1a, inset 0 -1px #ffffff12, inset 1px 0 #ffffff08, inset -1px 0 #ffffff08;
+}
+:is(.media-player-controls, .media-player-volume-popup.is-open, .media-player-audio-visual)::after { content: ""; position: absolute; inset: 0; z-index: 1; padding: 1px; border-radius: inherit; pointer-events: none; background: var(--player-glass-edge); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
 /* The video and the canvas paint in their own compositing layers, which
    Firefox puts above the player's own painting and outside its rounded
    overflow clip: the corners come back square, a zoom change shows the
@@ -17,7 +31,7 @@
 .media-player[data-player-state="paused"] .media-player-poster { display: none; }
 /* Audio has no frame to replace the thumbnail when playback begins. */
 .media-player.is-audio-only .media-player-poster:not([hidden]) { display: block; z-index: 1; }
-.media-player-audio-visual { position: absolute; bottom: var(--audio-controls-bottom, 70px); left: 12px; z-index: 3; display: none; padding: 10px 14px; border-radius: 22px; background: linear-gradient(#222b, #121212c2); box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--card-accent); pointer-events: none; transition: bottom 180ms ease; }
+.media-player-audio-visual { position: absolute; bottom: var(--audio-controls-bottom, 70px); left: 12px; z-index: 3; display: none; padding: 10px 14px; border-radius: 22px; background: linear-gradient(#222b, #121212c2); box-shadow: 0 4px 18px #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--card-accent); pointer-events: none; transition: bottom 180ms ease; }
 .media-player.is-audio-only .media-player-audio-visual { display: grid; justify-items: center; }
 .media-player[data-player-state="playing"].is-controls-hidden .media-player-audio-visual { bottom: var(--audio-video-bottom, 12px); }
 .media-player-audio-icon { display: grid; width: 72px; height: 72px; place-items: center; }
@@ -43,7 +57,7 @@
 .media-player.is-projected:not(.is-raw) .media-player-video { visibility: hidden; }
 .media-player[data-player-state="playing"].is-projected:not(.is-raw) .media-player-canvas,
 .media-player[data-player-state="paused"].is-projected:not(.is-raw) .media-player-canvas { display: block; }
-.media-player-controls { --range-thumb: 14px; --range-segments: linear-gradient(transparent, transparent); position: absolute; right: auto; bottom: 10px; left: 50%; translate: -50% 0; z-index: 4; width: calc(100% - 20px); min-width: min(520px, 100vw - 32px); display: flex; height: 48px; align-items: center; gap: 8px; padding: 8px; border-radius: 999px; background: linear-gradient(#222b, #121212c2); box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005; backdrop-filter: blur(12px); opacity: 1; transition: opacity 180ms ease; }
+.media-player-controls { --range-thumb: 14px; --range-segments: linear-gradient(transparent, transparent); position: absolute; right: auto; bottom: 10px; left: 50%; translate: -50% 0; z-index: 4; width: calc(100% - 20px); min-width: min(520px, 100vw - 32px); display: flex; height: 48px; align-items: center; gap: 8px; padding: 8px; border-radius: 999px; background: linear-gradient(#222b, #121212c2); box-shadow: 0 4px 18px #0005; backdrop-filter: blur(12px); opacity: 1; transition: opacity 180ms ease; }
 /* A portrait video makes a player narrower than the row of controls needs,
    and the buttons past the seek bar were simply unreachable. The bar holds its
    own width instead and is centred on the player, so on a narrow one it stands
@@ -125,7 +139,7 @@
    the player's, so a bar elsewhere can put up the same pill (see
    lib/volume-popup.js). */
 .media-player-volume-popup { display: contents; }
-.media-player-volume-popup.is-open { --range-thumb: 14px; --range-segments: linear-gradient(transparent, transparent); position: fixed; inset: auto; display: block; width: 44px; height: 152px; margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 22px; background: linear-gradient(#222b, #121212c2); color: #fff; box-shadow: inset 0 1px #ffffff24, 0 4px 18px #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); touch-action: none; }
+.media-player-volume-popup.is-open { --range-thumb: 14px; --range-segments: linear-gradient(transparent, transparent); position: fixed; inset: auto; display: block; width: 44px; height: 152px; margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 22px; background: linear-gradient(#222b, #121212c2); color: #fff; box-shadow: 0 4px 18px #0005; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); touch-action: none; }
 .media-player-volume-popup.is-open input[type="range"] { position: absolute; top: 60px; left: 50%; display: block; width: 88px; height: 36px; margin: 0; translate: -50% -50%; rotate: -90deg; }
 .media-player.is-volume-open [data-media-volume-toggle] { background: #ffffff2e; }
 .media-player-volume-popup [data-media-mute] { display: none; }

@@ -400,7 +400,8 @@ class DownloadRoutes:
             held = self.archive.held_sources()
             if self.auth and not self._is_admin():
                 held = {source: key for source, key in held.items() if self._allowed_item(key)}
-            answer = self.browser.answer(kind, value, count, held)
+            answer = self.browser.answer(kind, value, count, held,
+                                         query.get("when", [""])[0])
         except ValueError as error:
             self.send_error(HTTPStatus.BAD_REQUEST, str(error))
             return
