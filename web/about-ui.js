@@ -51,17 +51,25 @@ export function createAboutUI({drawer, drawerClose, summary, list, report}) {
     return html`<dd class="about-update">
       <span class="about-update-status" data-error=${String(status.error)}>${status.text}</span>
       <span class="about-update-actions">
-        <select aria-label=${t('about.channel')} value=${updates.channel} disabled=${busy}
-          onChange=${event => act('/api/settings/yt-dlp-channel', {channel: event.currentTarget.value},
-            'about.error.channel')}>
-          <option value="stable">${t('about.stable')}</option>
-          <option value="nightly">${t('about.nightly')}</option>
-        </select>
+        <span class="statistics-ranking about-channel" role="group" aria-label=${t('about.channel')}>
+          ${['stable', 'nightly'].map(channel => html`<button type="button" key=${channel}
+            aria-pressed=${String(updates.channel === channel)} disabled=${busy}
+            onClick=${() => updates.channel !== channel && act('/api/settings/yt-dlp-channel',
+              {channel}, 'about.error.channel')}>${t(`about.${channel}`)}</button>`)}
+        </span>
         <button type="button" class="library-row-action" disabled=${busy}
           aria-label=${t('about.checkYtdlp')} title=${t('about.checkYtdlp')}
           onClick=${() => act('/api/yt-dlp/check', {}, 'about.error.check')}>
           ${icon('refresh')}</button>
       </span>
+      <button type="button" role="switch" disabled=${busy}
+        class="settings-row autoplay-row sponsorblock-toggle-row customisation-switch about-auto-update"
+        aria-checked=${String(updates.autoUpdate !== false)}
+        onClick=${() => act('/api/settings/yt-dlp-auto-update', {enabled: updates.autoUpdate === false},
+          'about.error.autoUpdate')}>
+        <span>${t('about.autoUpdate')}</span>
+        <span class="archive-autoplay settings-toggle" aria-hidden="true"><span class="archive-autoplay-track"><span class="archive-autoplay-knob"></span></span></span>
+      </button>
     </dd>`;
   }
 
@@ -69,7 +77,10 @@ export function createAboutUI({drawer, drawerClose, summary, list, report}) {
     summary.textContent = t('about.version', {version: about.version});
     render(aboutRows(about).map(([name, version]) => {
       const updates = name === 'yt-dlp' && about.ytdlpUpdates;
-      return html`<div class=${`about-row${updates ? ' has-update' : ''}`} key=${name}>
+      // The app, the media tools, and a yt-dlp the server keeps current each
+      // start a block of their own.
+      const starts = name === 'Reruns' || name === 'PyAV' || updates;
+      return html`<div class=${`about-row${starts ? ' starts-block' : ''}${updates ? ' has-update' : ''}`} key=${name}>
         <dt>${TOOL_LINKS[name]
           ? html`<a class="about-tool-link" href=${TOOL_LINKS[name]} target="_blank" rel="noopener noreferrer">${name}${icon('external-link')}</a>`
           : name}</dt>

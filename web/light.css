@@ -330,14 +330,16 @@
 :root[data-theme="light"] .settings-field select option,
 :root[data-theme="light"] .settings-field select optgroup { color: #202431; }
 
-:root[data-theme="light"] .sponsorblock-toggle-row .archive-autoplay-track {
+/* The player's settings menu is dark glass in either theme, so its switches
+   keep the dark look; these are for the light drawers. */
+:root[data-theme="light"] .sponsorblock-toggle-row:where(:not(.settings-popup *)) .archive-autoplay-track {
   background: #cbd0dc;
 }
-:root[data-theme="light"] .sponsorblock-toggle-row .archive-autoplay-knob {
+:root[data-theme="light"] .sponsorblock-toggle-row:where(:not(.settings-popup *)) .archive-autoplay-knob {
   background: #565d70;
 }
-:root[data-theme="light"] .sponsorblock-toggle-row[aria-checked="true"] .archive-autoplay-track { background: #f0b7b7; }
-:root[data-theme="light"] .sponsorblock-toggle-row[aria-checked="true"] .archive-autoplay-knob { background: #cc0000; }
+:root[data-theme="light"] .sponsorblock-toggle-row[aria-checked="true"]:where(:not(.settings-popup *)) .archive-autoplay-track { background: #f0b7b7; }
+:root[data-theme="light"] .sponsorblock-toggle-row[aria-checked="true"]:where(:not(.settings-popup *)) .archive-autoplay-knob { background: #cc0000; }
 :root[data-theme="light"] .customisation-switch[aria-checked="true"] .archive-autoplay-track { background: color-mix(in srgb, var(--color-accent) 40%, #fff); }
 :root[data-theme="light"] .customisation-switch[aria-checked="true"] .archive-autoplay-knob { background: var(--color-accent); }
 :root[data-theme="light"] .sponsorblock-options legend { color: var(--color-text-muted); }

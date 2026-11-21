@@ -247,6 +247,7 @@ export function createPlayerPlaylist({
     // dismissed card or stop a countdown, unless what comes next has changed.
     if (!redraw || upNext?.item.id !== before) {
       upNextDismissed = false;
+      nextSide.classList.remove('is-dismissed');
       announceNext(false);
     }
     for (const side of partSides) {
@@ -323,10 +324,16 @@ export function createPlayerPlaylist({
     side.querySelector('.archive-part-card-body')
       .addEventListener('click', () => playFromControl(step.dataset.targetId));
   }
+  // The card is also shown while pointed at, and the pointer is on it to
+  // press its cross, so closing it once only stopped the countdown and left
+  // the card in place until the pointer wandered off. It goes at once now,
+  // and pointing at the arrow again after leaving brings it back as usual.
   partNav.querySelector('[data-part-dismiss]').addEventListener('click', () => {
     upNextDismissed = true;
+    nextSide.classList.add('is-dismissed');
     announceNext(false);
   });
+  nextSide.addEventListener('pointerleave', () => nextSide.classList.remove('is-dismissed'));
 
   // The card ahead comes up for the last stretch of a part and stays through
   // its end; seeking back out of that stretch puts it away again.

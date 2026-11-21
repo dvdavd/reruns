@@ -117,10 +117,20 @@
   gap: 4px;
 }
 
-/* Versions are one raised block, as a group of Appearance settings is. */
+/* Versions are one raised group split into blocks, as Appearance's settings
+   are: the app, the media tools, and a yt-dlp the server keeps current, so
+   its switch reads as belonging to it alone. The blocks are parted by the
+   small gap and only the group's outer corners are round. Each row carries
+   the surface, so a block's padding is its outer rows'; about-ui.js marks
+   where each block starts. */
 .about-versions { margin-bottom: 8px; }
-.about-list { display: grid; gap: 2px; margin: 0; padding: 8px 0; border-radius: 14px; background: var(--raised-surface); }
-.about-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 18px; }
+.about-list { display: grid; margin: 0; padding: 0; }
+.about-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 18px; background: var(--raised-surface); }
+.about-row.starts-block { padding-top: 17px; }
+.about-row.starts-block:not(:first-child) { margin-top: 4px; }
+.about-row:is(:last-child, :has(+ .starts-block)) { padding-bottom: 17px; }
+.about-row:first-child { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+.about-row:last-child { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
 .about-row dt { font-weight: 600; }
 .about-row dt a { display: inline-flex; align-items: center; gap: 5px; color: inherit; text-decoration: none; }
 .about-row dt a .icon { width: 14px; height: 14px; opacity: .55; transition: opacity 140ms ease; }
@@ -144,13 +154,30 @@
 .library-statistics > .about-section:first-child h3 { margin-top: 0; }
 /* A yt-dlp the server keeps current itself gets a second line: when it last
    looked, and the channel and check that belong to it. */
-.about-row.has-update { flex-wrap: wrap; row-gap: 6px; }
+.about-row.has-update { flex-wrap: wrap; row-gap: 15px; }
 .about-row .about-update {
   display: flex; flex-basis: 100%; align-items: center; justify-content: space-between; gap: 12px;
   font-family: inherit; font-size: var(--font-size-helper); color: var(--shell-muted);
 }
 .about-update-status[data-error="true"] { color: #f5a39c; }
+/* Whether the daily check runs at all: a line of its own under the status,
+   the whole row its switch as Appearance's are, with the label in the row's
+   ordinary text. */
+/* The three lines - name, status, switch - sit at even steps, centre to
+   centre, about as far apart as the other blocks' rows. The pills are 28px
+   and the track 22px, so the gaps differ by half of that to keep the steps
+   equal. */
+.about-row .about-update { flex-wrap: wrap; row-gap: 13.5px; }
+/* As tall as its track, not a settings row's height, so the block's foot is
+   its padding alone. */
+.about-update .about-auto-update { flex-basis: 100%; min-height: 0; margin: 0; padding: 0; color: var(--color-text); font-size: var(--font-size-control); }
+.about-auto-update > .settings-toggle { height: auto; }
+.about-auto-update > .settings-toggle { justify-items: end; }
+.about-update .about-auto-update:disabled { opacity: .5; cursor: default; }
 .about-update-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* The release channel's pills are held while a check or an install runs, as
+   the refresh beside them is, and dim the same way. */
+.about-channel button:disabled { opacity: .35; cursor: default; pointer-events: none; }
 .about-section { padding: 0 var(--drawer-inset) 12px; }
 .about-section h3 { margin: 14px 0 0; color: var(--shell-muted); font-size: var(--font-size-label); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .about-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
@@ -978,12 +1005,6 @@ body.watch-open.is-player-immersive.is-immersive-logo-overlapped .topbar-brand {
 :root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(8) { stop-color: color-mix(in oklch, var(--video-shade-1) 12%, var(--video-shade-2)) !important; }
 :root:has(body.watch-open[data-video-colours="on"][data-watch-accent]) #reruns-rainbow stop:nth-of-type(9) { stop-color: color-mix(in oklch, var(--video-shade-1) 0%, var(--video-shade-2)) !important; }
 .customisation-switch { --watch-accent: var(--color-accent); margin-top: 12px; }
-/* The larger track and the coloured handle the light theme gave the
-   SponsorBlock switches, for both themes. */
-.sponsorblock-toggle-row .archive-autoplay-track { width: 38px; height: 22px; border-radius: 11px; }
-.sponsorblock-toggle-row .archive-autoplay-knob { top: 3px; left: 3px; width: 16px; height: 16px; }
-.customisation-switch[aria-checked="true"] .archive-autoplay-track { background: color-mix(in srgb, var(--color-accent) 75%, transparent); }
-.customisation-switch[aria-checked="true"] .archive-autoplay-knob { background: var(--color-accent-bright); }
 .customisation-switch small { display: block; margin-top: 2px; color: var(--shell-muted); font-size: var(--font-size-helper); }
 .collection-menu button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -1193,7 +1214,7 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
 /* The chat replay shares the comments' card and sits above them. It is
    its own scroller: a stream's chat is far longer than the page, and the
    list follows the video rather than the reader. */
-.archive-watch-discussion { display: grid; gap: 20px; min-width: 0; }
+.archive-watch-discussion { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
 .archive-watch-chat {
   padding: 12px 14px;
   border-radius: 12px;
@@ -1550,7 +1571,12 @@ body:has(.archive-watch.is-audio-bar:not([hidden])) .archive-shell { padding-bot
 @media (prefers-reduced-motion: reduce) {
   .archive-comments-refresh.is-spinning .icon, .archive-comments-spinner { animation-duration: 3s; }
 }
-.archive-comments { display: grid; gap: 14px; margin-top: 12px; color: var(--color-text); }
+/* Both this grid and the discussion's have a column fixed to their width.
+   Left to the implicit auto column, each was sized from the comments in it,
+   and a comment that content-visibility keeps or skips reports the width it
+   last had: narrowing the window left the card at its old width and under
+   the related videos until a scroll laid the comments out again. */
+.archive-comments { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 12px; color: var(--color-text); }
 .archive-comment { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
 .archive-comment.is-reply { grid-template-columns: 28px minmax(0, 1fr); margin-top: 12px; }
 /* A thread far off screen is not laid out or painted until it nears the

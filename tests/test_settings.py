@@ -249,6 +249,16 @@ class SettingsTests(unittest.TestCase):
         settings.path.write_text(json.dumps({**payload, "ytdlpChannel": "beta"}), encoding="utf-8")
         self.assertEqual(Settings(self.config).ytdlp_channel(), "stable")
 
+    def test_automatic_ytdlp_updates_default_on_and_persist(self):
+        settings = Settings(self.config)
+        self.assertTrue(settings.ytdlp_auto_update())
+        with self.assertRaises(ValueError):
+            settings.set_ytdlp_auto_update("off")
+        settings.set_ytdlp_auto_update(False)
+        self.assertFalse(Settings(self.config).ytdlp_auto_update())
+        settings.set_ytdlp_auto_update(True)
+        self.assertTrue(Settings(self.config).ytdlp_auto_update())
+
 
 if __name__ == "__main__":
     unittest.main()

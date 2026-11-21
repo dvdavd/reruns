@@ -107,6 +107,7 @@ class Settings:
         self._channel_profiles: dict[str, str] = {}
         self._subscription_defaults = dict(DEFAULT_SUBSCRIPTION)
         self._ytdlp_channel = "stable"
+        self._ytdlp_auto_update = True
         self._preference_defaults: dict[str, str] = {}
         self._playlists = None
         self._profiles = _starter_profiles()
@@ -160,6 +161,7 @@ class Settings:
             self._subscription_defaults = dict(DEFAULT_SUBSCRIPTION)
         channel = payload.get("ytdlpChannel")
         self._ytdlp_channel = channel if channel in YTDLP_CHANNELS else "stable"
+        self._ytdlp_auto_update = payload.get("ytdlpAutoUpdate") is not False
         try:
             self._preference_defaults = clean_values(payload.get("preferenceDefaults", {}), defaults=True)
         except ValueError:
@@ -181,6 +183,7 @@ class Settings:
             "channelProfiles": dict(sorted(self._channel_profiles.items())),
             "subscriptionDefaults": self._subscription_defaults,
             "ytdlpChannel": self._ytdlp_channel,
+            "ytdlpAutoUpdate": self._ytdlp_auto_update,
             "preferenceDefaults": dict(sorted(self._preference_defaults.items())),
         }, indent=2) + "\n", encoding="utf-8")
         temporary.replace(self.path)
@@ -257,6 +260,19 @@ class Settings:
     def ytdlp_channel(self) -> str:
         with self._lock:
             return self._ytdlp_channel
+
+    def ytdlp_auto_update(self) -> bool:
+        with self._lock:
+            return self._ytdlp_auto_update
+
+    def set_ytdlp_auto_update(self, enabled: object) -> bool:
+        if not isinstance(enabled, bool):
+            raise ValueError("enabled must be a boolean")
+        with self._lock:
+            self._ytdlp_auto_update = enabled
+            self._save()
+        self._changed()
+        return enabled
 
     def set_ytdlp_channel(self, channel: object) -> str:
         if channel not in YTDLP_CHANNELS:

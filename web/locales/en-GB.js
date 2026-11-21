@@ -417,6 +417,8 @@ export default {
   'about.nightly': 'Nightly',
   'about.checkYtdlp': 'Check for a new yt-dlp',
   'about.error.channel': 'Could not change the release channel',
+  'about.autoUpdate': 'Update automatically',
+  'about.error.autoUpdate': 'Could not change automatic updates',
   'about.error.check': 'Could not check for a new yt-dlp',
   'about.updateError': 'Could not update yt-dlp: {error}',
   'about.running': 'Running yt-dlp {version}',

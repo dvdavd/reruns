@@ -469,6 +469,38 @@ class AutoplayTests(_BrowserCase):
         self.assertGreater(shape["card"]["width"], shape["playerWidth"] - 40)
         self.assertEqual(self.failures, [])
 
+    def test_closing_the_card_puts_it_away_under_the_pointer(self):
+        # The card also shows while pointed at, and the pointer is on it to
+        # press the cross, so the cross once seemed to do nothing.
+        page = self.open_page(autoplay="on")
+        cross = """() => document.querySelector('[data-part-dismiss]')
+            .getBoundingClientRect().width > 0"""
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_function(
+            """() => { const v = document.querySelector('#archive-player video');
+                      return v && !v.paused && v.currentTime > 0.3; }""", timeout=10000)
+        # Brought out by pointing, it goes when the pointer leaves: no cross.
+        page.evaluate("document.querySelector('#archive-player video').pause()")
+        page.hover('[data-part-step="1"]')
+        page.wait_for_timeout(300)
+        self.assertFalse(page.evaluate(cross))
+        page.mouse.move(5, 5)
+        started = self.watching(page)
+        page.evaluate("""() => { const v = document.querySelector('#archive-player video');
+                                 v.currentTime = v.duration - 0.5; v.play(); }""")
+        page.wait_for_selector('[data-part-side="1"].is-announcing')
+        page.wait_for_timeout(300)
+        self.assertTrue(page.evaluate(cross))
+        page.click("[data-part-dismiss]")
+        page.wait_for_timeout(400)
+        opacity = page.evaluate("""() => getComputedStyle(document.querySelector(
+            '[data-part-side="1"] .archive-part-card')).opacity""")
+        self.assertEqual(opacity, "0")
+        # And autoplay stays put.
+        page.wait_for_timeout(3000)
+        self.assertEqual(self.watching(page), started)
+        self.assertEqual(self.failures, [])
+
     def test_playlist_only_stops_outside_a_playlist(self):
         # '1' was the old switch's on, which only ever knew playlists.
         for stored in ("playlist", "1"):
@@ -647,6 +679,31 @@ class AutoplayTests(_BrowserCase):
         switch.click()
         self.assertEqual(summary.inner_text(), "Playlist only")
         self.assertEqual(page.evaluate(f"localStorage.getItem('{AUTOPLAY_KEY}')"), "playlist")
+        self.assertEqual(self.failures, [])
+
+    def test_the_speed_figure_drags_in_tenths_and_the_buttons_stride(self):
+        page = self.open_page()
+        page.click('.thumbnail-button[aria-label="View details for Smoke Lesson One"]')
+        page.wait_for_selector("#archive-player:not([hidden])")
+        page.evaluate("document.querySelector('[data-settings-open]').click()")
+        page.wait_for_selector("#watch-settings-popup:popover-open")
+        figure = page.locator("[data-speed-summary]")
+        rate = "document.querySelector('#archive-player video').playbackRate"
+        box = figure.bounding_box()
+        x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        page.mouse.move(x, y)
+        page.mouse.down()
+        page.mouse.move(x + 24, y, steps=4)
+        self.assertEqual(figure.inner_text(), "1.3x")
+        page.mouse.up()
+        self.assertEqual(page.evaluate(rate), 1.3)
+        page.click('[data-speed-step="1"]')
+        page.click('[data-speed-step="1"]')
+        self.assertEqual(figure.inner_text(), "1.75x")
+        for shown in ("2x", "2.5x", "3x"):
+            page.click('[data-speed-step="1"]')
+            self.assertEqual(figure.inner_text(), shown)
+        self.assertEqual(page.evaluate(rate), 3)
         self.assertEqual(self.failures, [])
 
 

@@ -1785,6 +1785,10 @@ class YtDlpUpdateEndpointTests(unittest.TestCase):
     class Updates:
         def __init__(self):
             self.checks = 0
+            self.overdue = False
+
+        def due(self):
+            return self.overdue
 
         def version(self):
             return "2026.02.01"
@@ -1852,6 +1856,32 @@ class YtDlpUpdateEndpointTests(unittest.TestCase):
         self.assertEqual(self.updates.checks, 1)
         self.assertEqual(self.request("unmanaged", "POST", "/api/settings/yt-dlp-channel",
                                       {"channel": "stable"})[0], 404)
+
+    def test_with_automatic_updates_off_a_new_channel_waits_for_a_check(self):
+        self.assertEqual(self.request("managed", "POST", "/api/settings/yt-dlp-auto-update",
+                                      {"enabled": "no"})[0], 400)
+        status, _ = self.request("managed", "POST", "/api/settings/yt-dlp-auto-update",
+                                 {"enabled": False})
+        self.assertEqual(status, 200)
+        self.assertFalse(self.settings.ytdlp_auto_update())
+        self.request("managed", "POST", "/api/settings/yt-dlp-channel", {"channel": "nightly"})
+        self.assertEqual(self.settings.ytdlp_channel(), "nightly")
+        self.assertEqual(self.updates.checks, 0)
+        # A check asked for still installs, automatic updates or not.
+        self.request("managed", "POST", "/api/yt-dlp/check")
+        self.assertEqual(self.updates.checks, 1)
+        self.assertEqual(self.request("unmanaged", "POST", "/api/settings/yt-dlp-auto-update",
+                                      {"enabled": True})[0], 404)
+
+    def test_turning_automatic_updates_back_on_checks_only_when_one_is_due(self):
+        self.settings.set_ytdlp_auto_update(False)
+        self.request("managed", "POST", "/api/settings/yt-dlp-auto-update", {"enabled": True})
+        self.assertTrue(self.settings.ytdlp_auto_update())
+        self.assertEqual(self.updates.checks, 0)
+        self.settings.set_ytdlp_auto_update(False)
+        self.updates.overdue = True
+        self.request("managed", "POST", "/api/settings/yt-dlp-auto-update", {"enabled": True})
+        self.assertEqual(self.updates.checks, 1)
 
 
 class HostAllowlistTests(unittest.TestCase):

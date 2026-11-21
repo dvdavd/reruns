@@ -3,7 +3,29 @@ import {t} from './i18n.js';
 import {SPEED_GLYPH_MARKUP} from './player-speed-glyph.js';
 
 const PLAYBACK_SPEED_KEY = 'archive-playback-speed';
-const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3, 4, 6, 8];
+// The menu's buttons take big strides, widening past 2×. Dragging the figure
+// is the fine control: tenths from 0.3× to 4× (the stretch the hold on the
+// picture also covers), then the buttons' wide stops above it, where tenths
+// would only be more travel. A quarter the buttons stopped on is not on the
+// dial; a drag from one moves to the nearest tenth the way it goes.
+const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 6, 8];
+const DIAL_SPEEDS = [0.25, ...Array.from({length: 38}, (_, i) => (i + 3) / 10), 5, 6, 8];
+
+const isSpeed = rate => PLAYBACK_SPEEDS.includes(rate) || DIAL_SPEEDS.includes(rate);
+
+// A dragged speed can fall between the buttons' stops, so a button goes to
+// the next stop beyond it in its direction rather than counting from an index.
+const strideFrom = (rate, offset) => offset > 0
+  ? PLAYBACK_SPEEDS.find(stop => stop > rate)
+  : PLAYBACK_SPEEDS.findLast(stop => stop < rate);
+
+function dialFrom(rate, offset) {
+  if (!offset) return rate;
+  const index = offset > 0
+    ? DIAL_SPEEDS.findLastIndex(stop => stop <= rate)
+    : DIAL_SPEEDS.findIndex(stop => stop >= rate);
+  return DIAL_SPEEDS[Math.max(0, Math.min(DIAL_SPEEDS.length - 1, index + offset))];
+}
 
 export function createPlaybackSpeed({
   element, mediaPlayer, speedSummary, speedSteps,
@@ -11,21 +33,19 @@ export function createPlaybackSpeed({
   let playbackSpeed = 1;
   try {
     const savedSpeed = Number(preferences.getItem(PLAYBACK_SPEED_KEY));
-    if (PLAYBACK_SPEEDS.includes(savedSpeed)) playbackSpeed = savedSpeed;
+    if (isSpeed(savedSpeed)) playbackSpeed = savedSpeed;
   } catch { /* A blocked store simply starts at normal speed. */ }
   const speedLabel = rate => rate === 1 ? t('player.normal') : `${rate}x`;
 
   function drawSpeed() {
-    const step = PLAYBACK_SPEEDS.indexOf(playbackSpeed);
     speedSummary.textContent = speedLabel(playbackSpeed);
     for (const button of speedSteps) {
-      const next = PLAYBACK_SPEEDS[step + Number(button.dataset.speedStep)];
-      button.disabled = next === undefined;
+      button.disabled = strideFrom(playbackSpeed, Number(button.dataset.speedStep)) === undefined;
     }
   }
 
   function chooseSpeed(rate) {
-    if (!PLAYBACK_SPEEDS.includes(rate)) return;
+    if (!isSpeed(rate)) return;
     playbackSpeed = rate;
     drawSpeed();
     mediaPlayer.video.playbackRate = playbackSpeed;
@@ -34,22 +54,22 @@ export function createPlaybackSpeed({
   }
 
   /**
-   * The menu's speed row steps through every rate the player supports, one
-   * at a time. Its figure is a dial as well: dragged sideways it moves a rate
-   * for each stretch of travel, and a click that never became a drag goes
-   * back to normal.
+   * The menu's speed row's buttons stride between the coarse stops. Its
+   * figure is a dial as well: dragged sideways it moves a tenth for each
+   * stretch of travel, and a click that never became a drag goes back to
+   * normal.
    */
-  const stepBy = offset => chooseSpeed(PLAYBACK_SPEEDS[PLAYBACK_SPEEDS.indexOf(playbackSpeed) + offset]);
   for (const button of speedSteps) {
-    button.addEventListener('click', () => stepBy(Number(button.dataset.speedStep)));
+    button.addEventListener('click', () => chooseSpeed(strideFrom(playbackSpeed, Number(button.dataset.speedStep))));
   }
-  const DIAL_PX_PER_STEP = 18;
+  const turnDial = offset => chooseSpeed(dialFrom(playbackSpeed, offset));
+  const DIAL_PX_PER_STEP = 8;
   const DIAL_SLOP = 4;
   let dial = null;
   let dialMoved = false;
   speedSummary.addEventListener('pointerdown', event => {
     if (event.button !== 0) return;
-    dial = {x: event.clientX, pointerId: event.pointerId, step: PLAYBACK_SPEEDS.indexOf(playbackSpeed)};
+    dial = {x: event.clientX, pointerId: event.pointerId, rate: playbackSpeed};
     dialMoved = false;
     speedSummary.setPointerCapture?.(event.pointerId);
   });
@@ -58,9 +78,8 @@ export function createPlaybackSpeed({
     const travel = event.clientX - dial.x;
     if (!dialMoved && Math.abs(travel) < DIAL_SLOP) return;
     dialMoved = true;
-    const step = Math.max(0, Math.min(PLAYBACK_SPEEDS.length - 1,
-      dial.step + Math.round(travel / DIAL_PX_PER_STEP)));
-    if (PLAYBACK_SPEEDS[step] !== playbackSpeed) chooseSpeed(PLAYBACK_SPEEDS[step]);
+    const rate = dialFrom(dial.rate, Math.round(travel / DIAL_PX_PER_STEP));
+    if (rate !== playbackSpeed) chooseSpeed(rate);
   });
   for (const type of ['pointerup', 'pointercancel']) {
     speedSummary.addEventListener(type, () => { dial = null; });
@@ -75,7 +94,7 @@ export function createPlaybackSpeed({
     const offset = {ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1}[event.key];
     if (!offset) return;
     event.preventDefault();
-    stepBy(offset);
+    turnDial(offset);
   });
   drawSpeed();
 

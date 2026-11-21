@@ -311,6 +311,8 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
             self._send_json(self.updates.request_check(), head_only=False)
         elif path == "/api/settings/yt-dlp-channel" and self.updates:
             self._change_ytdlp_channel()
+        elif path == "/api/settings/yt-dlp-auto-update" and self.updates:
+            self._change_ytdlp_auto_update()
         elif path == "/api/jobs/clear":
             self._send_json({"cleared": self.downloader.clear_finished()},
                             head_only=False)
@@ -824,7 +826,8 @@ def main() -> None:
     if args.manage_yt_dlp:
         bundled = shutil.which(args.yt_dlp) or args.yt_dlp
         updates = YtDlpUpdates(config_dir / "bin", bundled=bundled,
-                               channel=settings.ytdlp_channel)
+                               channel=settings.ytdlp_channel,
+                               auto_update=settings.ytdlp_auto_update)
         args.yt_dlp = str(updates.binary)
     # Named here rather than in the page: a browser that could choose the file
     # could have yt-dlp read any file the server can.

@@ -104,8 +104,28 @@ class SettingsRoutes:
             self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, "Could not persist the channel")
             return
         # A new channel is a different latest release, so find it now rather
-        # than at the next daily check.
-        self._send_json(self.updates.request_check(), head_only=False)
+        # than at the next daily check - unless updates are left to the
+        # viewer, who then installs it from the channel by checking.
+        if self.settings.ytdlp_auto_update():
+            self._send_json(self.updates.request_check(), head_only=False)
+        else:
+            self._send_json(self.updates.status(), head_only=False)
+
+    def _change_ytdlp_auto_update(self) -> None:
+        try:
+            enabled = self.settings.set_ytdlp_auto_update(self._read_json().get("enabled"))
+        except ValueError as error:
+            self.send_error(HTTPStatus.BAD_REQUEST, str(error))
+            return
+        except OSError as error:
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not save settings: {reason(error)}")
+            return
+        # Turned back on after a day or more off, the check is overdue; make it
+        # now rather than at the timer's next tick.
+        if enabled and self.updates.due():
+            self._send_json(self.updates.request_check(), head_only=False)
+        else:
+            self._send_json(self.updates.status(), head_only=False)
 
     def _location_root(self, key: str) -> Path | None:
         """The folder a directory key from /api/directories stands for: its

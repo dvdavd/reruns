@@ -3,7 +3,9 @@
 Only a container turns this on (``--manage-yt-dlp``): a yt-dlp that came from a
 package manager belongs to it, not to us. The managed copy lives in the config
 folder, so it survives the image being replaced, and a daily check brings it up
-to date with whichever release channel the settings name.
+to date with whichever release channel the settings name. With automatic
+updates turned off the daily check stops, and only a check asked for from the
+About page installs anything.
 """
 from __future__ import annotations
 
@@ -47,7 +49,8 @@ class YtDlpUpdates:
     """The managed yt-dlp, its update checks, and what the About page is told."""
 
     def __init__(self, directory: Path, *, bundled: str | None = None,
-                 channel=lambda: "stable", fetch=_fetch, clock=time.time,
+                 channel=lambda: "stable", auto_update=lambda: True,
+                 fetch=_fetch, clock=time.time,
                  python: str = sys.executable) -> None:
         self.directory = directory
         # Callers are handed this path once and keep it. It is a small script
@@ -58,6 +61,7 @@ class YtDlpUpdates:
         # instead, and only the script is swapped.
         self.binary = directory / "yt-dlp"
         self.channel, self.fetch, self.clock, self.python = channel, fetch, clock, python
+        self.auto_update = auto_update
         self._lock = threading.Lock()
         self._worker: threading.Thread | None = None
         self._state = {"version": None, "previous": None, "latest": None,
@@ -226,10 +230,14 @@ class YtDlpUpdates:
         return ((checked is None or now - checked >= CHECK_EVERY)
                 and (attempted is None or now - attempted >= RETRY_AFTER))
 
+    def tick(self) -> None:
+        """The timer's turn: a check if one is due and updates are automatic."""
+        if self.auto_update() and self.due():
+            self.request_check()
+
     def run_forever(self) -> None:
         while True:
-            if self.due():
-                self.request_check()
+            self.tick()
             time.sleep(TICK_SECONDS)
 
     def version(self) -> str | None:
@@ -239,5 +247,6 @@ class YtDlpUpdates:
     def status(self) -> dict:
         with self._lock:
             return {"version": self._state["version"], "latest": self._state["latest"],
-                    "channel": self.channel(), "checkedAt": self._state["checkedAt"],
+                    "channel": self.channel(), "autoUpdate": self.auto_update(),
+                    "checkedAt": self._state["checkedAt"],
                     **self._activity}

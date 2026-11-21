@@ -1066,36 +1066,31 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   line-height: 1;
 }
 .playlist-icon-play { fill: currentColor; stroke: none; }
-/* Autoplay is a small switch whose knob carries a play mark, sliding over and
-   taking the video's accent when on. */
-.media-player-controls .archive-autoplay { width: 44px; border-radius: 16px; }
+/* A switch: its knob sits inside the track, and on, slides over and takes
+   the accent, the track a softer mix of it and the knob a lighter shade. */
 .archive-autoplay-track {
   position: relative;
-  width: 30px;
-  height: 12px;
-  border-radius: 6px;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
   background: #ffffff40;
   transition: background .15s ease;
 }
 .archive-autoplay-knob {
   position: absolute;
-  top: -3px;
-  left: -2px;
-  display: grid;
-  width: 18px;
-  height: 18px;
-  place-items: center;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #ddd;
-  color: #111;
   transition: transform .15s ease, background .15s ease;
 }
-.archive-autoplay-knob svg { width: 10px; height: 10px; fill: currentColor; }
 .autoplay-row[aria-checked="true"] .archive-autoplay-track {
-  background: color-mix(in srgb, var(--watch-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--watch-accent) 75%, transparent);
 }
 .autoplay-row[aria-checked="true"] .archive-autoplay-knob {
-  background: #fff;
+  background: oklch(from var(--watch-accent) calc(l + .22) c h);
   transform: translateX(16px);
 }
 /* While the list is open the bar it opened from stays put, rather than fading
@@ -1393,3 +1388,17 @@ body[data-video-colours="on"] .preview-adaptive { --pa-chrome: var(--pa-video); 
   .archive-part-title { -webkit-line-clamp: 1; }
   .archive-part-dismiss { top: 50%; translate: 0 -50%; }
 }
+
+/* Closed while pointed at: the hover that shows the card must not hold it up.
+   Last, and with the nav's class, so it outranks the narrow layout's hover. */
+.archive-part-nav .archive-part-side.is-dismissed .archive-part-card {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The cross is for a card that came up by itself, to put it away and stop
+   its countdown. One brought out by pointing goes when the pointer leaves, so
+   it has no cross, and its title takes the room. It stays through the fade
+   after being pressed rather than vanishing ahead of its card. */
+.archive-part-side:not(.is-announcing, .is-dismissed) .archive-part-dismiss { display: none; }
+.archive-part-side:not(.is-announcing, .is-dismissed) .archive-part-card-body { padding-right: 12px; }

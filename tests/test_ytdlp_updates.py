@@ -48,6 +48,7 @@ class YtDlpUpdatesTests(unittest.TestCase):
         self.bundled.write_bytes(fake_release("2026.01.01"))
         self.releases = Releases()
         self.channel = "stable"
+        self.auto = True
         self.now = 1_000_000.0
 
     def tearDown(self):
@@ -55,7 +56,8 @@ class YtDlpUpdatesTests(unittest.TestCase):
 
     def updates(self):
         return YtDlpUpdates(self.directory, bundled=str(self.bundled),
-                            channel=lambda: self.channel, fetch=self.releases,
+                            channel=lambda: self.channel, auto_update=lambda: self.auto,
+                            fetch=self.releases,
                             clock=lambda: self.now)
 
     def run_binary(self, updates):
@@ -153,6 +155,18 @@ class YtDlpUpdatesTests(unittest.TestCase):
         self.assertFalse(updates.due())
         self.now += 1
         self.assertTrue(updates.due())
+
+    def test_the_timer_leaves_a_due_check_alone_while_updates_are_off(self):
+        self.releases.publish("yt-dlp/yt-dlp", "2026.03.01")
+        self.auto = False
+        updates = self.updates()
+        self.assertTrue(updates.due())
+        self.assertFalse(updates.status()["autoUpdate"])
+        updates.tick()
+        self.assertEqual(updates.status()["state"], "idle")
+        # Asked for, a check still installs the release.
+        updates.check()
+        self.assertEqual(self.run_binary(updates), "2026.03.01")
 
     def test_state_survives_a_restart(self):
         self.releases.publish("yt-dlp/yt-dlp", "2026.02.01")

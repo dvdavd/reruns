@@ -143,7 +143,7 @@ test('with no subtitles downloaded the menu row leads to the languages instead o
   assert.equal(opened, 1);
 });
 
-test('the speed row steps through every rate, stops at the ends, and its figure goes back to normal', t => {
+test('the speed row\'s buttons stride between the coarse stops, stop at the ends, and its figure goes back to normal', t => {
   const values = environment(t, {'archive-playback-speed': '0.5'});
   const element = new Element();
   const video = new Element();
@@ -165,9 +165,34 @@ test('the speed row steps through every rate, stops at the ends, and its figure 
   speedSummary.dispatchEvent(new Event('click'));
   assert.equal(video.playbackRate, 1);
   assert.equal(values.get('archive-playback-speed'), '1');
+  for (const rate of [1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 6, 8]) {
+    faster.dispatchEvent(new Event('click'));
+    assert.equal(video.playbackRate, rate);
+  }
+  assert.equal(faster.disabled, true);
 });
 
-test('dragging the speed figure turns it like a dial, and the drag\'s click keeps the speed', t => {
+test('a speed dragged between the stops strides on to the next one either way', t => {
+  environment(t, {'archive-playback-speed': '2.3'});
+  const element = new Element();
+  const video = new Element();
+  const slower = Object.assign(new Element(), {dataset: {speedStep: '-1'}});
+  const faster = Object.assign(new Element(), {dataset: {speedStep: '1'}});
+  const speedSummary = new Element();
+  createPlaybackSpeed({element, mediaPlayer: {video, root: element},
+    speedSummary, speedSteps: [slower, faster]});
+  assert.equal(speedSummary.textContent, '2.3x');
+  faster.dispatchEvent(new Event('click'));
+  assert.equal(video.playbackRate, 2.5);
+  speedSummary.dispatchEvent(pointer('pointerdown', {clientX: 100}));
+  speedSummary.dispatchEvent(pointer('pointermove', {clientX: 76}));
+  assert.equal(video.playbackRate, 2.2);
+  speedSummary.dispatchEvent(pointer('pointerup', {clientX: 76}));
+  slower.dispatchEvent(new Event('click'));
+  assert.equal(video.playbackRate, 2);
+});
+
+test('dragging the speed figure turns it like a dial in tenths, and the drag\'s click keeps the speed', t => {
   environment(t);
   const element = new Element();
   const video = new Element();
@@ -176,15 +201,17 @@ test('dragging the speed figure turns it like a dial, and the drag\'s click keep
   speedSummary.dispatchEvent(pointer('pointerdown', {clientX: 100}));
   speedSummary.dispatchEvent(pointer('pointermove', {clientX: 102}));
   assert.equal(video.playbackRate, undefined, 'a press that has hardly moved is still a click');
-  speedSummary.dispatchEvent(pointer('pointermove', {clientX: 136}));
-  assert.equal(video.playbackRate, 1.5);
+  speedSummary.dispatchEvent(pointer('pointermove', {clientX: 108}));
+  assert.equal(video.playbackRate, 1.1);
+  speedSummary.dispatchEvent(pointer('pointermove', {clientX: 124}));
+  assert.equal(video.playbackRate, 1.3);
   speedSummary.dispatchEvent(pointer('pointermove', {clientX: 1000}));
   assert.equal(video.playbackRate, 8);
-  speedSummary.dispatchEvent(pointer('pointermove', {clientX: 82}));
-  assert.equal(video.playbackRate, 0.75);
-  speedSummary.dispatchEvent(pointer('pointerup', {clientX: 82}));
+  speedSummary.dispatchEvent(pointer('pointermove', {clientX: 84}));
+  assert.equal(video.playbackRate, 0.8);
+  speedSummary.dispatchEvent(pointer('pointerup', {clientX: 84}));
   speedSummary.dispatchEvent(new Event('click'));
-  assert.equal(video.playbackRate, 0.75);
+  assert.equal(video.playbackRate, 0.8);
   speedSummary.dispatchEvent(new Event('click'));
   assert.equal(video.playbackRate, 1);
 });
