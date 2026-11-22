@@ -8,6 +8,7 @@ import {
   StackIcon,
 } from './icons.js';
 import {createSay} from '../lib/labels.js';
+import {spriteHref} from '../lib/sprites.js';
 
 /**
  * The attributes each interactive part of the card carries so an app's
@@ -44,6 +45,18 @@ export const DEFAULT_LABELS = {
   filterBy: 'Filter by {name}', toggleFavourite: 'Toggle favourite for {name}',
 };
 export const say = createSay(DEFAULT_LABELS);
+
+/**
+ * Portrait addresses already resolved, by the owner they belong to, so a card
+ * drawn again names its picture in the markup instead of looking it up after
+ * it is in the page. Waiting for the lookup and then un-hiding the picture on
+ * load cost Safari some 10ms a card, most of a long scroll's blank pause.
+ * Keyed by the facet object rather than a name: a consumer's loader is made
+ * per card, and a person and a channel can share a name.
+ */
+const resolvedPortraits = new WeakMap();
+/** The owner each portrait image was last asked to show. */
+const portraitImages = new WeakMap();
 
 export const DEFAULT_MENU_ITEMS = [
   {action: 'edit-groups', label: 'Edit groups'},
@@ -93,7 +106,7 @@ const SourceChip = ({source, onFilterSource, hooks, labels}) => html`
     ${source.icon
       ? html`<svg class="source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  aria-hidden="true"><use href=${source.icon} /></svg>`
+                  aria-hidden="true"><use href=${spriteHref(source.icon)} /></svg>`
       : source.name}
   </button>`;
 
@@ -193,15 +206,30 @@ export function VideoCard({
   // card is drawn.
   const thumbnailSrcset = (!thumbnailUrlFor && view.thumbnail.srcset) || undefined;
 
+  // The thumbnail's attributes are in the order they must be set. Preact
+  // sets them as written, and Safari picks a source again at each: src first
+  // fetched the full-size picture, and srcset before sizes took the screen's
+  // width for the card's and fetched the 1920 copy, so each card decoded up to
+  // three pictures before settling on the one it shows. With loading and sizes
+  // in place first, srcset chooses once.
+  //
+  // With a srcset there is no src at all. Safari starts a load for each of
+  // them as it is set, even on a card not yet in the page and even when the
+  // second load picks the same picture. That is cheap in itself, but a
+  // content blocker such as Wipr checks every load against its rules, at
+  // about a millisecond apiece: there the src fallback, which no browser that
+  // draws this card needs, was a quarter of the time a long scroll took.
+  //
   // In the HereSphere browser the thumbnail itself is the play link and the
   // details button moves alongside it; elsewhere the thumbnail opens details.
   const thumbnailInner = html`
     <span class=${`thumbnail-frame${view.thumbnail.alphaPacking ? ' thumbnail-frame--alpha' : ''}`}>
-      <img class="thumbnail-image" src=${thumbnailUrl}
-           srcset=${thumbnailSrcset} sizes=${thumbnailSrcset ? thumbnailSizes : undefined}
+      <img class="thumbnail-image" loading=${thumbnailLoading} decoding="async"
+           width="640" height="360" alt=""
+           sizes=${thumbnailSrcset ? thumbnailSizes : undefined} srcset=${thumbnailSrcset}
+           src=${thumbnailSrcset ? undefined : thumbnailUrl}
            data-missing=${thumbnailUrl ? undefined : ''}
-           onError=${markThumbnailMissing} onLoad=${clearThumbnailMissing}
-           loading=${thumbnailLoading} decoding="async" width="640" height="360" alt="" />
+           onError=${markThumbnailMissing} onLoad=${clearThumbnailMissing} />
       <span class="thumbnail-chip-row">
         <span class="quality-chip watch-count-chip" hidden=${!view.watch.count}
               aria-label=${`${view.watch.count} watches`} title=${`${view.watch.count} watches`}>
@@ -279,23 +307,29 @@ export function VideoCard({
                       aria-label=${say(labels, 'showVideosBy', {name: portraitOwner.name})}
                       onClick=${() => (owner?.name ? onFilterOwner : onFilterPerson)?.(portraitOwner)}>
                 <span aria-hidden="true">${portraitOwner.name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('')}</span>
-                <img alt="" hidden decoding="async"
-                     ref=${image => {
-                       // Hidden lazy images never enter the loading viewport. Nearby
-                       // cards are already selected by the gallery virtualiser.
-                       if (!image) return;
-                       loadOwnerPortrait(portraitOwner).then(url => {
-                         if (!image.isConnected) return;
-                         if (!url) {
-                           // A card stepped on to a creator with no portrait
-                           // must not keep the last creator's face.
-                           image.hidden = true;
-                           image.removeAttribute('src');
-                         } else if (image.getAttribute('src') !== url) image.src = url;
-                       });
-                     }}
-                     onLoad=${event => { event.currentTarget.hidden = false; }}
-                     onError=${event => { event.currentTarget.hidden = true; }} />
+                ${(() => {
+                  // The picture lies over the initials, and an image with
+                  // nothing to show draws nothing, so it needs no hiding while
+                  // it loads; one that fails gives up its src to stay that way.
+                  // Without an address, as for a card stepped on to a creator
+                  // with no portrait, Preact takes the last one's away.
+                  const known = resolvedPortraits.get(portraitOwner);
+                  const lookUp = known !== undefined ? undefined : image => {
+                    if (!image) return;
+                    // An address set here is unknown to Preact, which would
+                    // leave the last creator's face on a card stepped on.
+                    if (portraitImages.get(image) !== portraitOwner) image.removeAttribute('src');
+                    portraitImages.set(image, portraitOwner);
+                    loadOwnerPortrait(portraitOwner).then(url => {
+                      resolvedPortraits.set(portraitOwner, url || '');
+                      // A card drawn for someone else since keeps their face.
+                      if (!image.isConnected || portraitImages.get(image) !== portraitOwner) return;
+                      if (url && image.getAttribute('src') !== url) image.src = url;
+                    });
+                  };
+                  return html`<img alt="" decoding="async" src=${known || undefined} ref=${lookUp}
+                                   onError=${event => event.currentTarget.removeAttribute('src')} />`;
+                })()}
               </button>
               </span>`}
             <div class=${loadOwnerPortrait ? 'card-title-copy' : 'card-title-copy card-title-copy--inline'}>

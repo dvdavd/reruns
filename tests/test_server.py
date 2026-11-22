@@ -1506,6 +1506,16 @@ class JsonResponseTests(unittest.TestCase):
         self.assertEqual(len(json.loads(body)), 21)
         self.assertNotEqual(response.getheader("ETag"), etag)
 
+    def test_a_thumbnail_is_kept_rather_than_asked_for_again_each_time_its_card_is_drawn(self):
+        (Path(self.directory.name) / "clip1.jpg").write_bytes(b"jpeg")
+        os.utime(self.directory.name, (time.time() - 100,) * 2)
+        self.get("/api/items")
+        response, body = self.get("/thumb/clip1.info.json")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(body, b"jpeg")
+        self.assertIn("max-age=", response.getheader("Cache-Control"))
+        self.assertIsNotNone(response.getheader("ETag"))
+
     def test_media_revalidates_to_304_until_the_file_changes(self):
         self.get("/api/items")  # The page loads the index before any media.
         response, body = self.get("/media/clip0.info.json")

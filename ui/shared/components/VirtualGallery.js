@@ -56,6 +56,7 @@ export class VirtualGallery {
     rowsPerChunk = 4,
     estimatedCardHeight = 290,
     overscanViewports = 1.5,
+    overscanBudgetMs = 8,
     onMount,
     onUnmount,
     onRenderCount,
@@ -70,6 +71,8 @@ export class VirtualGallery {
     this.rowsPerChunk = rowsPerChunk;
     this.estimatedCardHeight = estimatedCardHeight;
     this.overscanViewports = overscanViewports;
+    // How long a frame may spend drawing chunks beyond the screen's own.
+    this.overscanBudgetMs = overscanBudgetMs;
     this.onMount = onMount;
     this.onUnmount = onUnmount;
     this.onRenderCount = onRenderCount;
@@ -357,9 +360,21 @@ export class VirtualGallery {
     }
 
     const viewportTop = position - origin;
+    const viewportBottom = viewportTop + window.innerHeight;
+    // What is on screen is drawn now; the overscan around it only while the
+    // frame has time to spare, and the rest in the frames after. Drawn all at
+    // once, a jump's four screens of chunks kept Safari, where a chunk costs
+    // some 80ms, on a blank page for well over half a second before any of
+    // them showed.
+    const deadline = performance.now() + this.overscanBudgetMs;
+    let deferred = false;
     let drift = shift;
     for (const chunk of this.chunks) {
-      if (chunk.needed) {
+      if (chunk.needed && !chunk.mounted
+          && (chunk.top > viewportBottom || chunk.top + chunk.height < viewportTop)
+          && performance.now() > deadline) {
+        deferred = true;
+      } else if (chunk.needed) {
         const estimated = chunk.height;
         this.mountChunk(chunk);
         const elements = this.elementsForChunk(chunk);
@@ -377,6 +392,7 @@ export class VirtualGallery {
       }
     }
     if (drift) window.scrollBy(0, drift);
+    if (deferred) this.scheduleUpdate();
     // Chunks drawn just now may show rows of another height than the guesses
     // were made with, as on the first draw; guess again next frame.
     const rowHeight = learnRowHeight();

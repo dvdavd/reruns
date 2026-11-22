@@ -180,6 +180,11 @@ class BrowserSmokeTests(_BrowserCase):
             const missing = [];
             for (const use of document.querySelectorAll('use')) {
                 const [file, id] = use.getAttribute('href').split('#');
+                // A sprite brought into the page is pointed at locally.
+                if (!file) {
+                    if (!document.getElementById(id)?.closest('svg[aria-hidden="true"]')) missing.push(`#${id}`);
+                    continue;
+                }
                 const text = await (await fetch(file)).text();
                 if (!text.includes(`id="${id}"`)) missing.push(`${file}#${id}`);
             }

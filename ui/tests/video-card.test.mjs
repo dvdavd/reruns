@@ -353,7 +353,7 @@ test('saved progress is opt-in and live progress takes precedence', () => {
 
 test('a card with no picture marks its image missing so the placeholder shows', () => {
   const none = draw({item: baseItem({thumbnail: {url: ''}})});
-  assert.match(none, /<img class="thumbnail-image"[^>]*data-missing[\s=>]/);
+  assert.match(none, /<img class="thumbnail-image"[^>]*data-missing[\s=/>]/);
   // One with a picture is only marked if it fails to load, in the browser.
   assert.doesNotMatch(draw({item: baseItem()}), /data-missing/);
 });
@@ -413,4 +413,30 @@ test('a thumbnail with a srcset lets the browser pick a copy the card\'s size', 
   const chosen = draw({item: baseItem({thumbnail}), thumbnailUrlFor: () => '/other'});
   assert.doesNotMatch(chosen, /srcset|sizes=/);
   assert.doesNotMatch(draw({item: baseItem()}), /srcset|sizes=/);
+});
+
+test('an owner portrait waits over the initials without being hidden', () => {
+  const owner = {name: 'Ada Lovelace', id: 'UC1'};
+  const out = draw({item: baseItem({facets: {owner}}), loadOwnerPortrait: () => new Promise(() => {})});
+  assert.match(out, /<span aria-hidden="true">AL<\/span><img alt(="")? decoding="async"\s*\/?>/);
+  assert.doesNotMatch(out, /card-owner-portrait[^]*<img[^>]*hidden/);
+});
+
+test('a thumbnail knows how wide it is drawn before it is told where its pictures are', () => {
+  // Safari chooses a source as each attribute arrives, so src or srcset before
+  // sizes fetched pictures the card never shows.
+  const out = draw({item: baseItem({thumbnail: {url: '/thumb/a', srcset: '/thumb/a?w=640 640w'}}),
+                    thumbnailSizes: '400px'});
+  const tag = out.match(/<img class="thumbnail-image"[^>]*>/)[0];
+  const at = name => tag.indexOf(` ${name}=`);
+  assert.ok(at('loading') < at('sizes') && at('sizes') < at('srcset'), tag);
+});
+
+test('a thumbnail with a srcset has no src to start a second load', () => {
+  // Safari starts a load for src and for srcset alike, and a content blocker
+  // checks each one, at a millisecond apiece.
+  const withSet = draw({item: baseItem({thumbnail: {url: '/thumb/a', srcset: '/thumb/a?w=640 640w'}})});
+  assert.doesNotMatch(withSet.match(/<img class="thumbnail-image"[^>]*>/)[0], / src=/);
+  const plain = draw({item: baseItem({thumbnail: {url: '/thumb/a'}})});
+  assert.match(plain.match(/<img class="thumbnail-image"[^>]*>/)[0], / src="\/thumb\/a"/);
 });

@@ -242,7 +242,7 @@ const KNOWN_SOURCES = [
   [/^patreon/, 'patreon', 'Patreon'], [/^bluesky/, 'bluesky', 'Bluesky'],
   [/^googledrive/, 'google-drive', 'Google Drive'], [/^mastodon/, 'mastodon', 'Mastodon'],
 ];
-const SOURCE_SPRITE = new URL('./sources.svg', import.meta.url).href;
+export const SOURCE_SPRITE = new URL('./sources.svg', import.meta.url).href;
 
 /**
  * Where a video came from, for the logo at the front of its channel chip.

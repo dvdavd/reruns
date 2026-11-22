@@ -65,6 +65,14 @@ from .routes_settings import SettingsRoutes
 # The sidecar fields the page reads (web/item-adapter.js and watch-details.js)
 # plus the few the server itself needs. A yt-dlp sidecar is mostly formats,
 # thumbnails and captions, which is most of its size and none of the page's use.
+# How long a gallery thumbnail is used as it is. Under no-cache Safari asked
+# again for every card a scroll drew, even pictures it had shown a moment
+# before - a long jump queued a hundred 304s and the cards stayed blank until
+# they came back - where Firefox reuses a picture already in the page. A
+# thumbnail is replaced rarely (a frame stood in until the real one arrived),
+# and stale-while-revalidate shows the old one while it checks.
+THUMBNAIL_CACHE = "private, max-age=3600, stale-while-revalidate=604800"
+
 # The chat a request gets when it names no end, and the most one may ask for.
 CHAT_WINDOW_MS = 120_000
 CHAT_SPAN_LIMIT_MS = 600_000
@@ -544,7 +552,8 @@ class Handler(AccountRoutes, DownloadRoutes, LibraryRoutes, MediaRoutes, Setting
             if self.auth and not self._allowed_path(image):
                 self.send_error(HTTPStatus.NOT_FOUND)
             else:
-                self._send_file(self._sized(image), head_only=head_only)
+                self._send_file(self._sized(image), head_only=head_only,
+                                cache=THUMBNAIL_CACHE)
         elif path.startswith("/media-ui/"):
             self._send_package(path[len("/media-ui/"):], head_only=head_only)
         else:

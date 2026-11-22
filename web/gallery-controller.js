@@ -403,14 +403,19 @@ export function createGalleryController({
   const virtualGallery = new ColumnGallery({
     root,
     renderChunk(chunk, items, place) {
-      if (!chunk.host) {
+      // A new chunk is drawn before it is put in the page and goes in whole.
+      // Drawn in place, each of its cards' elements went into the live grid
+      // one at a time, and Safari spent longer on those inserts than on
+      // anything else in a long scroll: a 12-card chunk took 120ms.
+      const fresh = !chunk.host;
+      if (fresh) {
         chunk.host = document.createElement('div');
         chunk.host.className = 'gallery-chunk';
-        place(chunk.host);
       }
       render(html`<${Cards} items=${items} />`, chunk.host);
       initialiseCardAccents(chunk.host, id => store.itemForRef(id));
       galleryPlaylists.paint(chunk.host);
+      if (fresh) place(chunk.host);
     },
     unmountChunk(chunk) {
       if (!chunk.host) return;

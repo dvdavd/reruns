@@ -1,5 +1,5 @@
 import {createMenu, createStatusToast, initTopbarScroll} from 'media-ui/chrome.js';
-import {revealClippedTitles} from 'media-ui';
+import {iconSpriteUrl, inlineSprite, revealClippedTitles} from 'media-ui';
 import {browseSourceFor, createBrowseUI, isSearch, searchNeedsYouTube} from './browse-ui.js';
 import {createDirectoryUI} from './directory-ui.js';
 import {createDownloadsUI} from './downloads-ui.js';
@@ -24,8 +24,13 @@ import {subscriptionTarget} from './subscription-target.js';
 import {createSubscriptionsUI} from './subscriptions-ui.js';
 import {watchTopbarCentring} from './topbar-centring.js';
 import {followThemeColour} from './theme-colour.js';
+import {SOURCE_SPRITE} from './item-adapter.js';
 
 followThemeColour();
+// Started before anything else is asked for, so the sprites are usually in
+// the page by the time the first cards are drawn (see media-ui's sprites.js).
+inlineSprite(iconSpriteUrl());
+inlineSprite(SOURCE_SPRITE);
 
 const account = await request('/api/auth/me');
 if (account.authEnabled === false) {

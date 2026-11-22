@@ -2,12 +2,23 @@ import {galleryRoute, routeFromLocation, urlForRoute} from './routes.js';
 import {startsLikeUrl} from './download-model.js';
 import {displayedView} from './views.js';
 
+// How long typing in the search must pause before the gallery is redrawn.
+// Each redraw makes every card on screen afresh, which in Safari took long
+// enough that a redraw per key left the field trailing the typing.
+const TYPING_PAUSE_MS = 120;
+
 const here = () => `${window.location.pathname}${window.location.search}`;
 
 export function createGalleryNavigation({
   search, searchClear, player, nameOf,
   getState, onChange, draw,
 }) {
+  let typingTimer = 0;
+  function drawNow() {
+    clearTimeout(typingTimer);
+    typingTimer = 0;
+    draw();
+  }
   function queryUrl(value, active, nextView) {
     return urlForRoute({view: nextView, facet: active, query: value}, window.location.search);
   }
@@ -34,13 +45,16 @@ export function createGalleryNavigation({
    * editing it is a new search, not a search for the name.
    */
   function setQuery(value, {history = 'none', active = null, view: nextView = getState().view,
-    syncInput = true} = {}) {
+    syncInput = true, typing = false} = {}) {
     onChange({query: value, facet: active, view: nextView});
     if (syncInput) search.value = active ? nameOf(active) : value;
     // Setting the field raises no input event, so say it changed.
     if (syncInput) search.dispatchEvent(new Event('searchsync'));
     if (history !== 'none') writeHistory(history, queryUrl(value, active, nextView));
-    draw();
+    if (typing) {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(drawNow, TYPING_PAUSE_MS);
+    } else drawNow();
     // A new filter is a new list, so it starts at its top rather than wherever
     // the last one was scrolled to; a chip deep in the gallery would otherwise
     // leave its heading, and its first videos, off the screen.
@@ -77,7 +91,7 @@ export function createGalleryNavigation({
     if (next !== view || query || facet || here() !== queryUrl('', null, next)) {
       setQuery('', {history: 'push', view: next});
     } else {
-      draw();
+      drawNow();
     }
     window.scrollTo(0, 0);
   }
@@ -98,7 +112,7 @@ export function createGalleryNavigation({
     if (player.activeId()) player.close({scrollY: 0});
     const value = search.value;
     const history = !query && value ? 'push' : 'replace';
-    setQuery(value, {history});
+    setQuery(value, {history, typing: true});
   });
   search.addEventListener('keydown', event => {
     const {query, facet} = getState();

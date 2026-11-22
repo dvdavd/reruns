@@ -1,5 +1,6 @@
 // Shared SVG glyphs live in ../icons.svg. Keep styling on each instance.
 import {html} from '../lib/html.js';
+import {spriteHref} from '../lib/sprites.js';
 
 let spriteUrl = new URL('../icons.svg', import.meta.url).href;
 
@@ -7,7 +8,10 @@ export function setIconSpriteUrl(url) {
   spriteUrl = String(url);
 }
 
-export const iconHref = name => `${spriteUrl}#${name}`;
+export const iconHref = name => spriteHref(`${spriteUrl}#${name}`);
+
+/** The icon sprite's own address, for inlineSprite. */
+export const iconSpriteUrl = () => spriteUrl;
 
 export const EyeIcon = () => html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><use href=${iconHref('eye')} /></svg>`;
 
