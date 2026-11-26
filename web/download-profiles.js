@@ -40,11 +40,23 @@ const CODEC_PROBES = {
   h264: 'video/mp4; codecs="avc1.640028"',
 };
 
-/** The codec to fetch instead of one that will not play here, or null when
-    this browser plays neither. `canPlay` is a video element's canPlayType. */
-export function suggestedCodec(canPlay) {
-  const codec = Object.keys(CODEC_PROBES).find(name => canPlay(CODEC_PROBES[name]) !== '');
-  return codec ? {codec, name: CODEC_LABELS[codec]} : null;
+/**
+ * The codec to fetch instead of one that will not play here, or null when
+ * this browser decodes neither. `decodable(encoding)` answers as
+ * format-choice.js's does: false for no, null for cannot say (taken as yes).
+ * `refused` names codecs already held that this browser would not decode, so
+ * the suggestion is never a copy the video already has.
+ */
+export async function suggestedCodec(decodable, refused = []) {
+  for (const [codec, contentType] of Object.entries(CODEC_PROBES)) {
+    const name = CODEC_LABELS[codec];
+    if (refused.includes(name)) continue;
+    // A 1080p stream at 30fps, a size every decoder of the codec should
+    // manage, so the answer is about the codec and not about a 4K copy.
+    const answer = await decodable({name, contentType, width: 1920, height: 1080, framerate: 30, bitrate: 4000000});
+    if (answer !== false) return {codec, name};
+  }
+  return null;
 }
 
 // The container choices for each kind of media, shared by the profile editor and the manual overrides.

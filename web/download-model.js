@@ -1,4 +1,5 @@
 import {plural, t} from './i18n.js';
+import {audioCodecName, videoCodecName} from './codec-names.js';
 export const ACTIVE_STATES = new Set(['queued', 'inspecting', 'running', 'postprocessing', 'saving', 'discarding']);
 
 // Seed from history on the first poll, then report each new failure once.
@@ -119,24 +120,12 @@ function itemRow(item, job) {
   };
 }
 
-// Codec names are names, the same in every language, so they are not in the
-// catalogue. yt-dlp gives the codec string as the site does (avc1.64002A).
-const VIDEO_CODECS = [['avc', 'H.264'], ['h264', 'H.264'], ['vp09', 'VP9'], ['vp9', 'VP9'],
-  ['av01', 'AV1'], ['hvc1', 'H.265'], ['hev1', 'H.265'], ['h265', 'H.265']];
-const AUDIO_CODECS = [['mp4a', 'AAC'], ['aac', 'AAC'], ['opus', 'Opus'], ['vorbis', 'Vorbis'],
-  ['mp3', 'MP3'], ['flac', 'FLAC'], ['ec-3', 'E-AC-3'], ['ac-3', 'AC-3']];
-function codecName(value, names) {
-  const lower = String(value || '').toLowerCase();
-  if (!lower) return '';
-  return names.find(([prefix]) => lower.startsWith(prefix))?.[1] || lower.split('.')[0];
-}
-
 /* What yt-dlp actually fetched, as the server reported it before the
    download began: "1080p60 · H.264 · AAC". */
 export function formatLine(format) {
   if (!format) return '';
   const size = format.height ? `${format.height}p${format.fps > 30 ? format.fps : ''}` : '';
-  return [size, codecName(format.vcodec, VIDEO_CODECS), codecName(format.acodec, AUDIO_CODECS)]
+  return [size, videoCodecName(format.vcodec), audioCodecName(format.acodec)]
     .filter(Boolean).join(' · ');
 }
 

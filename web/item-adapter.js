@@ -3,6 +3,7 @@
 // here, so a change in yt-dlp's metadata only ever touches this file.
 /** @import {MediaItem} from './contracts.js' */
 import {t} from './i18n.js';
+import {audioCodecName, videoCodecName} from './codec-names.js';
 import {uploadedAtOf} from './watch-details.js';
 import {thumbnailSrcset} from './thumbnail-sizes.js';
 
@@ -66,6 +67,12 @@ const VIDEO_CODECS = [
   [/^(?:avc1|avc3)\./, 'H.264'], [/^(?:hvc1|hev1)\./, 'HEVC'],
 ];
 const VIDEO_CONTAINERS = {webm: 'video/webm', mp4: 'video/mp4', m4v: 'video/mp4'};
+// An MKV is not a container a browser can be asked about, but whether it can
+// decode the picture is a question about the codec alone: the container is
+// read natively or remuxed (media-provider.js) either way. So the codec is put
+// to it in the container it is usually carried in.
+const CODEC_CONTAINERS = {AV1: 'video/mp4', 'H.264': 'video/mp4', HEVC: 'video/mp4',
+  VP9: 'video/webm', VP8: 'video/webm'};
 
 /**
  * How the picture is encoded, in the terms MediaCapabilities asks for, so the
@@ -77,7 +84,7 @@ const VIDEO_CONTAINERS = {webm: 'video/webm', mp4: 'video/mp4', m4v: 'video/mp4'
 function encodingOf(raw, container) {
   const codec = raw.vcodec && raw.vcodec !== 'none' ? String(raw.vcodec) : '';
   const name = VIDEO_CODECS.find(([pattern]) => pattern.test(codec))?.[1];
-  const type = VIDEO_CONTAINERS[container];
+  const type = VIDEO_CONTAINERS[container] || (container === 'mkv' ? CODEC_CONTAINERS[name] : '');
   if (!name || !type) return null;
   const duration = Number(raw.duration || 0);
   const size = Number(raw.filesize || raw.filesize_approx || 0);
@@ -545,9 +552,18 @@ function formatLabelOf(item) {
   return item.quality || part.resolution;
 }
 
-/** A codec as a viewer would name it: AV1 rather than av01.0.12M.08. */
+/** A codec as a viewer would name it: AV1 rather than av01.0.12M.08. Named
+ *  from the codec string, not the encoding: the encoding is only worked out
+ *  where a browser can be asked about it, and a copy without one (an MKV
+ *  once, or an extractor's bare "h264") showed yt-dlp's own string instead. */
 export function codecNameOf(format) {
-  return format.encoding?.name || format.codec || '';
+  return videoCodecName(format.videoCodec || (format.audioOnly ? '' : format.codec))
+    || format.encoding?.name || '';
+}
+
+/** The sound's codec as a viewer would name it: AAC rather than mp4a.40.2. */
+export function audioCodecNameOf(format) {
+  return audioCodecName(format.audioCodec);
 }
 
 function formatOf(item) {

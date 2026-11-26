@@ -575,9 +575,24 @@ def recording_finalise_command(partial: Path, target: Path) -> list[str]:
     reorder by more than a fraction of a second, so the clamp only catches
     those frames."""
     return ["ffmpeg", "-nostdin", "-y", "-i", str(partial), "-c:v", "copy",
-            "-bsf:v", r"setts=pts=if(gt(PTS-DTS\,10/TB)\,DTS\,PTS)",
-            "-c:a", RECORDING_AUDIO_CODECS.get(target.suffix.lower(), "aac"), "-b:a", "192k",
-            "-movflags", "+faststart", str(target)]
+            "-bsf:v", SPLICE_TIMESTAMP_CLAMP,
+            "-c:a", RECORDING_AUDIO_CODECS.get(target.suffix.lower(), "aac"),
+            "-b:a", RECORDING_AUDIO_BITRATE, "-movflags", "+faststart", str(target)]
+
+
+RECORDING_AUDIO_BITRATE = "192k"
+SPLICE_TIMESTAMP_CLAMP = r"setts=pts=if(gt(PTS-DTS\,10/TB)\,DTS\,PTS)"
+
+# A stream that ends by itself is finished by yt-dlp, not by
+# recording_finalise_command: its FixupM3u8 copies the transport stream into
+# MP4, and the copy brings back both splice faults that command repairs. A
+# recording of Ashens came out 48 kHz throughout with 44.1 kHz audio after the
+# ad. yt-dlp puts these after its own "-c copy", so the audio is encoded and
+# the video still copied. Liveness is only known once yt-dlp is running, so
+# every HLS download into MP4 has its audio encoded again, which costs little
+# beside the download itself.
+SPLICE_FIXUP_ARGUMENTS = (f"FixupM3u8:-c:a aac -b:a {RECORDING_AUDIO_BITRATE} "
+                          f"-bsf:v '{SPLICE_TIMESTAMP_CLAMP}'")
 
 
 def final_extension(options: dict[str, str], ext: str, acodec: str) -> str:
@@ -1261,6 +1276,7 @@ class Downloader:
             "--write-info-json", "--write-thumbnail", "--no-overwrites", "--continue",
             "--paths", str(root or self.root), "--output", template,
             "--yes-playlist" if options["playlist"] == "all" else "--no-playlist",
+            "--postprocessor-args", SPLICE_FIXUP_ARGUMENTS,
         ]
         if fields := folder_fields(template):
             # "_" rather than "..", so no field can climb out of --paths; see

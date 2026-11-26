@@ -79,11 +79,15 @@ test('a preferred codec is named, and never on audio', () => {
   assert.ok(!profileLabel({options: {media: 'audio', codec: 'h264'}}).includes('H.264'));
 });
 
-test('suggests the first codec the browser will play, and nothing when it plays none', () => {
-  const plays = (...codecs) => type => (codecs.some(codec => type.includes(codec)) ? 'probably' : '');
-  assert.deepEqual(suggestedCodec(plays('vp09', 'avc1')), {codec: 'vp9', name: 'VP9'});
-  assert.deepEqual(suggestedCodec(plays('avc1')), {codec: 'h264', name: 'H.264'});
-  assert.equal(suggestedCodec(plays()), null);
+test('suggests the first codec the browser will decode, and nothing when it decodes none', async () => {
+  const decodes = (...codecs) => async ({contentType}) => codecs.some(codec => contentType.includes(codec));
+  assert.deepEqual(await suggestedCodec(decodes('vp09', 'avc1')), {codec: 'vp9', name: 'VP9'});
+  assert.deepEqual(await suggestedCodec(decodes('avc1')), {codec: 'h264', name: 'H.264'});
+  assert.equal(await suggestedCodec(decodes()), null);
+  // A codec held already and refused is not suggested again.
+  assert.deepEqual(await suggestedCodec(decodes('vp09', 'avc1'), ['VP9']), {codec: 'h264', name: 'H.264'});
+  // A browser that cannot say is taken to manage.
+  assert.deepEqual(await suggestedCodec(async () => null), {codec: 'vp9', name: 'VP9'});
 });
 
 test("browse offers the profiles with the default marked, and no manual overrides", () => {

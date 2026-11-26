@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {deletionPrompt, deletionVersions, playlistDeletion, survivingFormatId} from '../web/delete-dialog.js';
+import {deletionPrompt, deletionVersions, filenameEnds, playlistDeletion, survivingFormatId} from '../web/delete-dialog.js';
 import {groupFormats, selectFormat, toMediaItem} from '../web/item-adapter.js';
 
 const format = {bytes: bytes => `${bytes} B`};
@@ -29,7 +29,7 @@ test('lists every copy of a video that was downloaded more than once', () => {
   assert.deepEqual(versions.map(version => version.id),
     ['clip.4k.info.json', 'clip.1080p.info.json']);
   assert.deepEqual(versions.map(version => version.label), ['4K', '1080p']);
-  assert.deepEqual(versions.map(version => version.detail), ['avc1 · WEBM · 5000 B', 'avc1 · MP4 · 900 B']);
+  assert.deepEqual(versions.map(version => version.detail), ['H.264 · WEBM · 5000 B', 'H.264 · MP4 · 900 B']);
   assert.equal(versions[0].filename, 'clip.4k.mp4');
   assert.match(deletionPrompt(item, versions).note, /on disk 2 times/);
   assert.equal(deletionPrompt(item, versions).title, 'Delete “A clip”?');
@@ -40,7 +40,7 @@ test('lists the one file of a video downloaded once', () => {
   const versions = deletionVersions(item, format);
 
   assert.deepEqual(versions, [{
-    id: 'clip.info.json', label: '720p', detail: 'avc1 · MP4 · 40 B', filename: 'clip.mp4',
+    id: 'clip.info.json', label: '720p', detail: 'H.264 · MP4 · 40 B', filename: 'clip.mp4',
   }]);
   assert.match(deletionPrompt(item, versions).note, /cannot be undone/);
 });
@@ -92,4 +92,12 @@ test('a personal playlist says its videos are kept', () => {
   const item = toMediaItem(copyRaw('clip.info.json', {filesize: 40}));
   const plan = playlistDeletion({title: 'Mine', manual: true, items: [item]}, format);
   assert.match(plan.note, /keep every file and remove only the playlist/);
+});
+
+test('trims a filename from the middle, keeping the format ids and extension whole', () => {
+  assert.deepEqual(filenameEnds('A long video title [dQw4w9WgXcQ] [137+140].mkv'),
+    ['A long video title [dQw4w9WgXcQ]', ' [137+140].mkv']);
+  assert.deepEqual(filenameEnds('no brackets at all in this one.mp4'),
+    ['no brackets at all', ' in this one.mp4']);
+  assert.deepEqual(filenameEnds('short.mp4'), ['', 'short.mp4']);
 });

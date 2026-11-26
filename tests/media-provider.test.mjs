@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {ArchiveMediaProvider, continuingSubtitleLine, nextSubtitleWordTime, slideSubtitleRows, subtitleContentAt, subtitleRows, subtitleDockTarget,
+import {acceptedMime, ArchiveMediaProvider, continuingSubtitleLine, nextSubtitleWordTime, slideSubtitleRows, subtitleContentAt, subtitleRows, subtitleDockTarget,
         visibleSubtitleCues} from '../web/media-provider.js';
 import {applyPlaybackPositions, positionKey} from '../web/playback-position.js';
 
@@ -170,4 +170,17 @@ test('timestamped caption words appear as their times arrive', () => {
   assert.equal(nextSubtitleWordTime([timedCue], 0.3), 0.44);
   assert.equal(nextSubtitleWordTime([timedCue], 0.5), 0.72);
   assert.equal(nextSubtitleWordTime([timedCue], 0.8), Infinity);
+});
+
+test('a remux of Opus audio is declared as MP4 spells it when the browser refuses the lowercase name', () => {
+  // Safari's answers: MP4 registers Opus as "Opus", and Safari takes no other.
+  const safari = {isTypeSupported: mime => !/\bopus\b/.test(mime)};
+  const others = {isTypeSupported: () => true};
+  const none = {isTypeSupported: () => false};
+  const mime = 'video/mp4; codecs="vp09.00.10.08, opus"';
+  assert.equal(acceptedMime(mime, safari), 'video/mp4; codecs="vp09.00.10.08, Opus"');
+  assert.equal(acceptedMime(mime, others), mime);
+  assert.equal(acceptedMime(mime, none), '');
+  assert.equal(acceptedMime('video/mp4; codecs="avc1.640028, mp4a.40.2"', safari),
+    'video/mp4; codecs="avc1.640028, mp4a.40.2"');
 });

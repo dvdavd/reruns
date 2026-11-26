@@ -115,6 +115,8 @@
 :is(.media-player-controls, .media-player-volume-popup) input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--range-accent); }
 .media-player-message { position: absolute; top: 12px; left: 12px; z-index: 5; padding: 7px 10px; border-radius: 7px; background: #090909d9; }
 .media-player-message[hidden] { display: none; }
+.media-player-message-action { margin-left: 6px; padding: 3px 10px; border: 0; border-radius: 999px; background: #ffffff2e; color: #fff; font: inherit; cursor: pointer; }
+.media-player-message-action:is(:hover, :focus-visible) { background: #ffffff4d; }
 /* Under the bar and its popups, over the picture; it takes no clicks, so a
    tap still reaches the picture beneath. */
 .media-player-spinner { position: absolute; inset: 0; z-index: 3; width: 44px; height: 44px; margin: auto; border: 3px solid #ffffff38; border-top-color: #fff; border-radius: 50%; background: #0000004d; box-shadow: 0 0 0 6px #0000004d; pointer-events: none; animation: media-player-spin 900ms linear infinite; }

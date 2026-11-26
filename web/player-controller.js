@@ -8,7 +8,8 @@ import {createTrackControls} from './player-tracks.js';
 import {createPlayerElement, MediaPlayer, render} from 'media-ui';
 import {request} from './api.js';
 import {setPageTitle} from './page-title.js';
-import {applyItemDetails} from './item-adapter.js';
+import {applyItemDetails, selectFormat} from './item-adapter.js';
+import {createFormatChooser} from './format-choice.js';
 import {followPosition, rectKey} from './popover.js';
 import {ArchiveMediaProvider} from './media-provider.js';
 import {initialiseAmbientGlow, initialisePlayerHeader} from './ambient-glow.js';
@@ -123,7 +124,9 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
   const timeline = createPlayerTimeline({page, element, mediaPlayer, seekInput, chapterMarkers, halfThumb, onAspect: setAspect,
     refitSettings: name => refitSettingsPage?.(name)});
 
-  const watchPage = createWatchPage({page, element, mediaPlayer,
+  // Which copy of a video plays here, and what to fetch when none will.
+  const formatChooser = createFormatChooser();
+  const watchPage = createWatchPage({page, element, mediaPlayer, formatChooser,
     getActiveItem: () => getItems().find(entry => entry.id === activeId), getItems: () => getItems(),
     open, timeline, seekInput, drawFormats: item => trackControls.drawFormats(item),
     drawSubtitles: item => trackControls.drawSubtitles(item)});
@@ -348,8 +351,21 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     settingsPopup.addEventListener(type, event => event.stopPropagation());
   }
 
+  // Counts loads that pick a copy first, so one overtaken while the browser
+  // was being asked does not carry on over the newer one.
+  let choosing = 0;
+  /** Switches `item` to the copy this device should play (format-choice.js),
+   *  and says whether the load that asked is still the latest. */
+  async function choosePlayableCopy(item) {
+    const token = ++choosing;
+    const id = await formatChooser.choose(item);
+    if (token !== choosing) return false;
+    if (id && id !== (item.archive?.formatId || item.id)) selectFormat(item, id);
+    return true;
+  }
+
   const trackControls = createTrackControls({
-    mediaPlayer, provider, getActiveItem: () => getItems().find(entry => entry.id === activeId),
+    mediaPlayer, provider, formatChooser, getActiveItem: () => getItems().find(entry => entry.id === activeId),
     onFormatChange: drawFileFacts, report, settingsPopup,
     subtitleList, subtitleSummary, subtitleEmpty, subtitleDownloads, subtitleDownloadOffers, subtitleToggle, subtitleSwitch,
     audioRow, audioList, audioSummary, formatPopup, formatEntries, formatOpen, formatLabelNode,
@@ -410,6 +426,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
    * be a jolt halfway into it.
    */
   async function loadIntoCorner(entry, {fromStart = false} = {}) {
+    if (!await choosePlayableCopy(entry)) return;
     miniItem = entry;
     page.classList.toggle('is-audio-bar', inBar(entry));
     timeline.setItem(entry);
@@ -541,7 +558,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
       playlistEntries.querySelector('.is-current')?.scrollIntoView({block: 'nearest'});
       drawPlaylistScroll();
     });
-  followOpener(formatPopup, formatOpen, placePopup(formatPopup, formatOpen, 260));
+  followOpener(formatPopup, formatOpen, placePopup(formatPopup, formatOpen, 440));
   const placeSettingsBase = placePopup(settingsPopup, settingsOpen, null);
   const placeSettings = () => {
     placeSettingsBase();
@@ -617,6 +634,7 @@ export function createPlayerController(page, report, {openAppearance} = {}) {
     // The same video is already playing in the corner: bring it back rather
     // than reloading it, which would restart it from the saved position.
     if (miniItem?.id === item.id) return restoreMini(options);
+    if (!await choosePlayableCopy(item)) return;
     const wasMini = Boolean(miniItem);
     miniItem = null;
     page.classList.remove('is-mini', 'is-audio-bar');

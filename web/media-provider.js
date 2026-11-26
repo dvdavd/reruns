@@ -253,6 +253,15 @@ export function playsMatroska(part, probe = globalThis.document?.createElement('
   return probe.canPlayType(`video/x-matroska; codecs="${codecs.join(', ')}"`) === 'probably';
 }
 
+/** The remux's MIME type in a spelling this browser's MediaSource accepts,
+ *  or '' when it accepts none. MP4 registers Opus as "Opus", and Safari
+ *  refuses the lowercase "opus" that FFmpeg and other browsers use, so an
+ *  MKV with Opus audio fell back to the raw file, which Safari cannot play. */
+export function acceptedMime(mime, mediaSource = globalThis.MediaSource) {
+  const spellings = [mime, mime.replace(/\bopus\b/, 'Opus')];
+  return spellings.find(spelling => mediaSource?.isTypeSupported(spelling)) || '';
+}
+
 export class ArchiveMediaProvider extends LocalMediaProvider {
   /**
    * Where the next load should start, when the caller knows better than the
@@ -312,8 +321,9 @@ export class ArchiveMediaProvider extends LocalMediaProvider {
           const wanted = preferredAudio(plan.audioTracks, rememberedAudioLanguage());
           if (wanted && wanted.index !== plan.audio) plan = await fetchPlan(wanted.index) || plan;
         }
-        if (plan && (plan.duration || source.durationSeconds) > 0 && MediaSource.isTypeSupported(plan.mime)) {
-          remux = {...plan, url: `/stream/${key}`};
+        const mime = plan && acceptedMime(plan.mime);
+        if (mime && (plan.duration || source.durationSeconds) > 0) {
+          remux = {...plan, mime, url: `/stream/${key}`};
           source.durationSeconds = plan.duration || source.durationSeconds;
         }
       } catch { /* Native playback remains available when remuxing is unavailable. */ }

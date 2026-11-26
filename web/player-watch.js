@@ -1,7 +1,6 @@
 import {formatBytes, formatDuration, html, iconHref, render, revealClippedTitles, VideoCard} from 'media-ui';
 import {accentFromImage, whenImageLoaded} from 'media-ui/accent.js';
 import {createAnchoredMenu} from './popover.js';
-import {suggestedCodec} from './download-profiles.js';
 import {createChatSection} from './player-chat.js';
 import {createCommentsSection} from './comments-ui.js';
 import {channelIdOf, createChannelImages} from './channel-image.js';
@@ -29,7 +28,7 @@ export function samplePosterAccent(item, poster, currentId, apply, sample = acce
 }
 
 export function createWatchPage({
-  page, element, mediaPlayer, getActiveItem,
+  page, element, mediaPlayer, formatChooser, getActiveItem,
   getItems, open, timeline, seekInput,
   drawFormats, drawSubtitles,
 }) {
@@ -115,21 +114,33 @@ export function createWatchPage({
     const item = getActiveItem();
     if (item) deleteVideo?.(item);
   });
-  downloadButton.addEventListener('click', () => {
+  async function openDownloadFrom(anchor, {toggle = false} = {}) {
     const item = getActiveItem();
     if (!item || !openDownload) return;
     const encoding = item.parts?.[0]?.encoding;
     const unplayable = element.classList.contains('is-unplayable');
-    const suggestion = unplayable ? suggestedCodec(type => mediaPlayer.video.canPlayType(type)) : null;
-    // The popup ignores a press on its own button (downloads-ui.js), so this
-    // click is what closes it when it is already open.
-    openDownload(downloadButton, {
-      toggle: true,
+    const suggestion = unplayable ? await formatChooser.suggest(item) : null;
+    openDownload(anchor, {
+      toggle,
       url: item.archive.webpageUrl,
       suggestion,
       note: suggestion ? t('watch.wontPlay', {name: encoding?.name || t('watch.thisVideo'), suggestion: suggestion.name}) : '',
     });
-  });
+  }
+  // The popup ignores a press on its own button (downloads-ui.js), so this
+  // click is what closes it when it is already open.
+  downloadButton.addEventListener('click', () => openDownloadFrom(downloadButton, {toggle: true}));
+  // A video none of whose copies this browser decodes (the best one that does
+  // would have been chosen, format-choice.js) offers, on the player's own
+  // message, to fetch a codec that will play, wherever downloading is allowed.
+  mediaPlayer.unplayableAction = async () => {
+    const item = getActiveItem();
+    if (downloadButton.hidden || !openDownload || !item) return null;
+    const suggestion = await formatChooser.suggest(item);
+    return suggestion
+      ? {label: t('watch.downloadPlayable', {name: suggestion.name}), run: anchor => openDownloadFrom(anchor)}
+      : null;
+  };
   // On a narrow page the rarer actions fold into one menu (see the
   // `is-secondary` rule in web/styles). Each row presses the real button, so
   // its handler, state and permissions stay where they were.

@@ -266,6 +266,13 @@ test('an audio-only file is identified from media dimensions', () => {
   assert.ok(!classes.has('is-audio-only'));
 });
 
+test('a picture whose size comes after the metadata takes back the audio-only look', async () => {
+  // Safari through MediaSource: loadedmetadata at 0x0, then a resize to the size.
+  const source = await import('node:fs/promises').then(fs =>
+    fs.readFile(new URL('../shared/components/MediaPlayer.js', import.meta.url), 'utf8'));
+  assert.match(source, /addEventListener\('resize', \(\) => this\.updateMediaKind\(\)\)/);
+});
+
 test('a codec the browser disowns is named before play is pressed', async () => {
   await withCapabilities(null, async () => {
     const player = decodePlayer('');
@@ -403,4 +410,16 @@ test('a mouse is left to the browser, and a long press raises no menu over a but
     t.fire('pointerdown');
     assert.equal(t.fire('contextmenu').prevented, true);
   } finally { t.restore(); }
+});
+
+test('a host can offer a way out on the cannot-play message', async () => {
+  await withCapabilities(null, async () => {
+    const player = decodePlayer('');
+    let action = null;
+    player.showMessage = (message, offered) => { player.message = message; action = offered; };
+    player.unplayableAction = () => ({label: 'Download as VP9', run() {}});
+    await player.checkDecodable({encoding: av1}, 1);
+    await new Promise(resolve => setTimeout(resolve));
+    assert.equal(action.label, 'Download as VP9');
+  });
 });

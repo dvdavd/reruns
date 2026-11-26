@@ -115,16 +115,24 @@
 }
 .playlist-entry:hover { background: #ffffff14; }
 .playlist-entry.is-current { background: color-mix(in srgb, var(--watch-accent) 22%, transparent); }
-/* The formats panel holds names and sizes rather than thumbnails, so it is
-   only as wide as those read. */
-.format-popup { width: 260px; }
-.format-popup-list { display: grid; gap: 2px; }
-.format-entry {
+/* The formats panel is a table without the lines: quality, codec, container,
+   sound and size, each in a column of its own so a glance down it compares
+   copies. It is given 440px, which every column fits in without cutting
+   anything short; a player narrower than that takes each row onto two lines
+   (the container query below) rather than ellipsing the quality away. */
+.format-popup { container-type: inline-size; }
+.format-popup-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 9px;
+  grid-template-columns: max-content max-content max-content minmax(0, 1fr) auto;
+  gap: 2px 0;
+}
+.format-entry {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: 10px;
+  padding: 7px 10px;
   border: 0;
   border-radius: 12px;
   background: none;
@@ -133,11 +141,52 @@
   cursor: pointer;
 }
 .format-entry:hover { background: #ffffff14; }
+/* A copy this browser says it cannot decode: still there to pick, since the
+   answer can be wrong, but faded so it is not the one reached for. */
+.format-entry.is-refused > * { opacity: .45; }
 .format-entry[aria-pressed="true"] {
   background: color-mix(in srgb, var(--watch-accent) 22%, transparent);
 }
-.format-entry-name { overflow: hidden; font-size: var(--font-size-body); text-overflow: ellipsis; white-space: nowrap; }
-.format-entry-detail { color: var(--shell-muted); font-size: var(--font-size-control); }
+.format-entry-name { font-size: var(--font-size-body); font-weight: 600; white-space: nowrap; }
+.format-entry-codec, .format-entry-container { display: flex; }
+.format-entry-audio { color: var(--shell-muted); font-size: var(--font-size-control); white-space: nowrap; }
+.format-entry-size {
+  justify-self: end;
+  color: var(--shell-muted);
+  font-size: var(--font-size-control);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* A codec is coloured by its family so the eye finds the AV1 copy without
+   reading; the panel is dark in either theme, so the hues are fixed. The
+   container is a frame rather than a fill, being the less telling of the two. */
+.format-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #ffffff1f;
+  color: #fff;
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.format-chip[data-codec="av1"] { background: #9c6bff40; color: #d9c7ff; }
+.format-chip[data-codec="vp9"], .format-chip[data-codec="vp8"] { background: #3fbf7f38; color: #a8ecc8; }
+.format-chip[data-codec="h264"] { background: #4a90e240; color: #bcd8ff; }
+.format-chip[data-codec="h265"] { background: #f0a43a3d; color: #ffd9a3; }
+.format-chip.is-container { background: none; box-shadow: inset 0 0 0 1px #ffffff3d; color: #ffffffc8; }
+@container (max-width: 380px) {
+  .format-popup-list { grid-template-columns: minmax(0, 1fr); }
+  .format-entry {
+    grid-template-columns: max-content max-content minmax(0, 1fr) auto;
+    row-gap: 5px;
+    column-gap: 6px;
+  }
+  .format-entry-name { grid-column: 1 / 4; }
+  .format-entry-size { grid-column: 4; grid-row: 1; }
+  .format-entry-audio { grid-column: 3 / -1; }
+}
 /* The main page is wider than the pages it leads to, since its rows carry a
    switch or a stepper as well as a chevron. On a phone it takes what the
    screen has, less the inset the menu is placed with. The change of width is
@@ -1312,6 +1361,13 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
    truncate rather than scroll the list sideways, and the sizes line up in a
    column at the right. */
 .confirm-dialog.is-playlist { width: min(640px, calc(100vw - 32px)); }
+/* A video's copies open out to the length of their filenames, as far as a
+   playlist's panel does, so a name is only trimmed once the room runs out. */
+#delete-dialog:not(.is-playlist) {
+  width: fit-content;
+  min-width: min(420px, calc(100vw - 32px));
+  max-width: min(640px, calc(100vw - 32px));
+}
 .confirm-dialog-list { overflow-x: hidden; }
 .is-playlist .delete-version-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .is-playlist .delete-version-detail { justify-self: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1343,12 +1399,16 @@ body:is(:not([data-view="playlists"]), .watch-open) .topbar-new-playlist {
 .delete-version-detail { color: var(--shell-muted); font-size: var(--font-size-helper); }
 .delete-version-file {
   grid-column: 2 / -1;
-  overflow: hidden;
+  display: flex;
+  min-width: 0;
   color: var(--shell-muted);
   font-size: var(--font-size-helper);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: pre;
 }
+/* Trimmed from the middle (filenameEnds in delete-dialog.js): the title half
+   gives way, and the format ids and extension at the end never do. */
+.delete-version-file-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.delete-version-file-tail { flex: none; }
 .delete-version.is-sole .delete-version-file { grid-column: 1 / -1; }
 /* Cancel is held apart from the two that delete, so the pointer cannot slip
    from backing out into removing everything. */

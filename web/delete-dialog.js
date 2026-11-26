@@ -46,6 +46,19 @@ export function deletionVersions(item, format = {}) {
   }));
 }
 
+/**
+ * A filename cut in two for trimming from the middle: what tells two copies
+ * apart is at the end (yt-dlp's format ids and the extension), and the start
+ * is the title the panel has just said. The tail is the bracketed format and
+ * all after it where there is one, otherwise the last few characters.
+ */
+export function filenameEnds(filename) {
+  const name = String(filename || '');
+  const bracket = name.lastIndexOf(' [');
+  const cut = bracket > 0 && name.length - bracket <= 40 ? bracket : Math.max(0, name.length - 16);
+  return [name.slice(0, cut), name.slice(cut)];
+}
+
 /** Keep the playing copy if it survives; otherwise take the next listed copy. */
 export function survivingFormatId(item, chosen) {
   const current = item.archive?.formatId || item.id;
@@ -184,7 +197,16 @@ export function createDeleteDialog(dialog, {format = {}} = {}) {
       detail.textContent = version.detail;
       const file = document.createElement('span');
       file.className = 'delete-version-file';
-      file.textContent = version.filename;
+      // Two halves so only the first gives way when the name is too long:
+      // the ellipsis lands in the title and the format ids stay readable.
+      // The whole name is the tooltip.
+      file.title = version.filename;
+      file.replaceChildren(...filenameEnds(version.filename).map((part, index) => {
+        const half = document.createElement('span');
+        half.className = index ? 'delete-version-file-tail' : 'delete-version-file-head';
+        half.textContent = part;
+        return half;
+      }));
       row.append(box, name, detail, file);
       row.classList.toggle('is-sole', single);
       return row;

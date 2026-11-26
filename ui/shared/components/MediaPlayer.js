@@ -182,6 +182,10 @@ export class MediaPlayer {
     this.viewButton.addEventListener('click', () => this.setRaw(!this.raw));
     this.resetButton.addEventListener('click', () => this.resetView());
     this.video.addEventListener('loadedmetadata', () => { this.updateMediaKind(); if (this.resumeSeconds > 0) this.video.currentTime = Math.min(this.resumeSeconds, Math.max(0, this.video.duration - 1)); this.updateControls(); this.draw(); });
+    // Safari fed through MediaSource reports metadata before the picture's
+    // size, which arrives in a resize after, so a video judged at
+    // loadedmetadata alone stayed marked audio-only behind its note.
+    this.video.addEventListener('resize', () => this.updateMediaKind());
     this.video.addEventListener('timeupdate', () => this.updateControls());
     // A spinner once the picture has been waiting a moment: a seek into what
     // is not loaded yet, a stall, a stream that is slow to start. Not at
@@ -328,6 +332,15 @@ export class MediaPlayer {
   showUnplayable(message) {
     this.root.classList.add('is-unplayable');
     this.showMessage(message);
+    // A host may know a way out - another copy to fetch, say - and offers it
+    // as a button on the message. `unplayableAction(source)` returns, or
+    // settles with, {label, run} or nothing; by then the player may have
+    // moved on to another source, which keeps its own message.
+    const source = this.source;
+    const token = this.loadToken;
+    Promise.resolve(this.unplayableAction?.(source)).then(action => {
+      if (action && token === this.loadToken && this.source === source) this.showMessage(message, action);
+    }, () => {});
   }
 
   /**
@@ -644,6 +657,18 @@ export class MediaPlayer {
       this.spinner.hidden = !this.isWaiting();
     }, 400);
   }
-  showMessage(message) { this.message.textContent = message; this.message.hidden = false; }
+  showMessage(message, action = null) {
+    this.message.textContent = message;
+    if (action?.label && action.run) {
+      const button = this.message.ownerDocument.createElement('button');
+      button.type = 'button';
+      button.className = 'media-player-message-action';
+      button.textContent = action.label;
+      // The message sits over the picture, whose clicks play and pause.
+      button.addEventListener('click', event => { event.stopPropagation(); action.run(event.currentTarget); });
+      this.message.append(' ', button);
+    }
+    this.message.hidden = false;
+  }
   hideMessage() { this.message.hidden = true; this.message.textContent = ''; }
 }

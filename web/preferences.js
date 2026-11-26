@@ -13,8 +13,11 @@ import {request} from './api.js';
  */
 const POSITION_PREFIX = 'reruns.playback:';
 // Where a window was last browsing, and the palette's early stylesheet, belong
-// to this browser and are derived from other keys rather than chosen.
-const LOCAL_ONLY = new Set(['archive-directory', 'archive-palette-style']);
+// to this browser and are derived from other keys rather than chosen. The
+// codec last picked in the format chooser is this device's too: it is picked
+// for what this device decodes well, which another of the account's may not,
+// and there is no admin default for it to fall back to.
+const LOCAL_ONLY = new Set(['archive-directory', 'archive-palette-style', 'archive-preferred-codec']);
 // Chosen per browser rather than per account, as a slow device may want it off
 // where a fast one wants it on; but a browser that has never chosen still
 // follows the admin's default.

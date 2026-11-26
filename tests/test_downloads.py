@@ -1145,32 +1145,61 @@ class PauseResumeTests(unittest.TestCase):
             self.assertEqual((job.state, item.state), ('cancelled', 'cancelled'))
             self.assertEqual([path.name for path in root.iterdir()], ['Live 20_10.mp4'])
 
+    @staticmethod
+    def _spliced_capture(root: Path) -> Path:
+        """A transport stream like yt-dlp's live capture: a 48 kHz ad, then a
+        44.1 kHz stream, three seconds of each."""
+        for name, rate, offset in (('ad.ts', 48000, 0), ('stream.ts', 44100, 3)):
+            subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=s=64x64:r=30',
+                            '-f', 'lavfi', '-i', f'sine=f=440:r={rate}', '-t', '3',
+                            '-c:v', 'libx264', '-g', '30', '-c:a', 'aac', '-ar', str(rate),
+                            '-output_ts_offset', str(offset), '-f', 'mpegts', str(root / name)],
+                           check=True)
+        (root / 'live.m3u8').write_text(
+            '#EXTM3U\n#EXT-X-TARGETDURATION:3\n#EXTINF:3,\nad.ts\n'
+            '#EXT-X-DISCONTINUITY\n#EXTINF:3,\nstream.ts\n#EXT-X-ENDLIST\n')
+        # What yt-dlp's FFmpeg downloader writes while it records.
+        subprocess.run(['ffmpeg', '-v', 'error', '-i', str(root / 'live.m3u8'), '-c', 'copy',
+                        '-f', 'mpegts', str(root / 'Live.mp4.part')], check=True)
+        return root / 'Live.mp4.part'
+
+    def _assert_audio_whole(self, path: Path):
+        decoded = subprocess.run(['ffmpeg', '-v', 'quiet', '-i', str(path),
+                                  '-map', '0:a', '-f', 's16le', '-ac', '1', '-ar', '48000', '-'],
+                                 check=True, capture_output=True).stdout
+        # A copy decodes to about 5.82 s, because the 44.1 kHz half loses 8%.
+        self.assertAlmostEqual(len(decoded) / 2 / 48000, 6.05, delta=0.08)
+
     @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
     def test_a_recording_whose_audio_rate_changes_at_a_splice_is_finalised_at_one_rate(self):
         """Twitch splices a 48 kHz ad onto a 44.1 kHz stream. A copy into MP4
         labels all of it 48 kHz, so the 44.1 kHz half decodes short."""
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for name, rate, offset in (('ad.ts', 48000, 0), ('stream.ts', 44100, 3)):
-                subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=s=64x64:r=30',
-                                '-f', 'lavfi', '-i', f'sine=f=440:r={rate}', '-t', '3',
-                                '-c:v', 'libx264', '-g', '30', '-c:a', 'aac', '-ar', str(rate),
-                                '-output_ts_offset', str(offset), '-f', 'mpegts', str(root / name)],
-                               check=True)
-            (root / 'live.m3u8').write_text(
-                '#EXTM3U\n#EXT-X-TARGETDURATION:3\n#EXTINF:3,\nad.ts\n'
-                '#EXT-X-DISCONTINUITY\n#EXTINF:3,\nstream.ts\n#EXT-X-ENDLIST\n')
-            # What yt-dlp's FFmpeg downloader writes while it records.
-            subprocess.run(['ffmpeg', '-v', 'error', '-i', str(root / 'live.m3u8'), '-c', 'copy',
-                            '-f', 'mpegts', str(root / 'Live.mp4.part')], check=True)
-
-            subprocess.run(recording_finalise_command(root / 'Live.mp4.part', root / 'Live.mp4'),
+            partial = self._spliced_capture(Path(directory))
+            subprocess.run(recording_finalise_command(partial, partial.with_suffix('')),
                            check=True, capture_output=True)
-            decoded = subprocess.run(['ffmpeg', '-v', 'quiet', '-i', str(root / 'Live.mp4'),
-                                      '-map', '0:a', '-f', 's16le', '-ac', '1', '-ar', '48000', '-'],
-                                     check=True, capture_output=True).stdout
-            # A copy decodes to about 5.82 s, because the 44.1 kHz half loses 8%.
-            self.assertAlmostEqual(len(decoded) / 2 / 48000, 6.05, delta=0.08)
+            self._assert_audio_whole(partial.with_suffix(''))
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
+    def test_a_stream_that_ends_by_itself_is_fixed_up_at_one_rate(self):
+        """A stream that ends without Stop is finished by yt-dlp's FixupM3u8,
+        which copies unless the download's command tells it otherwise."""
+        try:
+            import yt_dlp
+            from yt_dlp.postprocessor import FFmpegFixupM3u8PP
+        except ImportError:
+            self.skipTest('needs yt-dlp')
+        command = Downloader(Path('/tmp/archive'))._command('https://example.test/live',
+                                                            dict(DEFAULT_OPTIONS))
+        # Parsed by yt-dlp itself, so the quoting round the clamp is tested too.
+        arguments = command[command.index('--postprocessor-args'):][:2]
+        params = yt_dlp.parse_options(arguments).ydl_opts
+        with tempfile.TemporaryDirectory() as directory, \
+                yt_dlp.YoutubeDL({**params, 'quiet': True, 'no_warnings': True}) as ydl:
+            target = self._spliced_capture(Path(directory)).rename(Path(directory) / 'Live.mp4')
+            FFmpegFixupM3u8PP(ydl).run({'filepath': str(target), 'ext': 'mp4',
+                                        'protocol': 'm3u8_native'})
+            self._assert_audio_whole(target)
 
     def test_stopping_a_recording_in_a_batch_leaves_the_batch_running(self):
         downloader = Downloader(Path('/tmp/archive'))

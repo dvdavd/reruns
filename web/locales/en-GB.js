@@ -900,6 +900,8 @@ export default {
   'watch.spec.file': 'File',
   'watch.fps': '{fps} fps',
   'watch.format': 'Format: {label}',
+  'watch.formatWontPlay': 'This browser cannot play {name} video',
+  'watch.downloadPlayable': 'Download as {name}',
   'watch.playingNext': 'Playing next',
   'watch.upNext': 'Up next',
   'watch.channelOf': '{owner} channel',

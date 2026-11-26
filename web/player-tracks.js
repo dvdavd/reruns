@@ -1,12 +1,12 @@
 import {formatBytes, html, render} from 'media-ui';
-import {codecNameOf, currentFormat, selectFormat} from './item-adapter.js';
+import {audioCodecNameOf, codecNameOf, currentFormat, selectFormat} from './item-adapter.js';
 import {preferences} from './preferences.js';
 import {t} from './i18n.js';
 
 /** Where the chosen subtitle language is kept between videos and sessions. */
 const SUBTITLE_KEY = 'archive-subtitle-language';
 export function createTrackControls({
-  mediaPlayer, provider, getActiveItem, onFormatChange,
+  mediaPlayer, provider, formatChooser, getActiveItem, onFormatChange,
   report, settingsPopup, subtitleList, subtitleSummary,
   subtitleEmpty, subtitleDownloads, subtitleDownloadOffers, subtitleToggle, subtitleSwitch,
   audioRow, audioList, audioSummary, formatPopup,
@@ -237,15 +237,27 @@ export function createTrackControls({
     formatLabelNode.textContent = current.shortLabel || current.label;
     formatOpen.title = t('watch.format', {label: current.label});
     formatOpen.setAttribute('aria-label', t('watch.format', {label: current.label}));
-    render(item.archive.formats.map(entry => html`
-      <button class="format-entry" type="button" key=${entry.id}
+    // One cell per fact, each kept even when empty, so the list's subgrid
+    // lines every row's chips and sizes up in the same columns.
+    render(item.archive.formats.map(entry => {
+      const codec = codecNameOf(entry);
+      // A copy this browser has said it cannot decode stays choosable (the
+      // answer can be wrong), but is dimmed so it is not the one reached for.
+      const refused = Boolean(formatChooser?.refused(entry));
+      return html`
+      <button class=${`format-entry${refused ? ' is-refused' : ''}`} type="button" key=${entry.id}
+              title=${refused ? t('watch.formatWontPlay', {name: codec}) : null}
               aria-pressed=${String(entry.id === current.id)}
               onClick=${() => chooseFormat(entry.id)}>
         <span class="format-entry-name">${entry.shortLabel || entry.label}</span>
-        <span class="format-entry-detail">${[codecNameOf(entry),
-          entry.container && entry.container.toUpperCase(),
-          entry.sizeBytes ? formatBytes(entry.sizeBytes) : ''].filter(Boolean).join(' · ')}</span>
-      </button>`), formatEntries);
+        <span class="format-entry-codec">${codec && html`
+          <span class="format-chip" data-codec=${codec.toLowerCase().replace(/\W/g, '')}>${codec}</span>`}</span>
+        <span class="format-entry-container">${entry.container && html`
+          <span class="format-chip is-container">${entry.container.toUpperCase()}</span>`}</span>
+        <span class="format-entry-audio">${audioCodecNameOf(entry)}</span>
+        <span class="format-entry-size">${entry.sizeBytes ? formatBytes(entry.sizeBytes) : ''}</span>
+      </button>`;
+    }), formatEntries);
   }
 
   /**
@@ -258,6 +270,7 @@ export function createTrackControls({
     const item = getActiveItem();
     formatPopup.hidePopover?.();
     if (!item || !selectFormat(item, formatId)) return;
+    formatChooser?.remember(item, currentFormat(item));
     const position = mediaPlayer.absoluteTime();
     const playing = !mediaPlayer.video.paused;
     drawFormats(item);

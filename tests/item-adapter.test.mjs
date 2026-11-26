@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {applyItemDetails, currentFormat, groupFormats, selectFormat, sourceUrlFor,
+import {applyItemDetails, audioCodecNameOf, codecNameOf, currentFormat, groupFormats, selectFormat, sourceUrlFor,
         toMediaItem} from '../web/item-adapter.js';
 
 test('adapts yt-dlp metadata and persisted favourite state', () => {
@@ -203,6 +203,20 @@ test('names an audio-only copy, and tells same-quality copies apart', () => {
     ['1080p · MP4', '1080p · WEBM', 'Audio only']);
 });
 
+test('names an MKV copy\'s codecs as a viewer would, not as yt-dlp spells them', () => {
+  // An MKV has no encoding worked out for it (a browser cannot be asked about
+  // the container), which once left the switcher showing avc1.64002A.
+  const [item] = groupFormats([
+    toMediaItem(copyRaw('clip.mkv.info.json', {width: 1920, height: 1080, ext: 'mkv',
+                                               vcodec: 'avc1.64002A', acodec: 'mp4a.40.2'})),
+    toMediaItem(copyRaw('clip.webm.info.json', {width: 1280, height: 720, ext: 'webm',
+                                                vcodec: 'vp09.00.40.08', acodec: 'opus'})),
+    toMediaItem(copyRaw('clip.m4a.info.json', {vcodec: 'none', acodec: 'mp4a.40.2', ext: 'm4a'})),
+  ]);
+  assert.deepEqual(item.archive.formats.map(codecNameOf), ['H.264', 'VP9', '']);
+  assert.deepEqual(item.archive.formats.map(audioCodecNameOf), ['AAC', 'Opus', 'AAC']);
+});
+
 test('switches an item to another of its formats, keeping the video itself', () => {
   const [item] = groupFormats([
     toMediaItem(copyRaw('clip.1080p.info.json', {width: 1920, height: 1080, filesize: 900})),
@@ -313,7 +327,10 @@ test('leaves the encoding out rather than asking about one it cannot state', () 
   // A bare "avc1" would be refused as a codec string by a browser that plays it.
   assert.equal(encodingOf({vcodec: 'avc1'}), null);
   assert.equal(encodingOf({vcodec: 'none', acodec: 'mp4a.40.2', ext: 'm4a'}), null);
-  assert.equal(encodingOf({vcodec: 'avc1.640028', ext: 'mkv'}), null);
+  assert.equal(encodingOf({vcodec: 'avc1', ext: 'mkv'}), null);
+  // An MKV's codec is put to the browser in the container it usually comes in.
+  assert.equal(encodingOf({vcodec: 'avc1.640028', ext: 'mkv'}).contentType, 'video/mp4; codecs="avc1.640028"');
+  assert.equal(encodingOf({vcodec: 'vp09.00.40.08', ext: 'mkv'}).contentType, 'video/webm; codecs="vp09.00.40.08"');
   assert.equal(encodingOf({vcodec: 'vp9', ext: 'webm'}).name, 'VP9');
 });
 
